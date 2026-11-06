@@ -1,0 +1,179 @@
+/**
+ * Red Vibrant Theme for QuizApp Local
+ * Accent variation based on Academic Pro architecture.
+ * Bold Red Accent: #dc2626
+ */
+
+:root {
+  --red-primary: #dc2626;
+  --red-primary-dark: #991b1b;
+  --red-primary-light: #f87171;
+  --red-primary-subtle: #fee2e2;
+  --red-gradient-primary: linear-gradient(135deg, #dc2626 0%, #f87171 50%, #fb7185 100%);
+  --red-gradient-secondary: linear-gradient(135deg, #fff5f5 0%, #ffecec 100%);
+}
+
+html[data-app-theme="red"],
+body.red-theme-page {
+  --app-primary: #dc2626;
+  --app-primary-hover: #b91c1c;
+  --app-primary-dark: #991b1b;
+  --app-primary-subtle: #fee2e2;
+  --app-primary-text: #dc2626;
+  --app-primary-rgb: 220, 38, 38;
+
+  --bs-primary: #dc2626;
+  --bs-primary-rgb: 220, 38, 38;
+  --bs-link-color: #dc2626;
+  --bs-link-color-rgb: 220, 38, 38;
+  --bs-link-hover-color: #b91c1c;
+  --bs-link-hover-color-rgb: 185, 28, 28;
+  --bs-focus-ring-color: rgba(220, 38, 38, 0.25);
+  --app-focus-ring: #ef4444;
+
+  --app-accent-gradient: linear-gradient(135deg, #991b1b 0%, #dc2626 48%, #f87171 100%);
+  --app-header-gradient: linear-gradient(135deg, #dc2626 0%, #f87171 100%);
+  --app-sidebar-bg: #450a0a;
+  --app-sidebar-bg-end: #1c0a0a;
+  --app-sidebar-active: #b91c1c;
+
+  --app-chart-1: #dc2626;
+  --app-chart-2: #fb7185;
+  --primary-color: #dc2626;
+  --primary-dark: #991b1b;
+
+  --app-bg: #fff5f5;
+  --app-surface: #ffffff;
+  --app-surface-subtle: #ffecec;
+  --app-surface-hover: #ffe2e2;
+  --app-surface-active: #fdd6d6;
+
+  --app-border: #f5d0d0;
+  --app-border-subtle: #fce8e8;
+  --app-border-strong: #e9b4b4;
+  --app-content-wash: radial-gradient(1200px 420px at 100% 0%, rgba(220, 38, 38, 0.1), transparent 62%);
+}
+
+.red-theme-page .app-header {
+  background: linear-gradient(135deg, #dc2626 0%, #f87171 100%) !important;
+  border-bottom: 0 !important;
+  box-shadow: 0 4px 16px rgba(220, 38, 38, 0.2) !important;
+}
+
+.red-theme-page .app-sidebar {
+  background: linear-gradient(180deg, #dc2626, #991b1b) !important;
+  border-right: 3px solid #fb7185 !important;
+  box-shadow: 4px 0 16px rgba(220, 38, 38, 0.15) !important;
+}
+
+.red-theme-page .app-content-header-inner {
+  border-left-color: #dc2626 !important;
+}
+
+.red-theme-page .app-content {
+  background: linear-gradient(135deg, #fff5f5 0%, #fee2e2 100%) !important;
+  color: #450a0a !important;
+}
+
+.red-theme-page .card {
+  border-color: rgba(220, 38, 38, 0.2) !important;
+}
+
+.red-theme-page .card-header {
+  background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%) !important;
+  border-bottom-color: #991b1b !important;
+}
+
+.red-theme-page .card-footer {
+  background: #fee2e2 !important;
+  border-top-color: rgba(220, 38, 38, 0.2) !important;
+}
+
+.red-theme-page .btn-primary {
+  background: linear-gradient(135deg, #991b1b 0%, #dc2626 50%, #f87171 100%) !important;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.25) !important;
+}
+
+.red-theme-page .btn-primary:hover {
+  background: #991b1b !important;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.35) !important;
+}
+
+.red-theme-page .btn-outline-primary {
+  color: #dc2626 !important;
+  border-color: #dc2626 !important;
+}
+
+.red-theme-page .btn-outline-primary:hover {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+}
+
+.red-theme-page .table > thead th,
+.red-theme-page .table thead th {
+  background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%) !important;
+  border-color: #dc2626 !important;
+}
+
+.red-theme-page .table-hover > tbody > tr:hover {
+  background-color: #fee2e2 !important;
+}
+
+.red-theme-page .modal-header {
+  background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%) !important;
+  border-bottom-color: #991b1b !important;
+}
+
+.red-theme-page .modal-footer {
+  background: #fee2e2 !important;
+}
+
+.red-theme-page .form-control:focus,
+.red-theme-page .form-select:focus {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 0.2rem rgba(220, 38, 38, 0.2) !important;
+}
+
+.red-theme-page .nav-tabs .nav-link.active {
+  color: #dc2626 !important;
+  border-top-color: #dc2626 !important;
+}
+
+.red-theme-page .nav-pills .nav-link.active {
+  background-color: #dc2626 !important;
+}
+
+.red-theme-page .page-item.active .page-link {
+  background-color: #dc2626 !important;
+  border-color: #dc2626 !important;
+}
+
+/* Content Area Theme Cascade Overrides */
+.red-theme-page .app-content .card-header {
+  background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%) !important;
+  border-color: #991b1b !important;
+  color: #ffffff !important;
+}
+
+.red-theme-page .app-content .btn-primary {
+  background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%) !important;
+  border-color: #991b1b !important;
+  color: #ffffff !important;
+}
+
+.red-theme-page .app-content .table > thead > tr > th {
+  background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%) !important;
+  border-color: #991b1b !important;
+  color: #ffffff !important;
+}
+
+.red-theme-page .app-content .form-control,
+.red-theme-page .app-content .form-select {
+  border-color: rgba(220, 38, 38, 0.45) !important;
+}
+
+.red-theme-page .app-content .form-control:focus,
+.red-theme-page .app-content .form-select:focus {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 0.2rem rgba(220, 38, 38, 0.2) !important;
+}

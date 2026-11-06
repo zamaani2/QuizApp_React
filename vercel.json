@@ -1,0 +1,19 @@
+{
+  "env": {
+    "DEBUG": "False",
+    "ALLOWED_HOSTS": "quiz-system.vercel.app"
+  },
+  "builds": [
+    {
+      "src": "quiz_system/wsgi.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "quiz_system/wsgi.py"
+    }
+  ],
+  "buildCommand": "pip install -r requirements.txt && python manage.py collectstatic --noinput"
+}

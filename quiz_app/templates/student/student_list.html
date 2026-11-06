@@ -1,0 +1,285 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Student Management{% endblock title %}
+
+{% block page_title %}Student Management{% endblock page_title %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">
+  <a href="{% url 'quiz_app:dashboard' %}">Home</a>
+</li>
+<li class="breadcrumb-item active" aria-current="page">Students</li>
+{% endblock breadcrumb %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">
+          <i class="bi bi-people me-2"></i>All Students
+        </h3>
+        <div class="card-tools">
+          <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            id="addStudentBtn"
+            data-modal-url="{% url 'quiz_app:student_create' %}"
+            data-modal-title="Add New Student"
+          >
+            <i class="bi bi-plus-circle me-1"></i>Add Student
+          </button>
+          <button
+            type="button"
+            class="btn btn-success btn-sm"
+            id="importStudentsBtn"
+            data-modal-url="{% url 'quiz_app:student_bulk_import' %}"
+            data-modal-title="Bulk Import Students"
+          >
+            <i class="bi bi-upload me-1"></i>Import CSV
+          </button>
+          {% if user.role == "superadmin" %}
+          <select class="form-select form-select-sm d-inline-block w-auto" id="exportSchoolFilter" aria-label="Export target school">
+            <option value="">Select export school</option>
+            {% for school in export_schools %}
+            <option value="{{ school.id }}">{{ school.name }}</option>
+            {% endfor %}
+          </select>
+          {% endif %}
+          <a class="btn btn-outline-success btn-sm" data-export-format="csv" href="{% url 'quiz_app:student_export' 'csv' %}">
+            <i class="bi bi-filetype-csv me-1"></i>Export CSV
+          </a>
+          <a class="btn btn-outline-success btn-sm" data-export-format="xlsx" href="{% url 'quiz_app:student_export' 'xlsx' %}">
+            <i class="bi bi-filetype-xlsx me-1"></i>Export XLSX
+          </a>
+          <button
+            type="button"
+            class="btn btn-danger btn-sm"
+            id="bulkDeleteBtn"
+            data-modal-url="{% url 'quiz_app:student_bulk_delete' %}?status={{ status_filter }}"
+            data-modal-title="{% if status_filter == 'archived' %}Bulk Restore Students{% else %}Bulk Archive Students{% endif %}"
+            disabled
+          >
+            {% if status_filter == 'archived' %}<i class="bi bi-arrow-counterclockwise me-1"></i>Restore Selected{% else %}<i class="bi bi-archive me-1"></i>Archive Selected{% endif %}
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        <!-- Filters -->
+        <div class="row mb-3">
+          <div class="col-md-3">
+            <label class="visually-hidden" for="searchInput">Search students</label>
+            <input
+              type="text"
+              class="form-control"
+              id="searchInput"
+              placeholder="Search by name, admission number, email..."
+              value="{{ search_query }}"
+            />
+          </div>
+          <div class="col-md-2">
+            <label class="visually-hidden" for="formFilter">Filter by form</label>
+            <select class="form-select" id="formFilter">
+              <option value="">All Forms</option>
+              {% for form in forms %}
+              <option value="{{ form.id }}" {% if form_filter == form.id|stringformat:"s" %}selected{% endif %}>
+                {{ form.name }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="visually-hidden" for="genderFilter">Filter by gender</label>
+            <select class="form-select" id="genderFilter">
+              <option value="">All Genders</option>
+              <option value="M" {% if gender_filter == 'M' %}selected{% endif %}>Male</option>
+              <option value="F" {% if gender_filter == 'F' %}selected{% endif %}>Female</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="visually-hidden" for="classFilter">Filter by class</label>
+            <select class="form-select" id="classFilter">
+              <option value="">All Classes</option>
+              {% for class_obj in classes %}
+              <option value="{{ class_obj.id }}" {% if class_filter == class_obj.id|stringformat:"s" %}selected{% endif %}>
+                {{ class_obj.name }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="visually-hidden" for="statusFilter">Filter by student status</label>
+            <select class="form-select" id="statusFilter">
+              <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active Students</option>
+              <option value="archived" {% if status_filter == 'archived' %}selected{% endif %}>Archived Students</option>
+              <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Students</option>
+            </select>
+          </div>
+          <div class="col-md-1">
+            <button type="button" class="btn btn-secondary" id="clearFiltersBtn">
+              <i class="bi bi-x-circle me-1"></i>Clear Filters
+            </button>
+          </div>
+        </div>
+
+        <!-- Students Table -->
+        <div class="table-responsive">
+        <table id="studentsTable" class="table table-bordered table-striped table-hover">
+          <thead>
+            <tr>
+              <th width="30">
+                <input type="checkbox" id="selectAll" aria-label="Select all students on this page" />
+              </th>
+              <th>Admission Number</th>
+              <th>Full Name</th>
+              <th>Form</th>
+              <th>Class</th>
+              <th>Gender</th>
+              <th>Email</th>
+              <th>Parent Contact</th>
+              <th width="150">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for student in students %}
+            <tr data-student-id="{{ student.id }}">
+              <td>
+                <input type="checkbox" class="student-checkbox" value="{{ student.id }}" aria-label="Select {{ student.full_name }}" />
+              </td>
+              <td>{{ student.admission_number }}</td>
+              <td>
+                {% if student.profile_picture %}
+                <img
+                  src="{{ student.profile_picture.url }}"
+                  alt="{{ student.full_name }}"
+                  class="rounded-circle me-2"
+                  width="32"
+                  height="32"
+                />
+                {% else %}
+                <img
+                  src="{% static 'img/no_user_img.png' %}"
+                  alt="{{ student.full_name }}"
+                  class="rounded-circle me-2"
+                  width="32"
+                  height="32"
+                />
+                {% endif %}
+                {{ student.full_name }}
+                {% if not student.is_active %}<span class="badge bg-secondary ms-1">Archived</span>{% endif %}
+              </td>
+              <td>
+                {% if student.current_form %}
+                  {{ student.current_form.name }}
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+              <td>
+                {% with current_class=student.get_current_class %}
+                  {% if current_class %}
+                    {{ current_class.name }}
+                  {% else %}
+                    -
+                  {% endif %}
+                {% endwith %}
+              </td>
+              <td>
+                {% if student.gender == 'M' %}
+                <span class="badge bg-primary">Male</span>
+                {% else %}
+                <span class="badge bg-danger">Female</span>
+                {% endif %}
+              </td>
+              <td>{{ student.email|default:"-" }}</td>
+              <td>{{ student.parent_contact }}</td>
+              <td>
+                <div class="btn-group" role="group">
+                  <a
+                    href="{% url 'quiz_app:student_detail' student.id %}"
+                    class="btn btn-sm btn-info"
+                    title="View Details"
+                    aria-label="View {{ student.full_name }} details"
+                  >
+                    <i class="bi bi-eye"></i>
+                  </a>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-warning edit-student-btn"
+                    data-modal-url="{% url 'quiz_app:student_edit' student.id %}"
+                    data-modal-title="Edit Student"
+                    title="Edit"
+                    aria-label="Edit {{ student.full_name }}"
+                  >
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  {% if student.is_active %}
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-warning delete-student-btn"
+                    data-student-id="{{ student.id }}"
+                    data-student-name="{{ student.full_name }}"
+                    title="Archive student"
+                    aria-label="Archive {{ student.full_name }}"
+                  >
+                    <i class="bi bi-archive"></i>
+                  </button>
+                  {% else %}
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-success restore-student-btn"
+                    data-student-id="{{ student.id }}"
+                    data-student-name="{{ student.full_name }}"
+                    data-restore-url="{% url 'quiz_app:student_restore' student.id %}"
+                    title="Restore student"
+                    aria-label="Restore {{ student.full_name }}"
+                  >
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                  </button>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="9" class="py-5 text-center">
+                <i class="bi bi-people fs-2 d-block mb-2 text-muted" aria-hidden="true"></i>
+                <strong>No students found</strong>
+                <p class="text-muted mb-0">Try adjusting the filters or add a student to this school.</p>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+        {% if page_obj.paginator.num_pages > 1 %}
+        <nav aria-label="Student list pages">
+          <ul class="pagination justify-content-center mt-3">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ page_obj.previous_page_number }}&search={{ search_query|urlencode }}&form={{ form_filter|urlencode }}&learning_area={{ learning_area_filter|urlencode }}&gender={{ gender_filter|urlencode }}&class={{ class_filter|urlencode }}&status={{ status_filter|urlencode }}">Previous</a>
+            </li>
+            {% endif %}
+            <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+            {% if page_obj.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ page_obj.next_page_number }}&search={{ search_query|urlencode }}&form={{ form_filter|urlencode }}&learning_area={{ learning_area_filter|urlencode }}&gender={{ gender_filter|urlencode }}&class={{ class_filter|urlencode }}&status={{ status_filter|urlencode }}">Next</a>
+            </li>
+            {% endif %}
+          </ul>
+        </nav>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Container -->
+<div id="studentModalsContainer"></div>
+
+{% endblock content %}
+
+{% block extra_js %}
+<script src="{% static 'js/student_management.js' %}"></script>
+{% endblock extra_js %}

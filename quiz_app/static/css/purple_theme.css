@@ -1,0 +1,179 @@
+/**
+ * Purple Vibrant Theme for QuizApp Local
+ * Accent variation based on Academic Pro architecture.
+ * Violet Accent: #7c3aed
+ */
+
+:root {
+  --purple-primary: #7c3aed;
+  --purple-primary-dark: #5b21b6;
+  --purple-primary-light: #a855f7;
+  --purple-primary-subtle: #ede9fe;
+  --purple-gradient-primary: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #c084fc 100%);
+  --purple-gradient-secondary: linear-gradient(135deg, #f7f4fe 0%, #efe9fc 100%);
+}
+
+html[data-app-theme="purple"],
+body.purple-theme-page {
+  --app-primary: #7c3aed;
+  --app-primary-hover: #6d28d9;
+  --app-primary-dark: #5b21b6;
+  --app-primary-subtle: #ede9fe;
+  --app-primary-text: #7c3aed;
+  --app-primary-rgb: 124, 58, 237;
+
+  --bs-primary: #7c3aed;
+  --bs-primary-rgb: 124, 58, 237;
+  --bs-link-color: #7c3aed;
+  --bs-link-color-rgb: 124, 58, 237;
+  --bs-link-hover-color: #6d28d9;
+  --bs-link-hover-color-rgb: 109, 40, 217;
+  --bs-focus-ring-color: rgba(124, 58, 237, 0.25);
+  --app-focus-ring: #8b5cf6;
+
+  --app-accent-gradient: linear-gradient(135deg, #5b21b6 0%, #7c3aed 48%, #c084fc 100%);
+  --app-header-gradient: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+  --app-sidebar-bg: #2e1064;
+  --app-sidebar-bg-end: #1e1033;
+  --app-sidebar-active: #6d28d9;
+
+  --app-chart-1: #7c3aed;
+  --app-chart-2: #c084fc;
+  --primary-color: #7c3aed;
+  --primary-dark: #5b21b6;
+
+  --app-bg: #f7f4fe;
+  --app-surface: #ffffff;
+  --app-surface-subtle: #efe9fc;
+  --app-surface-hover: #e8dffb;
+  --app-surface-active: #ddd1f7;
+
+  --app-border: #ddd2f3;
+  --app-border-subtle: #efe8fa;
+  --app-border-strong: #c4b2ea;
+  --app-content-wash: radial-gradient(1200px 420px at 100% 0%, rgba(124, 58, 237, 0.12), transparent 62%);
+}
+
+.purple-theme-page .app-header {
+  background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%) !important;
+  border-bottom: 0 !important;
+  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.2) !important;
+}
+
+.purple-theme-page .app-sidebar {
+  background: linear-gradient(180deg, #7c3aed, #5b21b6) !important;
+  border-right: 3px solid #c084fc !important;
+  box-shadow: 4px 0 16px rgba(124, 58, 237, 0.15) !important;
+}
+
+.purple-theme-page .app-content-header-inner {
+  border-left-color: #7c3aed !important;
+}
+
+.purple-theme-page .app-content {
+  background: linear-gradient(135deg, #f7f4fe 0%, #ede9fe 100%) !important;
+  color: #3b0764 !important;
+}
+
+.purple-theme-page .card {
+  border-color: rgba(124, 58, 237, 0.2) !important;
+}
+
+.purple-theme-page .card-header {
+  background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%) !important;
+  border-bottom-color: #5b21b6 !important;
+}
+
+.purple-theme-page .card-footer {
+  background: #ede9fe !important;
+  border-top-color: rgba(124, 58, 237, 0.2) !important;
+}
+
+.purple-theme-page .btn-primary {
+  background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 50%, #c084fc 100%) !important;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.25) !important;
+}
+
+.purple-theme-page .btn-primary:hover {
+  background: #5b21b6 !important;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35) !important;
+}
+
+.purple-theme-page .btn-outline-primary {
+  color: #7c3aed !important;
+  border-color: #7c3aed !important;
+}
+
+.purple-theme-page .btn-outline-primary:hover {
+  background: #7c3aed !important;
+  color: #ffffff !important;
+}
+
+.purple-theme-page .table > thead th,
+.purple-theme-page .table thead th {
+  background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%) !important;
+  border-color: #7c3aed !important;
+}
+
+.purple-theme-page .table-hover > tbody > tr:hover {
+  background-color: #ede9fe !important;
+}
+
+.purple-theme-page .modal-header {
+  background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%) !important;
+  border-bottom-color: #5b21b6 !important;
+}
+
+.purple-theme-page .modal-footer {
+  background: #ede9fe !important;
+}
+
+.purple-theme-page .form-control:focus,
+.purple-theme-page .form-select:focus {
+  border-color: #7c3aed !important;
+  box-shadow: 0 0 0 0.2rem rgba(124, 58, 237, 0.2) !important;
+}
+
+.purple-theme-page .nav-tabs .nav-link.active {
+  color: #7c3aed !important;
+  border-top-color: #7c3aed !important;
+}
+
+.purple-theme-page .nav-pills .nav-link.active {
+  background-color: #7c3aed !important;
+}
+
+.purple-theme-page .page-item.active .page-link {
+  background-color: #7c3aed !important;
+  border-color: #7c3aed !important;
+}
+
+/* Content Area Theme Cascade Overrides */
+.purple-theme-page .app-content .card-header {
+  background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%) !important;
+  border-color: #5b21b6 !important;
+  color: #ffffff !important;
+}
+
+.purple-theme-page .app-content .btn-primary {
+  background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%) !important;
+  border-color: #5b21b6 !important;
+  color: #ffffff !important;
+}
+
+.purple-theme-page .app-content .table > thead > tr > th {
+  background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%) !important;
+  border-color: #5b21b6 !important;
+  color: #ffffff !important;
+}
+
+.purple-theme-page .app-content .form-control,
+.purple-theme-page .app-content .form-select {
+  border-color: rgba(124, 58, 237, 0.45) !important;
+}
+
+.purple-theme-page .app-content .form-control:focus,
+.purple-theme-page .app-content .form-select:focus {
+  border-color: #7c3aed !important;
+  box-shadow: 0 0 0 0.2rem rgba(124, 58, 237, 0.2) !important;
+}

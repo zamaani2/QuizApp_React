@@ -1,0 +1,220 @@
+# Decision log
+
+## 2026-11-05 — Accent themes only
+
+**Decision:** QuizApp_Local uses only the four existing accent themes
+(`academic`, `green`, `purple`, `red`). Do not add dark, light, or system
+appearance modes, extra themes, or a second appearance switcher.
+
+**Reason:** The product already has a working accent picker, `data-theme`
+identifiers, body theme classes, and the `preferredTheme` localStorage key.
+Appearance switching would duplicate that control, break saved preferences,
+and split styling across two independent axes.
+
+**Defaults and compatibility:** Academic Pro remains the default for new users.
+Existing users keep a valid saved accent. Theme identifiers, colour identities,
+selectors, and theme-dependent behaviour stay in place; shared and
+role-specific surfaces are restyled through the existing accent tokens.
+
+## 2026-11-02 — Preserve the existing Django application
+
+**Decision:** Improve the current Django application in place. Keep its models,
+views, templates, PostgreSQL deployment, and existing workflows; do not
+replace it with a new application or an assumed React/API architecture.
+
+**Reason:** The repository contains a Django application with template and
+JavaScript frontends. A separate React frontend/API application was not
+identified during initial inspection.
+
+## 2026-11-02 — Shared-schema tenancy remains school-keyed
+
+**Decision:** Retain the existing shared-database/shared-schema design and make
+school scope explicit and fail-closed in authorization, lookup, and submitted
+relationship validation. A missing school must never widen a query.
+
+**Reason:** `SchoolInformation` is the current tenant entity and school users
+are linked to it through `User.school`. Introducing tenant routing or a new
+tenant model would be an unrelated architectural replacement.
+
+## 2026-11-02 — Cross-school access is an explicit superadmin capability
+
+**Decision:** Cross-school access must be deliberate and authorized. A user's
+missing school is not evidence of superadmin status. The `role="superadmin"`
+value is authoritative for application authorization; the `is_superadmin`
+boolean is legacy metadata and does not grant cross-school access.
+
+**Reason:** Treating the role and boolean as interchangeable creates
+inconsistent authorization. Existing superadmin login and management views
+authorize by role.
+
+## Superadmin writes require an explicit school target
+
+**Decision:** Superadmins may read across schools where a view expressly
+allows it. School-specific creates and imports must identify an active target
+school. Edits and deletes remain scoped to the selected record's existing
+school unless a dedicated transfer workflow is implemented.
+
+**Reason:** A superadmin's missing personal school association must not create
+tenantless records or turn an ambiguous write into a cross-school operation.
+
+## 2026-11-02 — Production settings fail closed
+
+**Decision:** `DEBUG` defaults off. Production must explicitly configure
+`SECRET_KEY` and a database URL or complete PostgreSQL connection settings.
+Secure session and CSRF cookies are enabled when debug mode is off. Local
+development may opt into debug mode and receive an ephemeral development key.
+
+**Reason:** A committed fallback key, debug-on default, or implicit local
+database credentials must not become production configuration.
+
+## 2026-11-02 — Administrator creation requires a chosen password
+
+**Decision:** Superadmin-created school administrators must be given a
+password at creation. Do not silently use a shared or predictable default.
+
+**Reason:** Default credentials make every newly created administrator
+account immediately guessable.
+
+## 2026-11-02 — Academic history is retained
+
+**Decision:** Use deactivation/archival and year-specific history instead of
+deleting students, teachers, classes, subjects, or assignments that have
+academic records. Promotions and transfers create new enrollment history;
+teacher reassignment does not overwrite prior-year assignments.
+
+**Reason:** Quiz attempts, responses, enrollments, and assignments are
+historical records whose interpretation must survive later changes.
+
+**Archive behavior:** Student and teacher archive actions deactivate the
+profile and linked login account, and deactivate current enrollments or
+assignments without deleting rows. Restore re-enables the profile and restores
+the account's pre-archive enabled state; historical enrollments and
+assignments remain inactive and require an explicit new assignment.
+
+Class and subject archive actions retain quiz, allocation, enrollment, and
+assignment records. Archiving deactivates current enrollments or teaching
+assignments; restoring a class or subject does not reactivate those historical
+relationships.
+
+## Promotion workflow — business decisions required
+
+No promotion operation is implemented. Before adding one, decide:
+
+- Whether promotion is a manual administrator action or an automatic
+  school-year transition, and which students are eligible.
+- How failed students, repeaters, students who do not meet promotion
+  requirements, and graduating students are handled.
+- Which target academic year, term, and class are selected, and how capacity
+  and students without a valid target class are handled.
+- Which role may approve promotion and whether the operation is reversible.
+- Whether a promotion closes the current enrollment and creates a new
+  `StudentClass` row, preserving the prior enrollment as history.
+
+Until these rules are approved, do not implement or infer promotion eligibility
+or progression behavior. Existing enrollment/transfer actions are explicit
+class assignments, not promotion decisions; imports only create new students
+and do not update or advance existing records.
+
+## Student transfer and withdrawal limits
+
+The current enrollment flow supports class changes within one school by
+retaining the old `StudentClass` row and creating a new one. It does not support
+moving a student identity between schools: `Student.school` is the owning
+school for all related enrollments, and no separate school-transfer history
+model exists. Do not change that field in place to simulate a cross-school
+transfer. A supported workflow requires an approved identity, admission-number,
+account, and historical-school policy.
+
+The student model has only an active/archive flag and no distinct withdrawn
+status, date, or reason. Do not treat archive/restore as a withdrawal decision;
+add withdrawal behavior only after its meaning and downstream access rules are
+specified.
+
+## Teacher-subject allocation is unique per class and year
+
+**Decision:** An active teacher-subject assignment must reference a
+same-school subject allocation for the selected class and academic year. Only
+one active teacher assignment may exist for a school/subject/class/year
+combination; deactivated rows remain available as history.
+
+**Reason:** Application-level duplicate checks alone are vulnerable to
+concurrent requests, while assignments outside a class subject allocation
+cannot represent a valid teaching responsibility.
+
+## Active student enrollment is unique per school
+
+**Decision:** A student may have at most one active class enrollment per
+school. Transfers deactivate the prior enrollment and create a new row;
+inactive enrollment rows remain as history.
+
+**Reason:** Capacity-aware application checks must also be protected against
+concurrent duplicate enrollment writes without deleting transfer history.
+
+Enrollment identity and class/year context are historical data. Editing a
+student's enrollment cannot change its student identity; changing class or
+reactivating an inactive record creates a new enrollment row. A class's
+academic year cannot be changed after enrollment, allocation, teaching, or
+quiz-assignment history exists. Referenced academic years and terms are
+retained rather than hard-deleted. Generic enrollment actions reject moving a
+student with existing enrollment history into a different academic year until
+the promotion policy above is approved. Student/class enrollment records,
+attempts, and responses cannot be hard-deleted through Django admin, and a
+quiz with recorded attempts cannot be deleted through its management workflow.
+
+## 2026-11-02 — Class capacity and quiz rules are server-enforced
+
+**Decision:** Capacity, eligibility, timing, attempt limits, answer-save
+windows, scoring, and result visibility are backend invariants. Use database
+constraints and transactions/locking where they can enforce the invariant
+reliably; front-end checks remain presentation only.
+
+**Reason:** Browser behavior cannot protect database integrity or prevent
+cross-school access and concurrent-request races.
+
+## 2026-11-02 — Separate allocation, quiz, and homework concepts
+
+**Decision:** Keep teacher-subject-class allocation (`TeacherSubjectAssignment`),
+class subject allocation (`ClassSubject`), and quiz class assignment
+(`Quiz.classes`) distinct. Do not claim student homework exists as a separate
+workflow until the current model and views establish it.
+
+**Reason:** These concepts have different authorization and lifecycle rules.
+
+## 2026-11-02 — Student quiz review follows result settings
+
+**Decision:** A submitted attempt always exposes its score summary to its
+student. Detailed per-question review is shown only when both
+`show_results_immediately` and `allow_review` are enabled. Correct-answer keys
+and explanations are shown only when `show_correct_answers` is enabled.
+Student print views enforce the same rules; staff result views remain
+unrestricted within their existing school/ownership scope.
+
+**Reason:** The application has no separate result-release workflow. Keeping
+the score available avoids indefinitely hiding a result while the review and
+answer-key settings prevent premature disclosure.
+
+## 2026-11-02 — Quiz attempts retain their configuration
+
+**Decision:** Capture quiz settings, question text and scoring rules, correct
+answers, and randomized question/choice order when an attempt starts. Score
+and manually grade the attempt against that persisted configuration, and keep
+an append-only grading history on each response.
+
+**Reason:** Editing a published quiz must not silently change the meaning or
+score of completed work. Existing attempts created before snapshots were
+introduced are populated from the current quiz configuration when first
+resumed or otherwise captured; their original configuration cannot be
+reconstructed.
+
+## 2026-11-02 — Imports and exports are bounded and school-scoped
+
+**Decision:** Student and teacher imports accept bounded CSV/XLSX files, show
+sample rows before commit, report row-level validation errors, and preserve
+successful rows within a transaction. Student and teacher exports follow the
+visible list filters; superadmins must select one active target school.
+Spreadsheet output must keep exported values as text or neutralize formula-like
+CSV cells.
+
+**Reason:** Preview and downloadable errors make bulk changes reviewable;
+explicit scoping and formula handling prevent accidental tenant disclosure
+and spreadsheet formula execution.
