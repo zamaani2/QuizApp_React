@@ -73,6 +73,15 @@ def school_detail_view(request, school_id=None):
     if request.user.role not in ["admin", "superadmin"]:
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:dashboard")
+
+    if request.user.role == "superadmin" and not school_id:
+        if request.GET.get("classic") == "1":
+            return redirect("/superadmin/schools/?classic=1")
+        return redirect("/app/superadmin/schools")
+    if request.GET.get("classic") != "1":
+        if request.user.role == "superadmin" and school_id:
+            return redirect(f"/app/superadmin/schools/{school_id}")
+        return redirect("/app/admin/school")
     
     # Determine which school to show
     if school_id:
@@ -118,6 +127,13 @@ def school_edit_view(request, school_id=None):
             return JsonResponse({'error': 'Permission denied'}, status=403)
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:dashboard")
+
+    if request.method == "GET" and request.GET.get("classic") != "1":
+        if request.user.role == "superadmin":
+            if school_id:
+                return redirect(f"/app/superadmin/schools/{school_id}/edit")
+            return redirect("/app/superadmin/schools")
+        return redirect("/app/admin/school")
     
     # Determine which school to edit
     if school_id:

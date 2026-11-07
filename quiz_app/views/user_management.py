@@ -14,7 +14,6 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
-from django.db.models import Q
 from django.db import transaction
 
 from ..account_security import (
@@ -32,54 +31,13 @@ from ..utils.tenant_utils import get_object_or_404_with_school, get_write_school
 @login_required
 @require_http_methods(["GET"])
 def user_list_view(request):
-    """
-    Display list of all users with filtering and search capabilities.
-    
-    Supports:
-    - Search by username, email, full name
-    - Filter by role
-    - Pagination
-    - DataTables integration
-    """
+    """Redirect the legacy user-list URL to the React user-management screen."""
     if request.user.role not in ["admin", "superadmin"]:
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:dashboard")
 
-    school = request.user.school
-    users = User.objects.all()
-    
-    if school:
-        users = users.filter(school=school)
-    
-    # Exclude superadmin users from regular admin view
-    if request.user.role == "admin":
-        users = users.exclude(role="superadmin")
-    
-    # Search functionality
-    search_query = request.GET.get('search', '')
-    if search_query:
-        users = users.filter(
-            Q(username__icontains=search_query) |
-            Q(email__icontains=search_query) |
-            Q(full_name__icontains=search_query)
-        )
-    
-    # Filter by role
-    role_filter = request.GET.get('role', '')
-    if role_filter:
-        users = users.filter(role=role_filter)
-    
-    # Order by full name
-    users = users.order_by('full_name', 'username')
-    
-    context = {
-        'users': users,
-        'search_query': search_query,
-        'role_filter': role_filter,
-        'user_roles': User.ROLES,
-    }
-    
-    return render(request, 'users/user_list.html', context)
+    app_section = "superadmin" if request.user.role == "superadmin" else "admin"
+    return redirect(f"/app/{app_section}/users")
 
 
 @login_required

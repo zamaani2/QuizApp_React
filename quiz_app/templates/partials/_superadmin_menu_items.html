@@ -1,5 +1,11 @@
 {% load static %}
 <!-- Superadmin Menu Items -->
+<li class="nav-item mb-2 mt-1 px-3">
+  <a href="/app/superadmin/schools" class="btn btn-outline-primary btn-sm w-100 d-flex align-items-center justify-content-center gap-2 shadow-sm text-decoration-none">
+    <i class="bi bi-lightning-charge-fill text-warning"></i>
+    <span>Switch to React SPA</span>
+  </a>
+</li>
 <li class="nav-item">
   <a href="{% url 'quiz_app:superadmin_dashboard' %}" class="nav-link">
     <i class="nav-icon bi bi-speedometer2"></i>
@@ -58,6 +64,7 @@
     <p>Logout</p>
   </a>
 </li>
+
 
 
 

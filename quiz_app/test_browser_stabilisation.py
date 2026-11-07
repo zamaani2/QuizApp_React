@@ -168,9 +168,14 @@ class AuthenticatedBrowserShellTests(StaticLiveServerTestCase):
 
     def _login(self, page, username, login_url, dashboard_url):
         page.goto(f"{self.live_server_url}{login_url}")
-        page.fill("#id_username", username)
-        page.fill("#id_password", self.password)
-        page.click("#loginBtn")
+        if "/auth-app/" in page.url:
+            page.fill("input[name='username']", username)
+            page.fill("input[name='password']", self.password)
+            page.click("button[type='submit']")
+        else:
+            page.fill("#id_username", username)
+            page.fill("#id_password", self.password)
+            page.click("#loginBtn")
         page.wait_for_url(re.compile(re.escape(dashboard_url)), timeout=15000)
 
     def _collect_page_errors(self, page):
@@ -320,25 +325,25 @@ class AuthenticatedBrowserShellTests(StaticLiveServerTestCase):
                 "superadmin",
                 self.superadmin.username,
                 reverse("quiz_app:superadmin_login"),
-                reverse("quiz_app:superadmin_dashboard"),
+                "/app/superadmin/dashboard",
             ),
             (
                 "admin",
                 self.admin.username,
                 reverse("quiz_app:login"),
-                reverse("quiz_app:admin_dashboard"),
+                "/app/admin/dashboard",
             ),
             (
                 "teacher",
                 self.teacher_user.username,
                 reverse("quiz_app:login"),
-                reverse("quiz_app:teacher_dashboard"),
+                "/app/teacher/dashboard",
             ),
             (
                 "student",
                 self.student_user.username,
                 reverse("quiz_app:login"),
-                reverse("quiz_app:student_dashboard"),
+                "/app/student/dashboard",
             ),
         )
 

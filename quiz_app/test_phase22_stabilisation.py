@@ -184,6 +184,7 @@ class AuthenticatedWorkflowTests(TestCase):
         self.client.force_login(self.superadmin)
         detail_page = self.client.get(
             reverse("quiz_app:superadmin_admin_detail", args=[self.admin.pk])
+            + "?classic=1"
         )
         self.assertEqual(detail_page.status_code, 200)
         self.assertContains(detail_page, "bootstrap.Modal.getOrCreateInstance")
@@ -192,7 +193,11 @@ class AuthenticatedWorkflowTests(TestCase):
 
     def test_superadmin_login_dashboard_admin_modal_and_permissions(self):
         login_page = self.client.get(reverse("quiz_app:superadmin_login"))
-        self.assertEqual(login_page.status_code, 200)
+        self.assertRedirects(
+            login_page,
+            "/auth-app/?portal=superadmin",
+            fetch_redirect_response=False,
+        )
         login_response = self.client.post(
             reverse("quiz_app:superadmin_login"),
             {"username": self.superadmin.username, "password": self.password},
@@ -200,21 +205,39 @@ class AuthenticatedWorkflowTests(TestCase):
         self.assertEqual(login_response.status_code, 302)
 
         dashboard = self.client.get(reverse("quiz_app:superadmin_dashboard"))
+        classic_dashboard = self.client.get(
+            reverse("quiz_app:superadmin_dashboard") + "?classic=1"
+        )
         admin_list = self.client.get(reverse("quiz_app:superadmin_admin_list"))
+        classic_admin_list = self.client.get(
+            reverse("quiz_app:superadmin_admin_list") + "?classic=1"
+        )
         admin_detail = self.client.get(
             reverse("quiz_app:superadmin_admin_detail", args=[self.admin.pk])
+            + "?classic=1"
         )
         edit_modal = self.client.get(
-            reverse("quiz_app:superadmin_admin_edit", args=[self.admin.pk]),
+            reverse("quiz_app:superadmin_admin_edit", args=[self.admin.pk])
+            + "?classic=1",
             HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
         create_modal = self.client.get(
-            reverse("quiz_app:superadmin_admin_create"),
+            reverse("quiz_app:superadmin_admin_create") + "?classic=1",
             HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
-        self.assertEqual(dashboard.status_code, 200)
-        self.assertContains(dashboard, "id=\"app-sidebar\"")
-        self.assertEqual(admin_list.status_code, 200)
+        self.assertRedirects(
+            dashboard,
+            "/app/superadmin/dashboard",
+            fetch_redirect_response=False,
+        )
+        self.assertEqual(classic_dashboard.status_code, 200)
+        self.assertContains(classic_dashboard, "id=\"app-sidebar\"")
+        self.assertRedirects(
+            admin_list,
+            "/app/superadmin/admins",
+            fetch_redirect_response=False,
+        )
+        self.assertEqual(classic_admin_list.status_code, 200)
         self.assertEqual(admin_detail.status_code, 200)
         self.assertContains(admin_detail, "id=\"editAdminBtn\"")
         self.assertEqual(edit_modal.status_code, 200)
@@ -272,9 +295,12 @@ class AuthenticatedWorkflowTests(TestCase):
             reverse("quiz_app:assignment_list"),
         ]
         for url in pages:
-            response = self.client.get(url)
+            response = self.client.get(url, follow=True)
             self.assertEqual(response.status_code, 200, url)
-            self.assertContains(response, "id=\"app-sidebar\"")
+            if response.request["PATH_INFO"].startswith("/app/"):
+                self.assertContains(response, "id=\"root\"")
+            else:
+                self.assertContains(response, "id=\"app-sidebar\"")
 
         create_form = self.client.get(
             reverse("quiz_app:student_create"),

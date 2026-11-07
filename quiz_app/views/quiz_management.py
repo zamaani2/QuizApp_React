@@ -51,7 +51,7 @@ def _quiz_form_error(request, error, quiz_id=None):
 @require_http_methods(["GET"])
 def quiz_list_view(request):
     """
-    List all quizzes.
+    Redirect the legacy quiz catalog to the React quiz catalog.
     - Teachers see only their own quizzes
     - Admins see all quizzes in their school
     """
@@ -59,58 +59,11 @@ def quiz_list_view(request):
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:dashboard")
     
-    school = request.user.school
-    
-    # Teachers see only their quizzes, admins see all quizzes in school
     if request.user.role == "teacher":
         if not request.user.teacher_profile:
             messages.error(request, "Teacher profile not found. Please contact administrator.")
             return redirect("quiz_app:dashboard")
-        teacher = request.user.teacher_profile
-        quizzes = Quiz.objects.filter(teacher=teacher, school=school)
-    else:
-        # Admin sees all quizzes in their school
-        quizzes = Quiz.objects.filter(school=school)
-    
-    # Search functionality
-    search_query = request.GET.get('search', '')
-    if search_query:
-        quizzes = quizzes.filter(
-            Q(title__icontains=search_query) |
-            Q(description__icontains=search_query) |
-            Q(quiz_id__icontains=search_query)
-        )
-    
-    # Filter by subject
-    subject_filter = request.GET.get('subject', '')
-    if subject_filter:
-        quizzes = quizzes.filter(subject_id=subject_filter)
-    
-    # Filter by status
-    status_filter = request.GET.get('status', '')
-    if status_filter:
-        quizzes = quizzes.filter(status=status_filter)
-    
-    # Filter by category
-    category_filter = request.GET.get('category', '')
-    if category_filter:
-        quizzes = quizzes.filter(category_id=category_filter)
-    
-    # Order by created date (newest first)
-    quizzes = quizzes.order_by('-created_at')
-    
-    # Get filter options
-    subjects = Subject.objects.filter(school=school).order_by('subject_name')
-    categories = QuizCategory.objects.filter(school=school, is_active=True).order_by('name')
-    
-    context = {
-        'quizzes': quizzes,
-        'subjects': subjects,
-        'categories': categories,
-        'search_query': search_query,
-    }
-    
-    return render(request, 'quiz/quiz_list.html', context)
+    return redirect("/app/teacher/quizzes")
 
 
 @login_required
@@ -130,6 +83,12 @@ def quiz_create_view(request):
             return JsonResponse({'error': 'Permission denied'}, status=403)
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:quiz_list")
+
+    if request.method == "GET":
+        if request.user.role == "teacher" and not request.user.teacher_profile:
+            messages.error(request, "Teacher profile not found. Please contact administrator.")
+            return redirect("quiz_app:dashboard")
+        return redirect("/app/teacher/quizzes/new")
     
     school = request.user.school
     
@@ -446,6 +405,8 @@ def quiz_edit_view(request, quiz_id):
         teacher = quiz.teacher  # Use the quiz's teacher for context
     
     if request.method == "GET":
+        return redirect(f"/app/teacher/quizzes/{quiz.pk}/edit")
+
         # Get related models for form
         if request.user.role == "teacher":
             # Only get subjects that the teacher is assigned to teach (TeacherSubjectAssignment)
@@ -771,16 +732,7 @@ def quiz_detail_view(request, quiz_id):
     else:
         # Admin can view any quiz in their school
         quiz = get_object_or_404(Quiz, pk=quiz_id, school=school)
-    
-    # Get questions with answer choices
-    questions = quiz.questions.all().prefetch_related('answer_choices').order_by('order', 'created_at')
-    
-    context = {
-        'quiz': quiz,
-        'questions': questions,
-    }
-    
-    return render(request, 'quiz/quiz_detail.html', context)
+    return redirect(f"/app/teacher/quizzes/{quiz.pk}")
 
 
 @login_required

@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Document status | **Authoritative architectural specification** |
-| Version | 0.2 (pre-audit draft) |
-| Last updated | 2026-11-06 |
+| Version | 0.4 |
+| Last updated | 2026-11-07 |
 | Owner | Project maintainer |
 | Applies to | QuizApp_Local (Django 5 + PostgreSQL) |
 
@@ -64,24 +64,26 @@ The React build is served by the same Django deployment (static files via the ex
 
 *Audit must confirm:* current static-file strategy, any CDN/object-storage usage for static files, and whether it can serve Vite's hashed assets.
 
-### 4.2 Route namespace — dedicated prefix [PROVISIONAL]
-All React-owned pages live under a dedicated prefix (working name: `/app/`). Django serves the React shell for `/app/*` through one catch-all view placed **after** all existing URL patterns.
+### 4.2 Route namespace — dedicated prefixes [FIXED]
+React workspace pages live under `/app/*`; the React Authentication & System Core entry lives under `/auth-app/*`. Django serves each as a separate document shell from the same origin, after existing application URL patterns.
 
 - Existing Django URLs are never repurposed during the initial phases.
 - A page moves from Django to React by (a) building the React page under `/app/...` and (b) pointing navigation links to it. The old Django URL stays alive until retirement is explicitly approved.
+- Links between the React and Django frontends perform normal navigation between separate pages. They do not mean React is mounted inside or inherits the Django page template.
 - Bare-URL takeover (React serving a path currently owned by Django) is allowed only after the page has been stable in production and is recorded in `docs/REACT_ROUTE_OWNERSHIP.md`.
 
 *Audit must confirm:* the working prefix and `/api/` namespace do not collide with any existing pattern.
 
 ### 4.3 Authentication — Django sessions [FIXED]
 - React uses the existing Django session cookie. **No JWT, no parallel auth system.**
-- Login, logout, password reset, and password change remain Django-rendered unless a later, separate decision says otherwise.
+- Django remains the owner of credential verification, session creation/invalidation, permissions, and password recovery. React owns the primary sign-in presentation at `/auth-app/`; existing Django login and password recovery pages remain available as classic fallbacks.
+- React submits credentials to the existing Django login handler using its JSON response mode. Django validates `next`, creates the same session, and returns a safe redirect target; invalid credentials return a generic error for display in React rather than rendering the legacy login template.
 - The React shell loads current-user context (id, role, school, permissions) from a single `GET /api/v1/me/` endpoint.
-- Unauthenticated API calls return `401`. Forbidden calls return `403`. React redirects to the Django login page, preserving `next`.
+- Unauthenticated API calls return `401`. Forbidden calls return `403`. The React workspace sends expired sessions to `/auth-app/`, preserving the requested same-origin `next` destination.
 
 ### 4.4 CSRF [FIXED]
 - Django's CSRF protection stays enabled for all state-changing API requests.
-- The React shell guarantees a CSRF cookie is set (e.g. via `ensure_csrf_cookie` on the shell view or `/api/v1/me/`).
+- Both React shells guarantee a CSRF cookie is set (e.g. via `ensure_csrf_cookie` on the shell view or `/api/v1/me/`).
 - A single API client module reads the token and sends `X-CSRFToken` on every `POST/PUT/PATCH/DELETE`, with `credentials: "same-origin"`.
 - `CSRF_TRUSTED_ORIGINS`, cookie flags, and proxy/HTTPS settings are reviewed against Railway behaviour by the audit.
 
@@ -96,6 +98,7 @@ All React-owned pages live under a dedicated prefix (working name: `/app/`). Dja
 ### 4.6 Frontend structure [PROVISIONAL]
 ```
 frontend/
+  auth-core.html   # React Authentication & System Core entry
   src/
     api/            # single API client, CSRF handling, typed endpoints
     auth/           # current-user context, route guards (UX only)
@@ -110,11 +113,12 @@ frontend/
 - Server state through one data-fetching approach (to be chosen and recorded as an ADR).
 - Code-split per role area so students never download admin code.
 
-### 4.7 Styling and CSS isolation [PROVISIONAL]
-- React pages mount inside an isolated root element.
-- **No global CSS resets** and no second CSS framework alongside Bootstrap unless an ADR approves it.
-- Preferred approach: reuse the Bootstrap version already loaded by the Django base layout for visual consistency, and use scoped styles (CSS Modules or a prefixed convention) for custom React styling.
-- Shared navigation/layout: the audit determines whether the React shell reuses the Django base layout or replicates it. The visual result must be consistent across both frontends.
+### 4.7 Styling and CSS isolation [FIXED]
+- React shells are standalone documents and mount their own application roots. They do not extend the Django base template or load its global styles.
+- React must not load Bootstrap CSS or JavaScript, Bootstrap Icons, or Django theme stylesheets. React components must not depend on Bootstrap utility or component classes.
+- React owns its responsive layout, design tokens, components, and scoped styles. The React workspace and Authentication & System Core share this React design system; they may reuse brand assets or deliberately mapped values, not Django CSS.
+- Django pages retain their existing Bootstrap implementation. Cross-links between Django and React remain explicit, full-page navigation and are not visual template reuse.
+- Removing Bootstrap is a staged migration: replace current class and component dependencies before removing the assets from the React shell.
 
 ### 4.8 Build and deployment [PROVISIONAL]
 - Production: multi-stage Docker build. A Node stage runs `vite build`; output is copied into the Django static pipeline; Django serves it.
@@ -140,7 +144,7 @@ A page is a **React candidate** only if at least one is true:
 A page is **RETAINED AS DJANGO** if:
 - It is mostly static or a simple form/list that Django handles well.
 - Migration risk outweighs the benefit.
-- It involves authentication or security-sensitive flows with no user-visible gain from React.
+- It involves authentication or security-sensitive presentation with no user-visible gain from React. Credential verification and session security always remain Django-owned, regardless of presentation.
 
 Retained pages are a **valid end state**, not unfinished work.
 
@@ -178,8 +182,11 @@ Dashboards, results and analytics views first; quiz authoring only after the abo
 Read-only pages (results, history, dashboards) first. **Quiz attempt and submission last** and only with the safeguards in Section 8.
 **Exit:** as Phase 3, plus the quiz-flow acceptance criteria in Section 8.
 
-### Phase 6 — Integration
-Navigation cross-links, role-based entry points, route takeover decisions, performance review.
+### Phase 6 — Integration & React Independence
+- Complete the React-owned design system and remove Bootstrap/Django theme dependencies from React shells and components.
+- Make React Authentication & System Core the primary React sign-in and expired-session experience while keeping credential/session operations in Django.
+- Preserve the classic Django pages as reachable fallbacks; verify cross-links, role-based entry points, performance, and rollback behavior.
+**Exit:** React routes render without Bootstrap or Django theme assets; React auth success and failure remain in the React experience; Django fallbacks and existing backend behavior remain operational.
 
 ### Phase 7 — Optional Cleanup
 Retire Django templates **only** where React has been stable in production and rollback is no longer needed. This phase is optional and each retirement needs explicit approval.
@@ -283,3 +290,5 @@ Changes to this document require: a stated reason, the affected sections, and a 
 |---|---|---|
 | 0.1 | 2026-11-06 | Initial pre-audit draft. Provisional decisions to be confirmed by Phase 0 audit. |
 | 0.2 | 2026-11-06 | Removed branch, commit, and push rules (Section 11). Development is local; version-control handling is left to the maintainer. |
+| 0.3 | 2026-11-07 | Clarified that React may provide an optional coexisting auth presentation while Django remains authoritative for all credential and session operations (ADR-012). |
+| 0.4 | 2026-11-07 | Established React-owned styling and the primary React auth experience while retaining Django as the backend and fallback (ADR-016). |

@@ -37,6 +37,9 @@ def form_list_view(request):
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:dashboard")
 
+    if request.GET.get("classic") != "1":
+        return redirect("/app/admin/forms")
+
     school = request.user.school
     forms = Form.objects.all()
     
@@ -80,6 +83,8 @@ def form_create_view(request):
     school = request.user.school
     
     if request.method == "GET":
+        if request.GET.get("classic") != "1":
+            return redirect("/app/admin/forms")
         # Return form for modal
         html = render(request, 'school_structure/partials/form_form.html', {
             'form_obj': None,
@@ -180,6 +185,8 @@ def form_edit_view(request, form_id):
     school = form_obj.school
     
     if request.method == "GET":
+        if request.GET.get("classic") != "1":
+            return redirect("/app/admin/forms")
         # Return form for modal
         html = render(request, 'school_structure/partials/form_form.html', {
             'form_obj': form_obj,
@@ -282,6 +289,9 @@ def learning_area_list_view(request):
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:dashboard")
 
+    if request.GET.get("classic") != "1":
+        return redirect("/app/admin/learning-areas")
+
     school = request.user.school
     learning_areas = LearningArea.objects.all()
     
@@ -326,6 +336,8 @@ def learning_area_create_view(request):
     school = request.user.school
     
     if request.method == "GET":
+        if request.GET.get("classic") != "1":
+            return redirect("/app/admin/learning-areas")
         # Return form for modal
         html = render(request, 'school_structure/partials/learning_area_form.html', {
             'learning_area': None,
@@ -420,6 +432,8 @@ def learning_area_edit_view(request, learning_area_id):
     school = learning_area.school
     
     if request.method == "GET":
+        if request.GET.get("classic") != "1":
+            return redirect("/app/admin/learning-areas")
         # Return form for modal
         html = render(request, 'school_structure/partials/learning_area_form.html', {
             'learning_area': learning_area,
@@ -513,6 +527,9 @@ def department_list_view(request):
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:dashboard")
 
+    if request.GET.get("classic") != "1":
+        return redirect("/app/admin/departments")
+
     school = request.user.school
     departments = Department.objects.all()
     
@@ -557,6 +574,8 @@ def department_create_view(request):
     school = request.user.school
     
     if request.method == "GET":
+        if request.GET.get("classic") != "1":
+            return redirect("/app/admin/departments")
         # Get teachers for head of department dropdown
         teachers = Teacher.objects.all()
         if school:
@@ -669,6 +688,8 @@ def department_edit_view(request, department_id):
     school = department.school
     
     if request.method == "GET":
+        if request.GET.get("classic") != "1":
+            return redirect("/app/admin/departments")
         # Get teachers for head of department dropdown
         teachers = Teacher.objects.all()
         if school:

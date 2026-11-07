@@ -52,6 +52,9 @@ def student_enrollment_list_view(request):
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:dashboard")
 
+    if request.GET.get("classic") != "1":
+        return redirect("/app/admin/enrollments")
+
     school = request.user.school
     enrollments = StudentClass.objects.filter(
         school__isnull=False,
@@ -142,6 +145,8 @@ def student_enrollment_create_view(request):
     school = request.user.school
     
     if request.method == "GET":
+        if request.GET.get("classic") != "1":
+            return redirect("/app/admin/enrollments")
         # Get options for dropdowns
         students = Student.objects.all()
         classes = Class.objects.all()
@@ -312,6 +317,8 @@ def student_enrollment_bulk_create_view(request):
     school = request.user.school
     
     if request.method == "GET":
+        if request.GET.get("classic") != "1":
+            return redirect("/app/admin/enrollments")
         # Get options for dropdowns
         students = Student.objects.all()
         students = students.filter(is_active=True)
@@ -539,6 +546,8 @@ def student_enrollment_edit_view(request, enrollment_id):
         return JsonResponse({'error': 'Enrollment has an invalid school association.'}, status=404)
     
     if request.method == "GET":
+        if request.GET.get("classic") != "1":
+            return redirect("/app/admin/enrollments")
         # Get options for dropdowns
         students = Student.objects.filter(is_active=True)
         classes = Class.objects.filter(

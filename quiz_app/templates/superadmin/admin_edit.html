@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Superadmin - Edit Administrator - {{ admin.full_name }}{% endblock title %}
+{% block page_title %}Edit Administrator{% endblock page_title %}
+{% block breadcrumb %}
+<li class="breadcrumb-item">
+  <a href="{% url 'quiz_app:superadmin_dashboard' %}">Home</a>
+</li>
+<li class="breadcrumb-item">
+  <a href="{% url 'quiz_app:superadmin_admin_list' %}?classic=1">School Administrators</a>
+</li>
+<li class="breadcrumb-item active" aria-current="page">Edit Administrator</li>
+{% endblock breadcrumb %}
+{% block content %}
+<div class="card border-top border-3 border-primary">
+  <div class="card-header">
+    <h3 class="card-title mb-0">Edit {{ admin.full_name }}</h3>
+  </div>
+  <div class="card-body">
+    {% include 'superadmin/partials/admin_form.html' %}
+  </div>
+</div>
+{% endblock content %}

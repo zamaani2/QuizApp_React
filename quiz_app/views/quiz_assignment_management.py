@@ -61,6 +61,8 @@ def quiz_assignment_list_view(request, quiz_id):
         # Admin can access any quiz in their school and see all classes
         quiz = get_object_or_404(Quiz, pk=quiz_id, school=school)
         available_classes = Class.objects.filter(school=school).order_by('name')
+
+    return redirect(f"/app/teacher/quizzes/{quiz.pk}/assignments")
     
     # Get assigned classes
     assigned_classes = quiz.classes.filter(school=school).order_by('name')
@@ -108,6 +110,9 @@ def quiz_assignment_create_view(request, quiz_id):
         # Admin can access any quiz in their school
         quiz = get_object_or_404(Quiz, pk=quiz_id, school=school)
         teacher = quiz.teacher  # Use quiz's teacher for context
+
+    if request.method == "GET":
+        return redirect(f"/app/teacher/quizzes/{quiz.pk}/assignments")
     
     # Validate quiz has a subject
     if not quiz.subject:
@@ -352,6 +357,8 @@ def quiz_assignment_bulk_delete_view(request, quiz_id):
     quiz = get_object_or_404(Quiz, **quiz_filters)
     
     if request.method == "GET":
+        return redirect(f"/app/teacher/quizzes/{quiz.pk}/assignments")
+
         # Check if this is an AJAX request for modal
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             html = render(request, 'quiz/assignment/partials/bulk_unassign_modal.html', {
@@ -422,8 +429,7 @@ def quiz_assignment_bulk_delete_view(request, quiz_id):
 @require_http_methods(["GET"])
 def quiz_assignment_overview_view(request):
     """
-    Display overview of all quizzes for the teacher with assignment status.
-    This is the main entry point for quiz assignment management.
+    Redirect the legacy quiz assignment overview to the React quiz catalog.
     """
     if request.user.role not in ["teacher", "admin"]:
         messages.error(request, "You don't have permission to access this page.")
@@ -433,54 +439,7 @@ def quiz_assignment_overview_view(request):
         messages.error(request, "Teacher profile not found. Please contact administrator.")
         return redirect("quiz_app:dashboard")
 
-    school = request.user.school
-    quizzes = Quiz.objects.filter(school=school)
-    if request.user.role == "teacher":
-        quizzes = quizzes.filter(teacher=request.user.teacher_profile)
-    quizzes = quizzes.select_related(
-        'subject', 'academic_year', 'term'
-    ).prefetch_related('classes', 'questions').order_by('-created_at')
-    
-    # Search functionality
-    search_query = request.GET.get('search', '')
-    if search_query:
-        quizzes = quizzes.filter(
-            Q(title__icontains=search_query) |
-            Q(subject__subject_name__icontains=search_query) |
-            Q(description__icontains=search_query)
-        )
-    
-    # Filter by subject
-    subject_filter = request.GET.get('subject', '')
-    if subject_filter:
-        quizzes = quizzes.filter(subject_id=subject_filter)
-    
-    # Filter by status
-    status_filter = request.GET.get('status', '')
-    if status_filter:
-        quizzes = quizzes.filter(status=status_filter)
-    
-    # Get filter options
-    from ..models import Subject
-    subjects = Subject.objects.filter(
-        id__in=quizzes.values_list('subject_id', flat=True).distinct(),
-        school=school
-    ).order_by('subject_name')
-    
-    # Annotate each quiz with assignment info
-    for quiz in quizzes:
-        quiz.assigned_classes_count = quiz.classes.filter(school=school).count()
-        quiz.total_questions = quiz.questions.count()
-    
-    context = {
-        'quizzes': quizzes,
-        'subjects': subjects,
-        'search_query': search_query,
-        'subject_filter': subject_filter,
-        'status_filter': status_filter,
-    }
-    
-    return render(request, 'quiz/assignment/quiz_assignment_overview.html', context)
+    return redirect("/app/teacher/quizzes")
 
 
 @login_required
@@ -549,4 +508,4 @@ def class_quiz_list_view(request, class_id):
         'status_filter': status_filter,
     }
     
-    return render(request, 'quiz/assignment/class_quiz_list.html', context)
+    return redirect("/app/teacher/quizzes")

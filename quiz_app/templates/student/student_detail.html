@@ -11,6 +11,15 @@ Details{% endblock page_title %} {% block breadcrumb %}
   {{ student.full_name }}
 </li>
 {% endblock breadcrumb %} {% block content %}
+{% if is_own_profile or request.user.role == 'student' %}
+<div class="alert alert-info d-flex align-items-center justify-content-between flex-wrap gap-2 shadow-sm mb-4" role="alert">
+  <div>
+    <i class="bi bi-person-badge-fill me-2 fs-5"></i>
+    <strong>Modern React Student Profile is available!</strong> View comprehensive enrollment history, assessment metrics, and track progress in the Single Page Application.
+  </div>
+  <a href="/app/student/profile" class="btn btn-primary btn-sm px-3">Open React Profile</a>
+</div>
+{% endif %}
 <div class="row">
   <div class="col-md-4">
     <div class="card border-top border-3 border-primary">

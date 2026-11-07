@@ -645,9 +645,9 @@ class SchoolScopedManagementEndpointTests(TestCase):
         self.assertFalse(self.class_a.is_active)
         self.assertFalse(enrollment.is_active)
         self.assertTrue(Class.objects.filter(pk=self.class_a.pk).exists())
-        self.assertEqual(
-            self.client.get(reverse("quiz_app:class_list")).context["classes"].count(),
-            0,
+        class_list_response = self.client.get(reverse("quiz_app:class_list"))
+        self.assertRedirects(
+            class_list_response, "/app/admin/classes", fetch_redirect_response=False
         )
 
         restore_response = self.client.post(
@@ -1558,6 +1558,75 @@ class SchoolScopedManagementEndpointTests(TestCase):
         self.assertEqual(own_result.status_code, 200)
         self.assertEqual(other_teacher_result.status_code, 404)
 
+    def test_teacher_print_route_redirects_to_react_only_for_owned_results(self):
+        self.client.force_login(self.teacher_user_a)
+
+        own_result = self.client.get(
+            reverse("quiz_app:quiz_result_print", args=[self.attempt_a.pk])
+        )
+        other_teacher_result = self.client.get(
+            reverse(
+                "quiz_app:quiz_result_print",
+                args=[self.attempt_a_other_teacher.pk],
+            )
+        )
+        legacy_print_mode = self.client.get(
+            reverse("quiz_app:quiz_result_detail", args=[self.attempt_a.pk]),
+            {"print": "1"},
+        )
+
+        self.assertRedirects(
+            own_result,
+            f"/app/teacher/results/{self.attempt_a.pk}/print",
+            fetch_redirect_response=False,
+        )
+        self.assertEqual(other_teacher_result.status_code, 404)
+        self.assertRedirects(
+            legacy_print_mode,
+            f"/app/teacher/results/{self.attempt_a.pk}/print",
+            fetch_redirect_response=False,
+        )
+
+    def test_bulk_print_redirects_selected_owned_results_to_react(self):
+        self.client.force_login(self.teacher_user_a)
+
+        response = self.client.get(
+            reverse("quiz_app:quiz_results_bulk_print"),
+            {"attempt_ids": [str(self.attempt_a.pk)]},
+        )
+
+        self.assertRedirects(
+            response,
+            f"/app/teacher/results/print/?attempt_ids={self.attempt_a.pk}",
+            fetch_redirect_response=False,
+        )
+
+    def test_teacher_result_api_includes_unanswered_questions_for_print(self):
+        self.client.force_login(self.teacher_user_a)
+        unanswered = Question.objects.create(
+            quiz=self.quiz_a,
+            question_text="Unanswered report question",
+            question_type="short_answer",
+            marks=3,
+            order=99,
+            school=self.school_a,
+            correct_answer_text="Expected answer",
+        )
+
+        response = self.client.get(
+            reverse("quiz_app:api_teacher_result_detail", args=[self.attempt_a.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        unanswered_response = next(
+            item
+            for item in response.json()["responses"]
+            if item["question_text"] == unanswered.question_text
+        )
+        self.assertFalse(unanswered_response["is_answered"])
+        self.assertEqual(unanswered_response["marks_awarded"], 0)
+        self.assertEqual(unanswered_response["answer_key"], "Expected answer")
+
     def test_school_admin_can_open_in_school_response_for_grading(self):
         response = self.client.get(
             reverse("quiz_app:quiz_response_grade", args=[self.response_a.pk]),
@@ -1840,26 +1909,185 @@ class SchoolScopedManagementEndpointTests(TestCase):
     def test_school_admin_assignment_overview_has_school_quizzes_without_profile(self):
         response = self.client.get(reverse("quiz_app:quiz_assignment_overview"))
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, self.quiz_a.title)
-        self.assertNotContains(response, self.quiz_b.title)
-
-    def test_dashboards_exclude_attempts_with_foreign_quiz_or_student(self):
-        QuizAttempt.objects.create(
-            quiz=self.quiz_b,
-            student=self.student_b,
-            school=self.school_a,
-            attempt_number=2,
-            is_submitted=True,
+        self.assertRedirects(
+            response, "/app/teacher/quizzes", fetch_redirect_response=False
         )
 
+    def test_legacy_quiz_read_pages_redirect_to_react_screens(self):
+        routes = (
+            (reverse("quiz_app:quiz_list"), "/app/teacher/quizzes"),
+            (reverse("quiz_app:quiz_create"), "/app/teacher/quizzes/new"),
+            (
+                reverse("quiz_app:quiz_edit", args=[self.quiz_a.pk]),
+                f"/app/teacher/quizzes/{self.quiz_a.pk}/edit",
+            ),
+            (
+                reverse("quiz_app:quiz_detail", args=[self.quiz_a.pk]),
+                f"/app/teacher/quizzes/{self.quiz_a.pk}",
+            ),
+            (
+                reverse("quiz_app:question_list", args=[self.quiz_a.pk]),
+                f"/app/teacher/quizzes/{self.quiz_a.pk}",
+            ),
+            (
+                reverse("quiz_app:question_create", args=[self.quiz_a.pk]),
+                f"/app/teacher/quizzes/{self.quiz_a.pk}/questions/new",
+            ),
+            (
+                reverse(
+                    "quiz_app:question_edit",
+                    args=[self.quiz_a.pk, self.question_a.pk],
+                ),
+                f"/app/teacher/quizzes/{self.quiz_a.pk}/questions/{self.question_a.pk}/edit",
+            ),
+            (
+                reverse("quiz_app:question_bulk_import", args=[self.quiz_a.pk]),
+                f"/app/teacher/quizzes/{self.quiz_a.pk}/questions/import",
+            ),
+            (
+                reverse("quiz_app:quiz_assignment_overview"),
+                "/app/teacher/quizzes",
+            ),
+            (
+                reverse("quiz_app:quiz_assignment_list", args=[self.quiz_a.pk]),
+                f"/app/teacher/quizzes/{self.quiz_a.pk}/assignments",
+            ),
+            (
+                reverse("quiz_app:quiz_assignment_create", args=[self.quiz_a.pk]),
+                f"/app/teacher/quizzes/{self.quiz_a.pk}/assignments",
+            ),
+            (reverse("quiz_app:quiz_grading_list"), "/app/teacher/grading"),
+            (
+                reverse("quiz_app:quiz_attempt_grading", args=[self.attempt_a.pk]),
+                f"/app/teacher/grading/{self.attempt_a.pk}",
+            ),
+            (reverse("quiz_app:quiz_results_list"), "/app/teacher/results"),
+            (
+                reverse("quiz_app:quiz_result_detail", args=[self.attempt_a.pk]),
+                f"/app/teacher/results/{self.attempt_a.pk}",
+            ),
+        )
+
+        for legacy_path, react_path in routes:
+            with self.subTest(legacy_path=legacy_path):
+                response = self.client.get(legacy_path)
+                self.assertRedirects(
+                    response, react_path, fetch_redirect_response=False
+                )
+
+    def test_student_quiz_pages_redirect_to_react_screens(self):
+        self.client.force_login(self.student_user_a)
+        routes = (
+            (reverse("quiz_app:student_quiz_list"), "/app/student/quizzes"),
+            (
+                reverse("quiz_app:student_quiz_detail", args=[self.quiz_a.pk]),
+                f"/app/student/quizzes/{self.quiz_a.pk}",
+            ),
+            (reverse("quiz_app:student_quiz_attempts"), "/app/student/attempts"),
+            (
+                reverse(
+                    "quiz_app:student_quiz_take",
+                    args=[self.attempt_a.pk],
+                ),
+                f"/app/student/attempts/{self.attempt_a.pk}/result",
+            ),
+            (
+                reverse(
+                    "quiz_app:student_quiz_result_detail",
+                    args=[self.attempt_a.pk],
+                ),
+                f"/app/student/attempts/{self.attempt_a.pk}/result",
+            ),
+        )
+
+        for legacy_path, react_path in routes:
+            with self.subTest(legacy_path=legacy_path):
+                response = self.client.get(legacy_path)
+                self.assertRedirects(
+                    response, react_path, fetch_redirect_response=False
+                )
+
+    def test_teacher_quiz_apis_provide_scoped_editor_and_detail_data(self):
+        options_response = self.client.get(
+            reverse("quiz_app:api_teacher_quiz_options"),
+        )
+        detail_response = self.client.get(
+            reverse("quiz_app:api_teacher_quiz_detail", args=[self.quiz_a.pk]),
+        )
+        assignments_response = self.client.get(
+            reverse("quiz_app:api_teacher_quiz_assignments", args=[self.quiz_a.pk]),
+        )
+        foreign_detail_response = self.client.get(
+            reverse("quiz_app:api_teacher_quiz_detail", args=[self.quiz_b.pk]),
+        )
+
+        self.assertEqual(options_response.status_code, 200, options_response.content)
+        self.assertEqual(detail_response.status_code, 200, detail_response.content)
+        self.assertEqual(assignments_response.status_code, 200, assignments_response.content)
+        self.assertEqual(foreign_detail_response.status_code, 404)
+        self.assertIn("subjects", options_response.json())
+        self.assertEqual(
+            detail_response.json()["questions"][0]["id"], self.question_a.pk
+        )
+        self.assertEqual(
+            assignments_response.json()["assigned_classes"],
+            [{"id": self.class_a.pk, "name": self.class_a.name}],
+        )
+
+    def test_teacher_grading_and_result_apis_are_school_scoped(self):
+        grading_response = self.client.get(
+            reverse("quiz_app:api_teacher_grading_detail", args=[self.attempt_a.pk]),
+        )
+        result_response = self.client.get(
+            reverse("quiz_app:api_teacher_result_detail", args=[self.attempt_a.pk]),
+        )
+        foreign_grading_response = self.client.get(
+            reverse("quiz_app:api_teacher_grading_detail", args=[self.attempt_b.pk]),
+        )
+
+        self.assertEqual(grading_response.status_code, 200, grading_response.content)
+        self.assertEqual(result_response.status_code, 200, result_response.content)
+        self.assertEqual(foreign_grading_response.status_code, 404)
+        self.assertEqual(grading_response.json()["responses"][0]["id"], self.response_a.pk)
+        self.assertEqual(result_response.json()["responses"][0]["id"], self.response_a.pk)
+
+    def test_teacher_cannot_redirect_to_another_teachers_quiz(self):
+        self.client.force_login(self.teacher_user_a)
+
+        response = self.client.get(
+            reverse("quiz_app:quiz_detail", args=[self.quiz_a_other_teacher.pk])
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_legacy_dashboard_urls_redirect_to_react_routes(self):
         admin_response = self.client.get(reverse("quiz_app:admin_dashboard"))
         teacher_response = self.client.get(reverse("quiz_app:teacher_dashboard"))
+        self.client.force_login(self.student_user_a)
+        student_response = self.client.get(reverse("quiz_app:student_dashboard"))
 
-        self.assertEqual(admin_response.status_code, 200)
-        self.assertEqual(admin_response.context["stats"]["total_attempts"], 2)
-        self.assertEqual(teacher_response.status_code, 200)
-        self.assertEqual(teacher_response.context["total_attempts"], 2)
+        self.assertRedirects(
+            admin_response, "/app/admin/dashboard", fetch_redirect_response=False
+        )
+        self.assertRedirects(
+            teacher_response, "/app/teacher/dashboard", fetch_redirect_response=False
+        )
+        self.assertRedirects(
+            student_response, "/app/student/dashboard", fetch_redirect_response=False
+        )
+        superadmin = User.objects.create_user(
+            username="dashboard-superadmin",
+            email="dashboard-superadmin@example.test",
+            role="superadmin",
+            full_name="Dashboard Superadmin",
+        )
+        self.client.force_login(superadmin)
+        superadmin_response = self.client.get(reverse("quiz_app:dashboard"))
+        self.assertRedirects(
+            superadmin_response,
+            "/app/superadmin/dashboard",
+            fetch_redirect_response=False,
+        )
 
     def test_student_bulk_delete_rejects_mixed_school_ids_atomically(self):
         response = self.client.post(
@@ -2177,7 +2405,9 @@ class SchoolScopedManagementEndpointTests(TestCase):
         ]
         for route_name in routes:
             with self.subTest(route_name=route_name):
-                response = self.client.get(reverse(f"quiz_app:{route_name}"))
+                response = self.client.get(
+                    reverse(f"quiz_app:{route_name}"), {"classic": "1"}
+                )
                 self.assertEqual(response.status_code, 200)
                 self.assertIn('name="school_id"', response.json()["html"])
 
@@ -3360,21 +3590,37 @@ class SchoolScopedManagementEndpointTests(TestCase):
             reverse("quiz_app:student_quiz_result_detail", args=[attempt.pk])
         )
 
-        self.assertEqual(result.status_code, 200)
-        self.assertContains(result, "Original snapshot quiz")
-        self.assertContains(result, "Original question")
-        self.assertContains(result, "Original correct choice")
-        self.assertContains(result, "Original explanation")
-        self.assertContains(result, "/ 2 marks")
-        self.assertNotContains(result, "Edited question")
-        self.assertNotContains(result, "Edited correct choice")
+        self.assertRedirects(
+            result,
+            f"/app/student/attempts/{attempt.pk}/result",
+            fetch_redirect_response=False,
+        )
+        api_result = self.client.get(
+            reverse("quiz_app:api_student_quiz_result", args=[attempt.pk])
+        )
+        self.assertEqual(api_result.status_code, 200)
+        snapshot_result = api_result.json()
+        self.assertEqual(snapshot_result["quiz_title"], "Original snapshot quiz")
+        self.assertEqual(snapshot_result["questions"][0]["question_text"], "Original question")
+        self.assertEqual(snapshot_result["questions"][0]["correct_answer"], "Original correct choice")
+        self.assertEqual(snapshot_result["questions"][0]["explanation"], "Original explanation")
+        self.assertNotIn("Edited question", api_result.content.decode())
+        self.assertNotIn("Edited correct choice", api_result.content.decode())
 
         print_result = self.client.get(
             reverse("quiz_app:student_quiz_result_print", args=[attempt.pk])
         )
-        self.assertEqual(print_result.status_code, 200)
-        self.assertContains(print_result, "Original snapshot quiz")
-        self.assertContains(print_result, "Original question")
+        self.assertRedirects(
+            print_result,
+            f"/app/student/attempts/{attempt.pk}/result/print",
+            fetch_redirect_response=False,
+        )
+        print_api_result = self.client.get(
+            reverse("quiz_app:api_student_quiz_result", args=[attempt.pk])
+        )
+        self.assertEqual(print_api_result.status_code, 200)
+        self.assertEqual(print_api_result.json()["quiz_title"], "Original snapshot quiz")
+        self.assertEqual(print_api_result.json()["questions"][0]["question_text"], "Original question")
 
     def test_result_review_displays_all_selected_multiple_answer_choices(self):
         quiz = Quiz.objects.create(
@@ -3682,10 +3928,17 @@ class SchoolScopedManagementEndpointTests(TestCase):
             reverse("quiz_app:student_quiz_result_detail", args=[self.attempt_a.pk])
         )
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Score Summary")
-        self.assertContains(response, "Answer review is not available")
-        self.assertNotContains(response, self.question_a.question_text)
+        self.assertRedirects(
+            response,
+            f"/app/student/attempts/{self.attempt_a.pk}/result",
+            fetch_redirect_response=False,
+        )
+        api_response = self.client.get(
+            reverse("quiz_app:api_student_quiz_result", args=[self.attempt_a.pk])
+        )
+        self.assertEqual(api_response.status_code, 200)
+        self.assertFalse(api_response.json()["allow_review"])
+        self.assertEqual(api_response.json()["questions"], [])
 
     def test_student_cannot_review_when_quiz_review_is_disabled(self):
         self.client.force_login(self.student_user_a)
@@ -3696,9 +3949,17 @@ class SchoolScopedManagementEndpointTests(TestCase):
             reverse("quiz_app:student_quiz_result_print", args=[self.attempt_a.pk])
         )
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Score summary only")
-        self.assertNotContains(response, self.question_a.question_text)
+        self.assertRedirects(
+            response,
+            f"/app/student/attempts/{self.attempt_a.pk}/result/print",
+            fetch_redirect_response=False,
+        )
+        api_response = self.client.get(
+            reverse("quiz_app:api_student_quiz_result", args=[self.attempt_a.pk])
+        )
+        self.assertEqual(api_response.status_code, 200)
+        self.assertFalse(api_response.json()["allow_review"])
+        self.assertEqual(api_response.json()["questions"], [])
 
     def test_student_answer_key_and_explanation_follow_quiz_visibility_setting(self):
         self.client.force_login(self.student_user_a)
@@ -3729,18 +3990,35 @@ class SchoolScopedManagementEndpointTests(TestCase):
             reverse("quiz_app:student_quiz_result_detail", args=[self.attempt_a.pk])
         )
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, self.question_a.question_text)
-        self.assertNotContains(response, "private answer key")
-        self.assertNotContains(response, "private explanation")
+        self.assertRedirects(
+            response,
+            f"/app/student/attempts/{self.attempt_a.pk}/result",
+            fetch_redirect_response=False,
+        )
+        api_response = self.client.get(
+            reverse("quiz_app:api_student_quiz_result", args=[self.attempt_a.pk])
+        )
+        self.assertEqual(api_response.status_code, 200)
+        self.assertIn(self.question_a.question_text, api_response.content.decode())
+        self.assertNotIn("private answer key", api_response.content.decode())
+        self.assertNotIn("private explanation", api_response.content.decode())
 
         print_response = self.client.get(
             reverse("quiz_app:student_quiz_result_print", args=[self.attempt_a.pk])
         )
 
-        self.assertEqual(print_response.status_code, 200)
-        self.assertNotContains(print_response, "private answer key")
-        self.assertNotContains(print_response, "private explanation")
+        self.assertRedirects(
+            print_response,
+            f"/app/student/attempts/{self.attempt_a.pk}/result/print",
+            fetch_redirect_response=False,
+        )
+        print_api_response = self.client.get(
+            reverse("quiz_app:api_student_quiz_result", args=[self.attempt_a.pk])
+        )
+        self.assertEqual(print_api_response.status_code, 200)
+        print_question = print_api_response.json()["questions"][0]
+        self.assertNotIn("correct_answer", print_question)
+        self.assertNotIn("explanation", print_question)
 
     def test_student_can_open_quiz_assigned_to_current_class(self):
         self.client.force_login(self.student_user_a)

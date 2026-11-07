@@ -30,96 +30,17 @@ from ..models import (
 @require_http_methods(["GET"])
 def quiz_grading_list_view(request):
     """
-    Display list of quiz attempts that need grading.
+    Redirect the legacy grading queue to the React grading queue.
     """
     if request.user.role not in ["teacher", "admin"]:
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:dashboard")
     
-    school = request.user.school
-    
-    # Teachers see only their quizzes, admins see all quizzes in school
     if request.user.role == "teacher":
         if not request.user.teacher_profile:
             messages.error(request, "Teacher profile not found. Please contact administrator.")
             return redirect("quiz_app:dashboard")
-        teacher = request.user.teacher_profile
-        teacher_quizzes = Quiz.objects.filter(teacher=teacher, school=school)
-    else:
-        # Admin sees all quizzes in their school
-        teacher_quizzes = Quiz.objects.filter(school=school)
-    
-    # Get attempts that need grading (submitted and have essay questions that aren't graded)
-    attempts = QuizAttempt.objects.filter(
-        quiz__in=teacher_quizzes,
-        school=school,
-        quiz__school=school,
-        student__school=school,
-        is_submitted=True
-    ).select_related('quiz', 'student', 'academic_year', 'term').prefetch_related('responses').order_by('-submitted_at')
-    
-    # Filter by quiz
-    quiz_filter = request.GET.get('quiz', '')
-    if quiz_filter:
-        attempts = attempts.filter(quiz_id=quiz_filter)
-    
-    # Filter by grading status
-    grading_status = request.GET.get('status', 'needs_grading')
-    if grading_status == 'needs_grading':
-        # Get attempts that have responses needing grading
-        attempts_with_ungraded = QuizResponse.objects.filter(
-            attempt__quiz__in=teacher_quizzes,
-            attempt__school=school,
-            attempt__quiz__school=school,
-            attempt__student__school=school,
-            school=school,
-            question__school=school,
-            question__quiz_id=F('attempt__quiz_id'),
-            attempt__is_submitted=True,
-            question__question_type='essay',
-            is_graded=False
-        ).values_list('attempt_id', flat=True).distinct()
-        attempts = attempts.filter(id__in=attempts_with_ungraded)
-    elif grading_status == 'graded':
-        attempts = attempts.filter(is_graded=True)
-    elif grading_status == 'all':
-        pass  # Show all
-    
-    # Search functionality
-    search_query = request.GET.get('search', '')
-    if search_query:
-        attempts = attempts.filter(
-            Q(student__full_name__icontains=search_query) |
-            Q(student__admission_number__icontains=search_query) |
-            Q(quiz__title__icontains=search_query)
-        )
-    
-    # Annotate each attempt with grading info
-    for attempt in attempts:
-        all_essay_responses = attempt.responses.filter(
-            school=school,
-            question__school=school,
-            question__quiz_id=F('attempt__quiz_id'),
-            question__question_type='essay',
-        )
-        essay_responses_ungraded = all_essay_responses.filter(is_graded=False)
-        attempt.ungraded_essay_count = essay_responses_ungraded.count()
-        attempt.total_essay_count = all_essay_responses.count()
-        attempt.graded_essay_count = attempt.total_essay_count - attempt.ungraded_essay_count
-        attempt.needs_grading = attempt.ungraded_essay_count > 0
-    
-    # Get filter options
-    quizzes = teacher_quizzes.order_by('-created_at')
-    
-    context = {
-        'attempts': attempts,
-        'quizzes': quizzes,
-        'quiz_filter': quiz_filter,
-        'grading_status': grading_status,
-        'search_query': search_query,
-    }
-    
-    return render(request, 'quiz/grading/quiz_grading_list.html', context)
+    return redirect("/app/teacher/grading")
 
 
 @login_required
@@ -159,6 +80,8 @@ def quiz_attempt_grading_view(request, attempt_id):
             school=school,
             is_submitted=True
         )
+
+    return redirect(f"/app/teacher/grading/{attempt.pk}")
     
     # Get all responses ordered by question order
     responses = attempt.responses.filter(
@@ -233,17 +156,7 @@ def quiz_response_grade_view(request, response_id):
     response = get_object_or_404(responses)
     
     if request.method == "GET":
-        # Check if this is an AJAX request for modal
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            html = render(request, 'quiz/grading/partials/grade_response_form.html', {
-                'response': response,
-                'question': response.question,
-                'attempt': response.attempt,
-            }).content.decode('utf-8')
-            return JsonResponse({'html': html})
-        
-        # Regular page request
-        return redirect("quiz_app:quiz_attempt_grading", attempt_id=response.attempt.id)
+        return redirect(f"/app/teacher/grading/{response.attempt_id}")
     
     # POST - Save grade
     try:

@@ -29,6 +29,8 @@ def superadmin_school_list_view(request):
     if request.user.role != "superadmin":
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:superadmin_login")
+    if request.GET.get("classic") != "1":
+        return redirect("/app/superadmin/schools")
     
     schools = SchoolInformation.objects.all().order_by('name')
     
@@ -67,6 +69,8 @@ def superadmin_school_detail_view(request, school_id):
     if request.user.role != "superadmin":
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:superadmin_login")
+    if request.GET.get("classic") != "1":
+        return redirect(f"/app/superadmin/schools/{school_id}")
     
     school = get_object_or_404(SchoolInformation, pk=school_id)
     
@@ -98,6 +102,8 @@ def superadmin_school_edit_view(request, school_id):
     school = get_object_or_404(SchoolInformation, pk=school_id)
     
     if request.method == "GET":
+        if request.GET.get("classic") != "1":
+            return redirect(f"/app/superadmin/schools/{school_id}/edit")
         # Get academic years and terms for dropdowns
         academic_years = AcademicYear.objects.filter(school=school).order_by('-start_date')
         terms = Term.objects.filter(academic_year__school=school).order_by('-academic_year__start_date', 'term_number')
@@ -226,6 +232,8 @@ def superadmin_school_create_view(request):
         return redirect("quiz_app:superadmin_login")
     
     if request.method == "GET":
+        if request.GET.get("classic") != "1":
+            return redirect("/app/superadmin/schools/new")
         # Return form for modal
         html = render(request, 'superadmin/partials/school_form.html', {
             'school': None,
@@ -326,7 +334,6 @@ def superadmin_school_delete_view(request, school_id):
             'success': False,
             'error': f'Error deleting school: {str(e)}'
         }, status=500)
-
 
 
 

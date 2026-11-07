@@ -48,21 +48,8 @@ def student_quiz_list_view(request):
     if not request.user.student_profile:
         messages.error(request, "Student profile not found. Please contact administrator.")
         return redirect("quiz_app:dashboard")
-    
-    student = request.user.student_profile
-    school = request.user.school
-    
-    # Get student's current class
-    current_class = student.get_current_class()
-    if not current_class:
-        messages.warning(request, "You are not assigned to any class. Please contact your administrator.")
-        return render(request, 'quiz/student/quiz_list.html', {
-            'quizzes': [],
-            'subjects': [],
-            'academic_years': [],
-            'terms': [],
-            'current_class': None,
-        })
+
+    return redirect("/app/student/quizzes")
     
     # Get quizzes assigned to student's class
     quizzes = Quiz.objects.filter(
@@ -218,67 +205,7 @@ def student_quiz_detail_view(request, quiz_id):
     if not quiz.classes.filter(pk=current_class.pk, school=school).exists():
         messages.error(request, "This quiz is not assigned to your class.")
         return redirect("quiz_app:student_quiz_list")
-    
-    # Get student's attempts for this quiz
-    attempts = QuizAttempt.objects.filter(
-        quiz=quiz,
-        student=student,
-        school=school,
-        quiz__school=school,
-        student__school=school,
-    ).order_by('-started_at')
-    
-    # Calculate statistics
-    attempts_count = attempts.count()
-    submitted_attempts = attempts.filter(is_submitted=True)
-    completed_attempts = submitted_attempts.filter(is_completed=True)
-    
-    # Get best attempt
-    best_attempt = completed_attempts.order_by('-score', '-percentage').first()
-    best_score = best_attempt.score if best_attempt else 0
-    best_percentage = best_attempt.percentage if best_attempt else 0
-    
-    # Check for in-progress attempt
-    in_progress_attempt = attempts.filter(is_submitted=False, is_completed=False).first()
-    
-    # Calculate remaining attempts
-    remaining_attempts = max(0, quiz.max_attempts - attempts_count)
-    
-    # Check if student can attempt
-    can_attempt, attempt_message = quiz.can_student_attempt(student)
-    
-    # Get availability status
-    now = timezone.now()
-    is_available_now = True
-    availability_message = ""
-    
-    if quiz.available_from and quiz.available_from > now:
-        is_available_now = False
-        availability_message = f"Quiz will be available from {quiz.available_from.strftime('%B %d, %Y at %I:%M %p')}"
-    elif quiz.available_until and quiz.available_until < now:
-        is_available_now = False
-        availability_message = f"Quiz expired on {quiz.available_until.strftime('%B %d, %Y at %I:%M %p')}"
-    
-    context = {
-        'quiz': quiz,
-        'student': student,
-        'current_class': current_class,
-        'attempts': attempts,
-        'attempts_count': attempts_count,
-        'submitted_attempts': submitted_attempts,
-        'completed_attempts': completed_attempts,
-        'best_attempt': best_attempt,
-        'best_score': best_score,
-        'best_percentage': best_percentage,
-        'remaining_attempts': remaining_attempts,
-        'can_attempt': can_attempt,
-        'attempt_message': attempt_message,
-        'in_progress_attempt': in_progress_attempt,
-        'is_available_now': is_available_now,
-        'availability_message': availability_message,
-    }
-    
-    return render(request, 'quiz/student/quiz_detail.html', context)
+    return redirect(f"/app/student/quizzes/{quiz.pk}")
 
 
 def get_client_ip(request):
@@ -353,6 +280,9 @@ def student_quiz_start_view(request, quiz_id):
     if quiz.available_until and quiz.available_until < now:
         messages.error(request, f"Quiz expired on {quiz.available_until.strftime('%B %d, %Y at %I:%M %p')}")
         return redirect("quiz_app:student_quiz_detail", quiz_id=quiz_id)
+
+    if request.method == "GET":
+        return redirect(f"/app/student/quizzes/{quiz.pk}")
     
     # Handle password verification if required
     if quiz.require_password:
@@ -498,10 +428,10 @@ def student_quiz_resume_view(request, quiz_id):
     if in_progress_attempt.is_time_expired():
         _submit_attempt_safely(in_progress_attempt.pk, student, school)
         messages.warning(request, "Time limit expired. Your quiz has been automatically submitted.")
-        return redirect("quiz_app:student_quiz_result_detail", attempt_id=in_progress_attempt.id)
+        return redirect(f"/app/student/attempts/{in_progress_attempt.id}/result")
     
     messages.info(request, "Resuming your previous attempt.")
-    return redirect("quiz_app:student_quiz_take", attempt_id=in_progress_attempt.id)
+    return redirect(f"/app/student/take/{in_progress_attempt.id}")
 
 
 @login_required
@@ -535,7 +465,7 @@ def student_quiz_take_view(request, attempt_id):
     # Check if attempt is already submitted
     if attempt.is_submitted:
         messages.info(request, "This quiz has already been submitted.")
-        return redirect("quiz_app:student_quiz_result_detail", attempt_id=attempt_id)
+        return redirect(f"/app/student/attempts/{attempt_id}/result")
     
     quiz = attempt.quiz
     
@@ -545,7 +475,9 @@ def student_quiz_take_view(request, attempt_id):
             _submit_attempt_safely(attempt.pk, student, school)
             
             messages.warning(request, "Time limit expired. Your quiz has been automatically submitted.")
-            return redirect("quiz_app:student_quiz_result_detail", attempt_id=attempt_id)
+            return redirect(f"/app/student/attempts/{attempt_id}/result")
+
+    return redirect(f"/app/student/take/{attempt.pk}")
     
     # Get questions ordered by order field
     questions = list(quiz.questions.filter(
@@ -658,7 +590,7 @@ def student_quiz_take_view(request, attempt_id):
         if time_remaining_seconds <= 0:
             _submit_attempt_safely(attempt.pk, student, school)
             messages.warning(request, "Time limit expired. Your quiz has been automatically submitted.")
-            return redirect("quiz_app:student_quiz_result_detail", attempt_id=attempt_id)
+            return redirect(f"/app/student/attempts/{attempt_id}/result")
     
     # Get answered questions count
     answered_count = attempt.responses.filter(
@@ -860,7 +792,7 @@ def student_quiz_submit_view(request, attempt_id):
             messages.warning(request, "Time limit expired. Quiz submitted with current answers.")
         else:
             messages.success(request, "Quiz submitted successfully!")
-        return redirect("quiz_app:student_quiz_result_detail", attempt_id=attempt_id)
+        return redirect(f"/app/student/attempts/{attempt_id}/result")
             
     except Exception as e:
         messages.error(request, f"An error occurred while submitting the quiz: {str(e)}")
@@ -881,121 +813,7 @@ def student_quiz_attempts_view(request):
     if not request.user.student_profile:
         messages.error(request, "Student profile not found. Please contact administrator.")
         return redirect("quiz_app:dashboard")
-    
-    student = request.user.student_profile
-    school = request.user.school
-    
-    # Get all attempts for this student
-    attempts = QuizAttempt.objects.filter(
-        student=student,
-        school=school,
-        quiz__school=school,
-        student__school=school,
-    ).select_related('quiz', 'quiz__subject', 'quiz__teacher', 'academic_year', 'term').order_by('-submitted_at', '-started_at')
-    
-    # Filter by quiz
-    quiz_filter = request.GET.get('quiz', '')
-    if quiz_filter:
-        attempts = attempts.filter(quiz_id=quiz_filter)
-    
-    # Filter by subject
-    subject_filter = request.GET.get('subject', '')
-    if subject_filter:
-        attempts = attempts.filter(quiz__subject_id=subject_filter)
-    
-    # Filter by academic year
-    academic_year_filter = request.GET.get('academic_year', '')
-    if academic_year_filter:
-        attempts = attempts.filter(academic_year_id=academic_year_filter)
-    
-    # Filter by term
-    term_filter = request.GET.get('term', '')
-    if term_filter:
-        attempts = attempts.filter(term_id=term_filter)
-    
-    # Filter by status
-    status_filter = request.GET.get('status', '')
-    if status_filter == 'completed':
-        attempts = attempts.filter(is_submitted=True, is_completed=True)
-    elif status_filter == 'in_progress':
-        attempts = attempts.filter(is_submitted=False, is_completed=False)
-    elif status_filter == 'grading_pending':
-        attempts = attempts.filter(needs_grading=True, is_graded=False)
-    elif status_filter == 'graded':
-        attempts = attempts.filter(is_graded=True)
-    
-    # Search functionality
-    search_query = request.GET.get('search', '')
-    if search_query:
-        attempts = attempts.filter(
-            Q(quiz__title__icontains=search_query) |
-            Q(quiz__subject__subject_name__icontains=search_query) |
-            Q(quiz__teacher__full_name__icontains=search_query)
-        )
-    
-    # Get filter options
-    quizzes = Quiz.objects.filter(
-        id__in=attempts.values_list('quiz_id', flat=True).distinct(),
-        school=school
-    ).order_by('-created_at')
-    
-    subjects = Subject.objects.filter(
-        id__in=attempts.values_list('quiz__subject_id', flat=True).distinct(),
-        school=school
-    ).order_by('subject_name')
-    
-    academic_years = AcademicYear.objects.filter(
-        id__in=attempts.values_list('academic_year_id', flat=True).distinct(),
-        school=school
-    ).order_by('-start_date')
-    
-    terms = Term.objects.filter(
-        id__in=attempts.values_list('term_id', flat=True).distinct(),
-        school=school
-    ).order_by('start_date')
-    
-    # Calculate statistics
-    total_attempts = attempts.count()
-    completed_attempts = attempts.filter(is_submitted=True, is_completed=True)
-    completed_attempts_count = completed_attempts.count()
-    avg_score = completed_attempts.aggregate(avg=Avg('score'))['avg'] or 0
-    avg_percentage = completed_attempts.aggregate(avg=Avg('percentage'))['avg'] or 0
-    best_attempt = completed_attempts.order_by('-score', '-percentage').first()
-    best_score = best_attempt.score if best_attempt else 0
-    best_percentage = best_attempt.percentage if best_attempt else 0
-    
-    # Get best attempt per quiz for highlighting
-    best_attempt_ids = []
-    quiz_ids = attempts.values_list('quiz_id', flat=True).distinct()
-    for quiz_id in quiz_ids:
-        quiz_attempts = attempts.filter(quiz_id=quiz_id, is_submitted=True, is_completed=True)
-        if quiz_attempts.exists():
-            best = quiz_attempts.order_by('-score', '-percentage', '-submitted_at').first()
-            if best:
-                best_attempt_ids.append(best.id)
-    
-    context = {
-        'attempts': attempts,
-        'quizzes': quizzes,
-        'subjects': subjects,
-        'academic_years': academic_years,
-        'terms': terms,
-        'quiz_filter': quiz_filter,
-        'subject_filter': subject_filter,
-        'academic_year_filter': academic_year_filter,
-        'term_filter': term_filter,
-        'status_filter': status_filter,
-        'search_query': search_query,
-        'total_attempts': total_attempts,
-        'completed_attempts_count': completed_attempts_count,
-        'avg_score': avg_score,
-        'avg_percentage': avg_percentage,
-        'best_score': best_score,
-        'best_percentage': best_percentage,
-        'best_attempt_ids': best_attempt_ids,
-    }
-    
-    return render(request, 'quiz/student/attempts_list.html', context)
+    return redirect("/app/student/attempts")
 
 
 def _attempt_review_snapshot(attempt, quiz, questions, responses):
@@ -1134,8 +952,7 @@ def student_quiz_result_detail_view(request, attempt_id):
         student__school=school,
         is_submitted=True
     )
-    
-    quiz = attempt.quiz
+    return redirect(f"/app/student/attempts/{attempt.pk}/result")
     
     # Get all responses ordered by question order
     responses = attempt.responses.filter(
@@ -1190,7 +1007,7 @@ def student_quiz_result_detail_view(request, attempt_id):
 @require_http_methods(["GET"])
 def student_quiz_result_print_view(request, attempt_id):
     """
-    Display print-friendly version of quiz result for the student.
+    Route student quiz result printing through the React report.
     """
     if request.user.role != "student":
         messages.error(request, "You don't have permission to access this page.")
@@ -1203,7 +1020,6 @@ def student_quiz_result_print_view(request, attempt_id):
     student = request.user.student_profile
     school = request.user.school
     
-    # Get attempt - ensure it belongs to this student
     attempt = get_object_or_404(
         QuizAttempt,
         pk=attempt_id,
@@ -1213,63 +1029,4 @@ def student_quiz_result_print_view(request, attempt_id):
         student__school=school,
         is_submitted=True
     )
-    
-    quiz = attempt.quiz
-    
-    # Get all responses ordered by question order
-    responses = attempt.responses.filter(
-        school=school,
-        question__school=school,
-        question__quiz_id=attempt.quiz_id,
-    ).filter(
-        Q(selected_choice__isnull=True) | Q(selected_choice__school=school)
-    ).select_related(
-        'question'
-    ).prefetch_related(
-        Prefetch(
-            'question__answer_choices',
-            queryset=AnswerChoice.objects.filter(school=school),
-        ),
-        'selected_choice',
-        Prefetch(
-            'selected_choices',
-            queryset=AnswerChoice.objects.filter(school=school),
-        ),
-    ).order_by('question__order')
-    
-    # Get all questions to show unanswered ones
-    all_questions = list(quiz.questions.filter(school=school).prefetch_related(
-        Prefetch(
-            'answer_choices',
-            queryset=AnswerChoice.objects.filter(school=school),
-        )
-    ).order_by('order'))
-    quiz, all_questions, responses = _attempt_review_snapshot(
-        attempt, quiz, all_questions, responses
-    )
-    answered_question_ids = {
-        response.question_id for response in responses
-    }
-    
-    # School information (school is already a SchoolInformation instance)
-    school_info = school
-    
-    # Format data for unified template
-    attempts = [{
-        'attempt': attempt,
-        'quiz': quiz,
-        'responses': responses,
-        'all_questions': all_questions,
-        'answered_question_ids': answered_question_ids,
-        'student_view': True,
-        'can_review': quiz.show_results_immediately and quiz.allow_review,
-        'show_correct_answers': quiz.show_correct_answers,
-    }]
-    
-    context = {
-        'attempts': attempts,
-        'school_info': school_info,
-        'is_bulk': False,
-    }
-    
-    return render(request, 'quiz/results/unified_result_print.html', context)
+    return redirect(f"/app/student/attempts/{attempt.pk}/result/print")

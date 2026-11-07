@@ -32,99 +32,12 @@ from ..utils.tenant_utils import get_object_or_404_with_school
 @login_required
 @require_http_methods(["GET"])
 def assignment_list_view(request):
-    """
-    Display list of all teacher subject assignments with filtering and search capabilities.
-    """
+    """Redirect the legacy assignment list URL to the React screen."""
     if request.user.role not in ["admin", "superadmin"]:
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:dashboard")
 
-    school = request.user.school
-    assignments = TeacherSubjectAssignment.objects.filter(
-        school__isnull=False,
-        teacher__school_id=F("school_id"),
-        subject__school_id=F("school_id"),
-        class_assigned__school_id=F("school_id"),
-        academic_year__school_id=F("school_id"),
-    ).filter(
-        Q(previous_teacher__isnull=True)
-        | Q(previous_teacher__school_id=F("school_id"))
-    )
-    
-    if school:
-        assignments = assignments.filter(school=school)
-    
-    # Search functionality
-    search_query = request.GET.get('search', '')
-    if search_query:
-        assignments = assignments.filter(
-            Q(teacher__full_name__icontains=search_query) |
-            Q(subject__subject_name__icontains=search_query) |
-            Q(class_assigned__name__icontains=search_query)
-        )
-    
-    # Filter by teacher
-    teacher_filter = request.GET.get('teacher', '')
-    if teacher_filter:
-        assignments = assignments.filter(teacher_id=teacher_filter)
-    
-    # Filter by subject
-    subject_filter = request.GET.get('subject', '')
-    if subject_filter:
-        assignments = assignments.filter(subject_id=subject_filter)
-    
-    # Filter by class
-    class_filter = request.GET.get('class', '')
-    if class_filter:
-        assignments = assignments.filter(class_assigned_id=class_filter)
-    
-    # Filter by academic year
-    academic_year_filter = request.GET.get('academic_year', '')
-    if academic_year_filter:
-        assignments = assignments.filter(academic_year_id=academic_year_filter)
-    
-    # Filter by active status
-    active_filter = request.GET.get('is_active', '')
-    if active_filter == 'true':
-        assignments = assignments.filter(is_active=True)
-    elif active_filter == 'false':
-        assignments = assignments.filter(is_active=False)
-    
-    # Order by date assigned (newest first)
-    assignments = assignments.order_by('-date_assigned', 'teacher__full_name')
-    
-    # Get filter options
-    teachers = Teacher.objects.all()
-    subjects = Subject.objects.all()
-    classes = Class.objects.all()
-    academic_years = AcademicYear.objects.all()
-    
-    if school:
-        teachers = teachers.filter(school=school)
-        subjects = subjects.filter(school=school)
-        classes = classes.filter(school=school)
-        academic_years = academic_years.filter(school=school)
-    
-    teachers = teachers.order_by('full_name')
-    subjects = subjects.order_by('subject_name')
-    classes = classes.order_by('name')
-    academic_years = academic_years.order_by('-start_date')
-    
-    context = {
-        'assignments': assignments,
-        'teachers': teachers,
-        'subjects': subjects,
-        'classes': classes,
-        'academic_years': academic_years,
-        'search_query': search_query,
-        'teacher_filter': teacher_filter,
-        'subject_filter': subject_filter,
-        'class_filter': class_filter,
-        'academic_year_filter': academic_year_filter,
-        'active_filter': active_filter,
-    }
-    
-    return render(request, 'teacher_assignment/assignment_list.html', context)
+    return redirect("/app/admin/assignments")
 
 
 @login_required

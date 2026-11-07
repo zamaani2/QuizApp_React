@@ -15,6 +15,7 @@ from django.views.decorators.http import require_http_methods
 from django.db.models import F, Q, Count, Avg, Max, Min, Prefetch
 from django.utils import timezone
 from io import BytesIO
+from urllib.parse import urlencode
 
 try:
     from openpyxl import Workbook
@@ -36,137 +37,17 @@ from ..models import (
 @require_http_methods(["GET"])
 def quiz_results_list_view(request):
     """
-    Display list of quiz results/attempts for teacher's quizzes.
+    Redirect the legacy results list to the React results screen.
     """
     if request.user.role not in ["teacher", "admin"]:
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:dashboard")
     
-    school = request.user.school
-    
-    # Teachers see only their quizzes, admins see all quizzes in school
     if request.user.role == "teacher":
         if not request.user.teacher_profile:
             messages.error(request, "Teacher profile not found. Please contact administrator.")
             return redirect("quiz_app:dashboard")
-        teacher = request.user.teacher_profile
-        teacher_quizzes = Quiz.objects.filter(teacher=teacher, school=school)
-    else:
-        # Admin sees all quizzes in their school
-        teacher_quizzes = Quiz.objects.filter(school=school)
-    
-    # Get all submitted attempts
-    all_attempts = QuizAttempt.objects.filter(
-        quiz__in=teacher_quizzes,
-        school=school,
-        quiz__school=school,
-        student__school=school,
-        is_submitted=True
-    ).select_related('quiz', 'student', 'academic_year', 'term')
-    
-    # Filter by quiz
-    quiz_filter = request.GET.get('quiz', '')
-    if quiz_filter:
-        all_attempts = all_attempts.filter(quiz_id=quiz_filter)
-    
-    # Filter by academic year
-    academic_year_filter = request.GET.get('academic_year', '')
-    if academic_year_filter:
-        all_attempts = all_attempts.filter(academic_year_id=academic_year_filter)
-    
-    # Filter by class (through student's current class)
-    from ..models import StudentClass
-    class_filter = request.GET.get('class', '')
-    if class_filter:
-        student_ids = StudentClass.objects.filter(
-            assigned_class_id=class_filter,
-            is_active=True,
-            school=school
-        ).values_list('student_id', flat=True)
-        all_attempts = all_attempts.filter(student_id__in=student_ids)
-    
-    # Search functionality
-    search_query = request.GET.get('search', '')
-    if search_query:
-        all_attempts = all_attempts.filter(
-            Q(student__full_name__icontains=search_query) |
-            Q(student__admission_number__icontains=search_query) |
-            Q(quiz__title__icontains=search_query)
-        )
-    
-    # Get only best attempts per student per quiz
-    # Use a more efficient approach: get max score per quiz-student pair, then get the attempt with that score
-    from django.db.models import Max
-    
-    # Get the maximum score for each quiz-student combination
-    max_scores = all_attempts.values('quiz', 'student').annotate(
-        max_score=Max('score'),
-        max_percentage=Max('percentage')
-    )
-    
-    # Build a list of best attempt IDs
-    best_attempt_ids = []
-    for score_data in max_scores:
-        # Get attempts with max score for this quiz-student pair
-        student_quiz_attempts = all_attempts.filter(
-            quiz_id=score_data['quiz'],
-            student_id=score_data['student'],
-            score=score_data['max_score']
-        )
-        
-        # If multiple attempts have the same max score, pick the one with highest percentage, then most recent
-        best_attempt = student_quiz_attempts.order_by('-percentage', '-submitted_at').first()
-        if best_attempt:
-            best_attempt_ids.append(best_attempt.id)
-    
-    # Filter to only best attempts
-    attempts = QuizAttempt.objects.filter(
-        id__in=best_attempt_ids,
-        school=school,
-        quiz__school=school,
-        student__school=school,
-    ).select_related('quiz', 'student', 'academic_year', 'term').order_by('-submitted_at')
-    
-    # Get filter options (use all_attempts for filter options, not just best attempts)
-    quizzes = teacher_quizzes.order_by('-created_at')
-    from ..models import AcademicYear, Class
-    academic_years = AcademicYear.objects.filter(
-        id__in=all_attempts.values_list('academic_year_id', flat=True).distinct(),
-        school=school
-    ).order_by('-start_date')
-    
-    # Get classes from students who have attempts
-    student_ids = all_attempts.values_list('student_id', flat=True).distinct()
-    class_ids = StudentClass.objects.filter(
-        student_id__in=student_ids,
-        is_active=True,
-        school=school
-    ).values_list('assigned_class_id', flat=True).distinct()
-    classes = Class.objects.filter(
-        id__in=class_ids,
-        school=school
-    ).order_by('name')
-    
-    # Calculate statistics
-    total_attempts = attempts.count()
-    avg_score = attempts.aggregate(avg=Avg('score'))['avg'] or 0
-    avg_percentage = attempts.aggregate(avg=Avg('percentage'))['avg'] or 0
-    
-    context = {
-        'attempts': attempts,
-        'quizzes': quizzes,
-        'academic_years': academic_years,
-        'classes': classes,
-        'quiz_filter': quiz_filter,
-        'academic_year_filter': academic_year_filter,
-        'class_filter': class_filter,
-        'search_query': search_query,
-        'total_attempts': total_attempts,
-        'avg_score': avg_score,
-        'avg_percentage': avg_percentage,
-    }
-    
-    return render(request, 'quiz/results/quiz_results_list.html', context)
+    return redirect("/app/teacher/results")
 
 
 @login_required
@@ -194,60 +75,10 @@ def quiz_result_detail_view(request, attempt_id):
             return redirect("quiz_app:dashboard")
         attempts = attempts.filter(quiz__teacher=teacher)
     attempt = get_object_or_404(attempts)
-    
-    # Get all responses ordered by question order
-    responses = attempt.responses.filter(
-        school=school,
-        question__school=school,
-        question__quiz_id=F('attempt__quiz_id'),
-    ).filter(
-        Q(selected_choice__isnull=True) | Q(selected_choice__school=school)
-    ).select_related(
-        'question'
-    ).prefetch_related(
-        Prefetch(
-            'question__answer_choices',
-            queryset=AnswerChoice.objects.filter(school=school),
-        ),
-        'selected_choice',
-        Prefetch(
-            'selected_choices',
-            queryset=AnswerChoice.objects.filter(school=school),
-        ),
-    ).order_by('question__order')
-    
-    # Check if print mode
-    print_mode = request.GET.get('print', '') == '1'
-    
-    if print_mode:
-        # Format data for unified template
-        quiz = attempt.quiz
-        all_questions = quiz.questions.filter(school=school).order_by('order')
-        answered_question_ids = set(responses.values_list('question_id', flat=True))
-        school_info = school
-        
-        attempts = [{
-            'attempt': attempt,
-            'quiz': quiz,
-            'responses': responses,
-            'all_questions': all_questions,
-            'answered_question_ids': answered_question_ids,
-        }]
-        
-        context = {
-            'attempts': attempts,
-            'school_info': school_info,
-            'is_bulk': False,
-        }
-        
-        return render(request, 'quiz/results/unified_result_print.html', context)
-    else:
-        context = {
-            'attempt': attempt,
-            'responses': responses,
-            'print_mode': print_mode,
-        }
-        return render(request, 'quiz/results/quiz_result_detail.html', context)
+
+    if request.GET.get("print") == "1":
+        return redirect(f"/app/teacher/results/{attempt.pk}/print")
+    return redirect(f"/app/teacher/results/{attempt.pk}")
 
 
 @login_required
@@ -452,7 +283,7 @@ def quiz_results_export_view(request):
 @require_http_methods(["GET"])
 def quiz_result_print_view(request, attempt_id):
     """
-    Print-friendly view of a quiz result.
+    Route individual quiz result printing through the React report.
     """
     if request.user.role not in ["teacher", "admin"]:
         messages.error(request, "You don't have permission to access this page.")
@@ -473,49 +304,7 @@ def quiz_result_print_view(request, attempt_id):
             return redirect("quiz_app:dashboard")
         attempts_queryset = attempts_queryset.filter(quiz__teacher=teacher)
     attempt = get_object_or_404(attempts_queryset)
-    
-    # Get all responses ordered by question order
-    responses = attempt.responses.filter(
-        school=school,
-        question__school=school,
-        question__quiz_id=F('attempt__quiz_id'),
-    ).filter(
-        Q(selected_choice__isnull=True) | Q(selected_choice__school=school)
-    ).select_related(
-        'question'
-    ).prefetch_related(
-        Prefetch(
-            'question__answer_choices',
-            queryset=AnswerChoice.objects.filter(school=school),
-        ),
-        'selected_choice',
-        Prefetch(
-            'selected_choices',
-            queryset=AnswerChoice.objects.filter(school=school),
-        ),
-    ).order_by('question__order')
-    
-    # Format data for unified template
-    quiz = attempt.quiz
-    all_questions = quiz.questions.filter(school=school).order_by('order')
-    answered_question_ids = set(responses.values_list('question_id', flat=True))
-    school_info = school
-    
-    attempts = [{
-        'attempt': attempt,
-        'quiz': quiz,
-        'responses': responses,
-        'all_questions': all_questions,
-        'answered_question_ids': answered_question_ids,
-    }]
-    
-    context = {
-        'attempts': attempts,
-        'school_info': school_info,
-        'is_bulk': False,
-    }
-    
-    return render(request, 'quiz/results/unified_result_print.html', context)
+    return redirect(f"/app/teacher/results/{attempt.pk}/print")
 
 
 @login_required
@@ -618,54 +407,13 @@ def quiz_results_bulk_print_view(request):
             is_submitted=True
         ).select_related('quiz', 'student', 'academic_year', 'term').order_by('quiz__title', 'student__full_name')
     
-    # Prepare data for unified template
-    attempts_data = []
-    for attempt in attempts_queryset:
-        quiz = attempt.quiz
-        
-        # Get all responses ordered by question order
-        responses = attempt.responses.filter(
-            school=school,
-            question__school=school,
-            question__quiz_id=F('attempt__quiz_id'),
-        ).filter(
-            Q(selected_choice__isnull=True) | Q(selected_choice__school=school)
-        ).select_related(
-            'question'
-        ).prefetch_related(
-            Prefetch(
-                'question__answer_choices',
-                queryset=AnswerChoice.objects.filter(school=school),
-            ),
-            'selected_choice',
-            Prefetch(
-                'selected_choices',
-                queryset=AnswerChoice.objects.filter(school=school),
-            ),
-        ).order_by('question__order')
-        
-        # Get all questions to show unanswered ones
-        all_questions = quiz.questions.filter(school=school).order_by('order')
-        answered_question_ids = set(responses.values_list('question_id', flat=True))
-        
-        attempts_data.append({
-            'attempt': attempt,
-            'quiz': quiz,
-            'responses': responses,
-            'all_questions': all_questions,
-            'answered_question_ids': answered_question_ids,
-        })
-    
-    if not attempts_data:
+    selected_attempt_ids = list(attempts_queryset.values_list('pk', flat=True))
+    if not selected_attempt_ids:
         messages.warning(request, "No results found to print.")
         return redirect("quiz_app:quiz_results_list")
-    
-    school_info = school
-    
-    context = {
-        'attempts': attempts_data,
-        'school_info': school_info,
-        'is_bulk': True,
-    }
-    
-    return render(request, 'quiz/results/unified_result_print.html', context)
+
+    query_string = urlencode(
+        {'attempt_ids': selected_attempt_ids},
+        doseq=True,
+    )
+    return redirect(f"/app/teacher/results/print/?{query_string}")

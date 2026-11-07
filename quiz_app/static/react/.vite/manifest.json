@@ -1,0 +1,594 @@
+{
+  "_AdminAcademic.css": {
+    "file": "assets/AdminAcademic.css",
+    "src": "_AdminAcademic.css"
+  },
+  "_AdminDirectory.css": {
+    "file": "assets/AdminDirectory.css",
+    "src": "_AdminDirectory.css"
+  },
+  "_academic.js": {
+    "file": "assets/academic.js",
+    "name": "academic",
+    "imports": [
+      "_me.js"
+    ]
+  },
+  "_admin.js": {
+    "file": "assets/admin.js",
+    "name": "admin",
+    "imports": [
+      "_me.js"
+    ]
+  },
+  "_allocations.js": {
+    "file": "assets/allocations.js",
+    "name": "allocations",
+    "imports": [
+      "_me.js"
+    ]
+  },
+  "_me.js": {
+    "file": "assets/me.js",
+    "name": "me"
+  },
+  "_schoolManagement.css": {
+    "file": "assets/schoolManagement.css",
+    "src": "_schoolManagement.css"
+  },
+  "_student.js": {
+    "file": "assets/student.js",
+    "name": "student",
+    "imports": [
+      "_me.js"
+    ]
+  },
+  "_teacher.js": {
+    "file": "assets/teacher.js",
+    "name": "teacher",
+    "imports": [
+      "_me.js"
+    ]
+  },
+  "auth-core.html": {
+    "file": "assets/auth-core.js",
+    "name": "auth-core",
+    "src": "auth-core.html",
+    "isEntry": true,
+    "imports": [
+      "_me.js"
+    ],
+    "css": [
+      "assets/auth-core.css"
+    ]
+  },
+  "index.html": {
+    "file": "assets/index.js",
+    "name": "index",
+    "src": "index.html",
+    "isEntry": true,
+    "imports": [
+      "_me.js"
+    ],
+    "dynamicImports": [
+      "src/features/superadmin/SchoolList.tsx",
+      "src/features/superadmin/AdminList.tsx",
+      "src/features/superadmin/AdminDetail.tsx",
+      "src/features/superadmin/AdminForm.tsx",
+      "src/features/superadmin/SuperadminDashboard.tsx",
+      "src/features/superadmin/SchoolDetail.tsx",
+      "src/features/superadmin/SchoolForm.tsx",
+      "src/features/admin/AdminDashboard.tsx",
+      "src/features/admin/StudentList.tsx",
+      "src/features/admin/TeacherList.tsx",
+      "src/features/admin/UserList.tsx",
+      "src/features/admin/AcademicYearsManager.tsx",
+      "src/features/admin/TermsManager.tsx",
+      "src/features/admin/ClassesManager.tsx",
+      "src/features/admin/ClassDetailView.tsx",
+      "src/features/admin/SubjectsManager.tsx",
+      "src/features/admin/StructureManager.tsx",
+      "src/features/admin/SchoolSettingsView.tsx",
+      "src/features/admin/StudentEnrollmentsManager.tsx",
+      "src/features/admin/TeacherAssignmentsManager.tsx",
+      "src/features/teacher/TeacherDashboard.tsx",
+      "src/features/teacher/QuizList.tsx",
+      "src/features/teacher/QuizDetail.tsx",
+      "src/features/teacher/QuizEditor.tsx",
+      "src/features/teacher/QuestionEditor.tsx",
+      "src/features/teacher/QuestionImport.tsx",
+      "src/features/teacher/QuizAssignments.tsx",
+      "src/features/teacher/GradingAttempt.tsx",
+      "src/features/teacher/QuizResultDetail.tsx",
+      "src/features/QuizResultPrint.tsx",
+      "src/features/QuizResultPrint.tsx",
+      "src/features/teacher/QuizResultsList.tsx",
+      "src/features/teacher/GradingQueue.tsx",
+      "src/features/student/StudentDashboard.tsx",
+      "src/features/student/StudentQuizList.tsx",
+      "src/features/student/StudentQuizDetail.tsx",
+      "src/features/student/StudentAttemptsList.tsx",
+      "src/features/student/StudentQuizResult.tsx",
+      "src/features/QuizResultPrint.tsx",
+      "src/features/student/StudentQuizTake.tsx",
+      "src/features/student/StudentProfileView.tsx"
+    ],
+    "css": [
+      "assets/index.css"
+    ]
+  },
+  "src/features/QuizResultPrint.tsx": {
+    "file": "assets/QuizResultPrint.js",
+    "name": "QuizResultPrint",
+    "src": "src/features/QuizResultPrint.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_teacher.js",
+      "_student.js",
+      "index.html"
+    ],
+    "css": [
+      "assets/QuizResultPrint.css"
+    ]
+  },
+  "src/features/admin/AcademicYearsManager.tsx": {
+    "file": "assets/AcademicYearsManager.js",
+    "name": "AcademicYearsManager",
+    "src": "src/features/admin/AcademicYearsManager.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_academic.js",
+      "index.html"
+    ],
+    "css": [
+      "assets/AdminAcademic.css"
+    ]
+  },
+  "src/features/admin/AdminDashboard.tsx": {
+    "file": "assets/AdminDashboard.js",
+    "name": "AdminDashboard",
+    "src": "src/features/admin/AdminDashboard.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_admin.js",
+      "index.html"
+    ],
+    "css": [
+      "assets/AdminDashboard.css"
+    ]
+  },
+  "src/features/admin/ClassDetailView.tsx": {
+    "file": "assets/ClassDetailView.js",
+    "name": "ClassDetailView",
+    "src": "src/features/admin/ClassDetailView.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_academic.js",
+      "index.html"
+    ]
+  },
+  "src/features/admin/ClassesManager.tsx": {
+    "file": "assets/ClassesManager.js",
+    "name": "ClassesManager",
+    "src": "src/features/admin/ClassesManager.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_academic.js",
+      "index.html"
+    ],
+    "css": [
+      "assets/AdminAcademic.css"
+    ]
+  },
+  "src/features/admin/SchoolSettingsView.tsx": {
+    "file": "assets/SchoolSettingsView.js",
+    "name": "SchoolSettingsView",
+    "src": "src/features/admin/SchoolSettingsView.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_academic.js",
+      "index.html"
+    ]
+  },
+  "src/features/admin/StructureManager.tsx": {
+    "file": "assets/StructureManager.js",
+    "name": "StructureManager",
+    "src": "src/features/admin/StructureManager.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_academic.js",
+      "index.html"
+    ],
+    "css": [
+      "assets/AdminAcademic.css"
+    ]
+  },
+  "src/features/admin/StudentEnrollmentsManager.tsx": {
+    "file": "assets/StudentEnrollmentsManager.js",
+    "name": "StudentEnrollmentsManager",
+    "src": "src/features/admin/StudentEnrollmentsManager.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_allocations.js",
+      "index.html"
+    ],
+    "css": [
+      "assets/StudentEnrollmentsManager.css"
+    ]
+  },
+  "src/features/admin/StudentList.tsx": {
+    "file": "assets/StudentList.js",
+    "name": "StudentList",
+    "src": "src/features/admin/StudentList.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_admin.js",
+      "_academic.js",
+      "index.html"
+    ],
+    "css": [
+      "assets/AdminDirectory.css"
+    ]
+  },
+  "src/features/admin/SubjectsManager.tsx": {
+    "file": "assets/SubjectsManager.js",
+    "name": "SubjectsManager",
+    "src": "src/features/admin/SubjectsManager.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_academic.js",
+      "index.html"
+    ],
+    "css": [
+      "assets/AdminAcademic.css"
+    ]
+  },
+  "src/features/admin/TeacherAssignmentsManager.tsx": {
+    "file": "assets/TeacherAssignmentsManager.js",
+    "name": "TeacherAssignmentsManager",
+    "src": "src/features/admin/TeacherAssignmentsManager.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_allocations.js",
+      "index.html"
+    ]
+  },
+  "src/features/admin/TeacherList.tsx": {
+    "file": "assets/TeacherList.js",
+    "name": "TeacherList",
+    "src": "src/features/admin/TeacherList.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_admin.js",
+      "_academic.js",
+      "index.html"
+    ],
+    "css": [
+      "assets/AdminDirectory.css"
+    ]
+  },
+  "src/features/admin/TermsManager.tsx": {
+    "file": "assets/TermsManager.js",
+    "name": "TermsManager",
+    "src": "src/features/admin/TermsManager.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_academic.js",
+      "index.html"
+    ],
+    "css": [
+      "assets/AdminAcademic.css"
+    ]
+  },
+  "src/features/admin/UserList.tsx": {
+    "file": "assets/UserList.js",
+    "name": "UserList",
+    "src": "src/features/admin/UserList.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "index.html",
+      "_admin.js"
+    ],
+    "css": [
+      "assets/AdminDirectory.css"
+    ]
+  },
+  "src/features/student/StudentAttemptsList.tsx": {
+    "file": "assets/StudentAttemptsList.js",
+    "name": "StudentAttemptsList",
+    "src": "src/features/student/StudentAttemptsList.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_student.js",
+      "index.html"
+    ]
+  },
+  "src/features/student/StudentDashboard.tsx": {
+    "file": "assets/StudentDashboard.js",
+    "name": "StudentDashboard",
+    "src": "src/features/student/StudentDashboard.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_student.js",
+      "index.html"
+    ]
+  },
+  "src/features/student/StudentProfileView.tsx": {
+    "file": "assets/StudentProfileView.js",
+    "name": "StudentProfileView",
+    "src": "src/features/student/StudentProfileView.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_student.js",
+      "index.html"
+    ]
+  },
+  "src/features/student/StudentQuizDetail.tsx": {
+    "file": "assets/StudentQuizDetail.js",
+    "name": "StudentQuizDetail",
+    "src": "src/features/student/StudentQuizDetail.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_student.js",
+      "index.html"
+    ]
+  },
+  "src/features/student/StudentQuizList.tsx": {
+    "file": "assets/StudentQuizList.js",
+    "name": "StudentQuizList",
+    "src": "src/features/student/StudentQuizList.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_student.js",
+      "index.html"
+    ]
+  },
+  "src/features/student/StudentQuizResult.tsx": {
+    "file": "assets/StudentQuizResult.js",
+    "name": "StudentQuizResult",
+    "src": "src/features/student/StudentQuizResult.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_student.js",
+      "index.html"
+    ]
+  },
+  "src/features/student/StudentQuizTake.tsx": {
+    "file": "assets/StudentQuizTake.js",
+    "name": "StudentQuizTake",
+    "src": "src/features/student/StudentQuizTake.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_student.js",
+      "index.html"
+    ]
+  },
+  "src/features/superadmin/AdminDetail.tsx": {
+    "file": "assets/AdminDetail.js",
+    "name": "AdminDetail",
+    "src": "src/features/superadmin/AdminDetail.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_admin.js",
+      "index.html"
+    ]
+  },
+  "src/features/superadmin/AdminForm.tsx": {
+    "file": "assets/AdminForm.js",
+    "name": "AdminForm",
+    "src": "src/features/superadmin/AdminForm.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_admin.js",
+      "index.html"
+    ]
+  },
+  "src/features/superadmin/AdminList.tsx": {
+    "file": "assets/AdminList.js",
+    "name": "AdminList",
+    "src": "src/features/superadmin/AdminList.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_admin.js",
+      "index.html"
+    ]
+  },
+  "src/features/superadmin/SchoolDetail.tsx": {
+    "file": "assets/SchoolDetail.js",
+    "name": "SchoolDetail",
+    "src": "src/features/superadmin/SchoolDetail.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_admin.js",
+      "index.html"
+    ],
+    "css": [
+      "assets/schoolManagement.css"
+    ]
+  },
+  "src/features/superadmin/SchoolForm.tsx": {
+    "file": "assets/SchoolForm.js",
+    "name": "SchoolForm",
+    "src": "src/features/superadmin/SchoolForm.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_admin.js",
+      "index.html"
+    ],
+    "css": [
+      "assets/schoolManagement.css"
+    ]
+  },
+  "src/features/superadmin/SchoolList.tsx": {
+    "file": "assets/SchoolList.js",
+    "name": "SchoolList",
+    "src": "src/features/superadmin/SchoolList.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_admin.js",
+      "index.html"
+    ]
+  },
+  "src/features/superadmin/SuperadminDashboard.tsx": {
+    "file": "assets/SuperadminDashboard.js",
+    "name": "SuperadminDashboard",
+    "src": "src/features/superadmin/SuperadminDashboard.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_admin.js",
+      "index.html"
+    ],
+    "css": [
+      "assets/SuperadminDashboard.css"
+    ]
+  },
+  "src/features/teacher/GradingAttempt.tsx": {
+    "file": "assets/GradingAttempt.js",
+    "name": "GradingAttempt",
+    "src": "src/features/teacher/GradingAttempt.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_teacher.js",
+      "index.html"
+    ]
+  },
+  "src/features/teacher/GradingQueue.tsx": {
+    "file": "assets/GradingQueue.js",
+    "name": "GradingQueue",
+    "src": "src/features/teacher/GradingQueue.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_teacher.js",
+      "index.html"
+    ]
+  },
+  "src/features/teacher/QuestionEditor.tsx": {
+    "file": "assets/QuestionEditor.js",
+    "name": "QuestionEditor",
+    "src": "src/features/teacher/QuestionEditor.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_teacher.js",
+      "index.html"
+    ]
+  },
+  "src/features/teacher/QuestionImport.tsx": {
+    "file": "assets/QuestionImport.js",
+    "name": "QuestionImport",
+    "src": "src/features/teacher/QuestionImport.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_teacher.js",
+      "index.html"
+    ]
+  },
+  "src/features/teacher/QuizAssignments.tsx": {
+    "file": "assets/QuizAssignments.js",
+    "name": "QuizAssignments",
+    "src": "src/features/teacher/QuizAssignments.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_teacher.js",
+      "index.html"
+    ]
+  },
+  "src/features/teacher/QuizDetail.tsx": {
+    "file": "assets/QuizDetail.js",
+    "name": "QuizDetail",
+    "src": "src/features/teacher/QuizDetail.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_teacher.js",
+      "index.html"
+    ]
+  },
+  "src/features/teacher/QuizEditor.tsx": {
+    "file": "assets/QuizEditor.js",
+    "name": "QuizEditor",
+    "src": "src/features/teacher/QuizEditor.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_teacher.js",
+      "index.html"
+    ]
+  },
+  "src/features/teacher/QuizList.tsx": {
+    "file": "assets/QuizList.js",
+    "name": "QuizList",
+    "src": "src/features/teacher/QuizList.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_teacher.js",
+      "index.html"
+    ]
+  },
+  "src/features/teacher/QuizResultDetail.tsx": {
+    "file": "assets/QuizResultDetail.js",
+    "name": "QuizResultDetail",
+    "src": "src/features/teacher/QuizResultDetail.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_teacher.js",
+      "index.html"
+    ]
+  },
+  "src/features/teacher/QuizResultsList.tsx": {
+    "file": "assets/QuizResultsList.js",
+    "name": "QuizResultsList",
+    "src": "src/features/teacher/QuizResultsList.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_teacher.js",
+      "index.html"
+    ]
+  },
+  "src/features/teacher/TeacherDashboard.tsx": {
+    "file": "assets/TeacherDashboard.js",
+    "name": "TeacherDashboard",
+    "src": "src/features/teacher/TeacherDashboard.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_teacher.js",
+      "index.html"
+    ]
+  }
+}

@@ -1,0 +1,193 @@
+.superadmin-school {
+  display: grid;
+  gap: 1.25rem;
+  color: var(--core-text, #1d2939);
+}
+
+.superadmin-school__header,
+.superadmin-school__header-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.superadmin-school__header h1 {
+  margin: 0.2rem 0 0.4rem;
+  font-family: Georgia, serif;
+  font-weight: 400;
+  font-size: clamp(1.6rem, 3vw, 2rem);
+}
+
+.superadmin-school__header p {
+  margin: 0;
+  color: var(--core-text-muted, #667085);
+}
+
+.superadmin-school__eyebrow {
+  color: var(--core-primary, #2563eb) !important;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.superadmin-school__section {
+  padding: 1.25rem;
+  border: 1px solid var(--core-border, #e4e7ec);
+  border-radius: 0.8rem;
+  background: var(--core-surface, #fff);
+  box-shadow: 0 2px 8px rgb(16 24 40 / 5%);
+}
+
+.superadmin-school__section h2 {
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+}
+
+.superadmin-school__form {
+  display: grid;
+  gap: 1rem;
+}
+
+.superadmin-school__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.superadmin-school__grid label {
+  display: grid;
+  align-content: start;
+  gap: 0.4rem;
+  font-size: 0.88rem;
+  font-weight: 650;
+}
+
+.superadmin-school__grid label > span {
+  display: inline;
+  color: #b42318;
+}
+
+.superadmin-school__grid input:not([type="checkbox"]):not([type="file"]),
+.superadmin-school__grid textarea,
+.superadmin-school__grid select {
+  width: 100%;
+  min-width: 0;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--core-border, #d0d5dd);
+  border-radius: 0.5rem;
+  color: inherit;
+  background: var(--core-surface, #fff);
+  font: inherit;
+  font-weight: 400;
+}
+
+.superadmin-school__grid input[type="file"] {
+  font: inherit;
+  font-weight: 400;
+}
+
+.superadmin-school__grid input:focus,
+.superadmin-school__grid textarea:focus,
+.superadmin-school__grid select:focus {
+  border-color: var(--core-primary, #2563eb);
+  outline: 3px solid rgb(37 99 235 / 14%);
+}
+
+.superadmin-school__grid label > a {
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.superadmin-school__wide {
+  grid-column: 1 / -1;
+}
+
+.superadmin-school__checkbox {
+  display: flex !important;
+  align-items: center;
+  gap: 0.55rem !important;
+  align-self: end;
+}
+
+.superadmin-school__details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem 1.5rem;
+  margin: 0;
+}
+
+.superadmin-school__details div {
+  min-width: 0;
+}
+
+.superadmin-school__details dt {
+  color: var(--core-text-muted, #667085);
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.superadmin-school__details dd {
+  margin: 0.25rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.superadmin-school__images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.superadmin-school__images img {
+  width: min(100%, 220px);
+  max-height: 160px;
+  object-fit: contain;
+  border: 1px solid var(--core-border, #e4e7ec);
+  border-radius: 0.5rem;
+}
+
+.superadmin-school__form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+.superadmin-school__back,
+.superadmin-school__button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.5rem;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--core-border, #e4e7ec);
+  border-radius: 0.55rem;
+  color: var(--core-primary, #2563eb);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.superadmin-school__button {
+  color: #fff;
+  border-color: var(--core-primary, #2563eb);
+  background: var(--core-primary, #2563eb);
+}
+
+.superadmin-school__loading {
+  display: flex;
+  justify-content: center;
+  padding: 3rem 0;
+}
+
+@media (max-width: 700px) {
+  .superadmin-school__header,
+  .superadmin-school__header-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .superadmin-school__grid,
+  .superadmin-school__details {
+    grid-template-columns: 1fr;
+  }
+}

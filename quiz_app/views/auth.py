@@ -12,6 +12,7 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_protect
 from django.conf import settings
@@ -41,6 +42,18 @@ def get_client_ip(request):
     return ip.strip()
 
 
+def _wants_json_login_response(request):
+    return "application/json" in request.headers.get("Accept", "").lower()
+
+
+def _login_failure_response(request, code, message, status):
+    if _wants_json_login_response(request):
+        return JsonResponse({"code": code, "message": message}, status=status)
+
+    messages.error(request, message)
+    return render(request, "auth/login.html", {})
+
+
 @csrf_protect
 @require_http_methods(["GET", "POST"])
 def login_view(request):
@@ -57,6 +70,10 @@ def login_view(request):
     """
     # Redirect if already authenticated
     if request.user.is_authenticated:
+        if _wants_json_login_response(request):
+            return JsonResponse(
+                {"success": True, "redirect_url": reverse("quiz_app:dashboard")}
+            )
         return redirect("quiz_app:dashboard")
 
     context = {}
@@ -68,12 +85,20 @@ def login_view(request):
         
         # Validate input
         if not identifier:
-            messages.error(request, "Please enter your username or email.")
-            return render(request, "auth/login.html", context)
+            return _login_failure_response(
+                request,
+                "VALIDATION_ERROR",
+                "Please enter your username or email.",
+                400,
+            )
         
         if not password:
-            messages.error(request, "Please enter your password.")
-            return render(request, "auth/login.html", context)
+            return _login_failure_response(
+                request,
+                "VALIDATION_ERROR",
+                "Please enter your password.",
+                400,
+            )
         
         # Get user by username or email
         user_obj = None
@@ -81,8 +106,12 @@ def login_view(request):
             user_obj = User.get_by_email_or_username(identifier)
         except Exception as e:
             logger.warning(f"Error retrieving user {identifier}: {str(e)}")
-            messages.error(request, "Invalid username or password. Please try again.")
-            return render(request, "auth/login.html", context)
+            return _login_failure_response(
+                request,
+                "INVALID_CREDENTIALS",
+                "Invalid username or password. Please try again.",
+                401,
+            )
         
         # Authenticate user
         user = None
@@ -100,11 +129,13 @@ def login_view(request):
         if user is not None:
             # Check if user is active
             if not user.is_active:
-                messages.error(
+                return _login_failure_response(
                     request,
+                    "ACCOUNT_INACTIVE",
                     "Your account has been deactivated. Please contact an administrator."
+                    ,
+                    403,
                 )
-                return render(request, "auth/login.html", context)
             
             # Log the user in
             login(request, user)
@@ -132,24 +163,50 @@ def login_view(request):
             # Redirect based on user role
             # Superadmins should use superadmin login, redirect them there
             if user.role == "superadmin":
-                messages.warning(request, "Please use the superadmin login page.")
                 logout(request)
+                if _wants_json_login_response(request):
+                    return JsonResponse(
+                        {
+                            "code": "SUPERADMIN_LOGIN_REQUIRED",
+                            "message": "Please use the superadmin login page.",
+                            "redirect_url": reverse("quiz_app:superadmin_login"),
+                        },
+                        status=409,
+                    )
+                messages.warning(request, "Please use the superadmin login page.")
                 return redirect("quiz_app:superadmin_login")
             
             # Redirect based on next parameter or default dashboard
             next_url = request.GET.get("next")
+            redirect_url = None
             if next_url:
                 # Security: Only redirect to same domain
                 from django.utils.http import url_has_allowed_host_and_scheme
                 if url_has_allowed_host_and_scheme(next_url, allowed_hosts=request.get_host()):
-                    return redirect(next_url)
+                    redirect_url = next_url
+
+            if _wants_json_login_response(request):
+                return JsonResponse(
+                    {
+                        "success": True,
+                        "redirect_url": redirect_url or reverse("quiz_app:dashboard"),
+                    }
+                )
+
+            if redirect_url:
+                return redirect(redirect_url)
             
             messages.success(request, f"Welcome back, {user.full_name or user.username}!")
             return redirect("quiz_app:dashboard")
         else:
             # Log failed login attempt
             logger.warning(f"Failed login attempt for identifier: {identifier} from IP {get_client_ip(request)}")
-            messages.error(request, "Invalid username or password. Please try again.")
+            return _login_failure_response(
+                request,
+                "INVALID_CREDENTIALS",
+                "Invalid username or password. Please try again.",
+                401,
+            )
     
     # GET request or failed POST - show login form
     return render(request, "auth/login.html", context)
@@ -184,7 +241,7 @@ def logout_view(request):
             request,
             f"Goodbye, {user_name}! You have been successfully logged out."
         )
-        return redirect("quiz_app:login")
+        return redirect("quiz_app:auth_core_app")
     
     # GET request - show logout confirmation or redirect
     # For security, we can require POST, but for better UX, we'll allow GET
@@ -198,5 +255,5 @@ def logout_view(request):
         request,
         f"Goodbye, {user_name}! You have been successfully logged out."
     )
-    return redirect("quiz_app:login")
+    return redirect("quiz_app:auth_core_app")
 

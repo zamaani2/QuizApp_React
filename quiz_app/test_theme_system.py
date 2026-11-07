@@ -97,7 +97,7 @@ class AccentThemeAssetTests(SimpleTestCase):
             "red": "red_theme.css",
         }
         for theme, filename in theme_files.items():
-            self.assertIn(f"css/{filename}", styles)
+            self.assertNotIn(f"css/{filename}", styles)
             self.assertIn(THEME_BODY_CLASSES[theme], boot)
             self.assertIn(f".{THEME_BODY_CLASSES[theme]} .app-header", (
                 APP_DIR / "static" / "css" / filename
@@ -209,9 +209,11 @@ class AccentThemePageTests(TestCase):
         self.assertNotIn("data-bs-theme-value", content)
         self.assertNotIn("prefers-color-scheme", content)
 
-    def test_login_pages_boot_saved_accent_theme(self):
+    def test_login_pages_do_not_load_legacy_theme_stylesheets(self):
         login = self.client.get(reverse("quiz_app:login"))
-        superadmin_login = self.client.get(reverse("quiz_app:superadmin_login"))
+        superadmin_login = self.client.get(
+            reverse("quiz_app:superadmin_login") + "?classic=1"
+        )
         reset = self.client.get(reverse("quiz_app:password_reset"))
         self.assertEqual(login.status_code, 200)
         self.assertEqual(superadmin_login.status_code, 200)
@@ -227,11 +229,14 @@ class AccentThemePageTests(TestCase):
             self.assertContains(response, 'data-app-theme="academic"')
             self.assertNotContains(response, "css/app-ui.css")
             for stylesheet in theme_stylesheets:
-                self.assertContains(response, f"css/{stylesheet}")
+                self.assertNotContains(response, f"css/{stylesheet}")
 
-    def test_role_dashboards_keep_the_four_accent_options(self):
+    def test_role_dashboards_use_react_or_classic_shells(self):
         cases = (
-            (self.superadmin, reverse("quiz_app:superadmin_dashboard")),
+            (
+                self.superadmin,
+                reverse("quiz_app:superadmin_dashboard") + "?classic=1",
+            ),
             (self.admin, reverse("quiz_app:admin_dashboard")),
             (self.teacher_user, reverse("quiz_app:teacher_dashboard")),
             (self.student_user, reverse("quiz_app:student_dashboard")),
@@ -239,7 +244,11 @@ class AccentThemePageTests(TestCase):
         for user, url in cases:
             with self.subTest(role=user.role):
                 self.client.force_login(user)
-                response = self.client.get(url)
+                response = self.client.get(url, follow=user.role != "superadmin")
                 self.assertEqual(response.status_code, 200)
-                self._assert_theme_picker(response)
+                if user.role == "superadmin":
+                    self._assert_theme_picker(response)
+                else:
+                    self.assertContains(response, 'id="root"')
+                    self.assertContains(response, 'data-app-theme="academic"')
                 self.client.logout()

@@ -12,6 +12,20 @@
 {% endblock breadcrumb %}
 
 {% block content %}
+<div class="alert alert-info alert-dismissible fade show d-flex align-items-center justify-content-between mb-4 shadow-sm" role="alert">
+  <div class="d-flex align-items-center gap-2">
+    <i class="bi bi-lightning-charge-fill text-warning fs-5"></i>
+    <div>
+      <strong>Modern React Admin Workspace is available!</strong>
+      <span class="d-none d-md-inline ms-1 text-muted">Try the fast, client-side SPA with real-time directory management.</span>
+    </div>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <a href="/app/admin/dashboard" class="btn btn-primary btn-sm px-3">Open React Admin</a>
+    <button type="button" class="btn-close position-static p-2" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+</div>
+
 <!-- 1. Administrator Welcome & School Context -->
 <div class="welcome-banner mb-4">
   <div>

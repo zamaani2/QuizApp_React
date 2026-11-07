@@ -35,6 +35,14 @@ class AccountSetupAndPasswordResetTests(TestCase):
             role="admin",
             school=cls.school,
         )
+        cls.superadmin = User.objects.create_user(
+            username="account-test-superadmin",
+            email="account-test-superadmin@example.test",
+            full_name="Account Test Superadmin",
+            role="superadmin",
+        )
+        cls.superadmin.set_password("Superadmin-Test-Password-837!")
+        cls.superadmin.save(update_fields=["password"])
 
     def get_reset_link_path(self):
         self.assertEqual(len(mail.outbox), 1)
@@ -59,6 +67,122 @@ class AccountSetupAndPasswordResetTests(TestCase):
                 "new_password2": password,
             },
         )
+
+    def test_login_json_mode_returns_generic_error_for_invalid_credentials(self):
+        response = self.client.post(
+            reverse("quiz_app:login") + "?next=%2Fapp%2F",
+            {"username": "missing-user", "password": "wrong-password"},
+            HTTP_ACCEPT="application/json",
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.json(),
+            {
+                "code": "INVALID_CREDENTIALS",
+                "message": "Invalid username or password. Please try again.",
+            },
+        )
+
+    def test_login_json_mode_creates_session_and_returns_validated_next(self):
+        response = self.client.post(
+            reverse("quiz_app:login") + "?next=%2Fapp%2Fteacher%2Fdashboard",
+            {
+                "username": self.school_admin.username,
+                "password": "Admin-Test-Password-837!",
+            },
+            HTTP_ACCEPT="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "success": True,
+                "redirect_url": "/app/teacher/dashboard",
+            },
+        )
+        self.assertEqual(
+            self.client.session.get("_auth_user_id"), str(self.school_admin.pk)
+        )
+
+    def test_login_json_mode_rejects_external_next_destination(self):
+        response = self.client.post(
+            reverse("quiz_app:login") + "?next=https%3A%2F%2Fevil.example%2F",
+            {
+                "username": self.school_admin.username,
+                "password": "Admin-Test-Password-837!",
+            },
+            HTTP_ACCEPT="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json()["redirect_url"], reverse("quiz_app:dashboard")
+        )
+
+    def test_login_without_json_accept_keeps_classic_html_response(self):
+        response = self.client.post(
+            reverse("quiz_app:login"),
+            {"username": "missing-user", "password": "wrong-password"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "auth/login.html")
+
+    def test_superadmin_login_route_opens_react_portal_and_keeps_classic_fallback(self):
+        response = self.client.get(
+            reverse("quiz_app:superadmin_login")
+            + "?next=%2Fapp%2Fsuperadmin%2Fadmins"
+        )
+        self.assertRedirects(
+            response,
+            "/auth-app/?portal=superadmin&next=%2Fapp%2Fsuperadmin%2Fadmins",
+            fetch_redirect_response=False,
+        )
+
+        classic_response = self.client.get(
+            reverse("quiz_app:superadmin_login") + "?classic=1"
+        )
+        self.assertEqual(classic_response.status_code, 200)
+        self.assertTemplateUsed(classic_response, "superadmin/login.html")
+
+    def test_superadmin_json_login_enforces_role_and_sets_superadmin_session(self):
+        response = self.client.post(
+            reverse("quiz_app:superadmin_login")
+            + "?next=%2Fapp%2Fsuperadmin%2Fadmins",
+            {
+                "username": self.superadmin.username,
+                "password": "Superadmin-Test-Password-837!",
+            },
+            HTTP_ACCEPT="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "success": True,
+                "redirect_url": "/app/superadmin/admins",
+            },
+        )
+        self.assertEqual(
+            self.client.session.get("_auth_user_id"),
+            str(self.superadmin.pk),
+        )
+        self.assertTrue(self.client.session.get("is_superadmin"))
+
+    def test_school_admin_cannot_sign_in_through_superadmin_json_portal(self):
+        response = self.client.post(
+            reverse("quiz_app:superadmin_login"),
+            {
+                "username": self.school_admin.username,
+                "password": "Admin-Test-Password-837!",
+            },
+            HTTP_ACCEPT="application/json",
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["code"], "SUPERADMIN_LOGIN_REQUIRED")
+        self.assertNotIn("_auth_user_id", self.client.session)
 
     def create_student(self, email):
         return Student.objects.create(

@@ -7,6 +7,13 @@
 </li>
 <li class="breadcrumb-item active" aria-current="page">{{ quiz.title }}</li>
 {% endblock breadcrumb %} {% block content %}
+<div class="alert alert-info d-flex align-items-center justify-content-between flex-wrap gap-2 shadow-sm mb-3" role="alert">
+  <div>
+    <i class="bi bi-patch-question-fill me-2 fs-5 text-warning"></i>
+    <strong>Take this assessment in the React Student Portal!</strong> Fast loading, live autosave, and uninterrupted offline draft protection.
+  </div>
+  <a href="/app/student/quizzes/{{ quiz.id }}" class="btn btn-primary btn-sm px-3">Open in React</a>
+</div>
 <div class="row">
   <!-- Quiz Information -->
   <div class="col-lg-8">

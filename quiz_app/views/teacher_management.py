@@ -44,81 +44,12 @@ MAX_IMPORT_COLUMNS = 64
 @login_required
 @require_http_methods(["GET"])
 def teacher_list_view(request):
-    """
-    Display list of all teachers with filtering and search capabilities.
-    
-    Supports:
-    - Search by name, staff ID, email
-    - Filter by department, gender
-    - Pagination
-    - DataTables integration
-    """
+    """Redirect the legacy teacher directory URL to the React screen."""
     if request.user.role not in ["admin", "superadmin"]:
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:dashboard")
 
-    school = request.user.school
-    teachers = Teacher.objects.all()
-    status_filter = request.GET.get("status", "active")
-    
-    if school:
-        teachers = teachers.filter(school=school)
-    if status_filter == "archived":
-        teachers = teachers.filter(is_active=False)
-    elif status_filter == "all":
-        pass
-    else:
-        status_filter = "active"
-        teachers = teachers.filter(is_active=True)
-    
-    # Search functionality
-    search_query = request.GET.get('search', '')
-    if search_query:
-        teachers = teachers.filter(
-            Q(full_name__icontains=search_query) |
-            Q(staff_id__icontains=search_query) |
-            Q(email__icontains=search_query) |
-            Q(contact_number__icontains=search_query)
-        )
-    
-    # Filter by department
-    department_filter = request.GET.get('department', '')
-    if department_filter:
-        teachers = teachers.filter(department_id=department_filter)
-    
-    # Filter by gender
-    gender_filter = request.GET.get('gender', '')
-    if gender_filter:
-        teachers = teachers.filter(gender=gender_filter)
-    
-    # Order by full name
-    teachers = teachers.select_related("department").order_by('full_name')
-    paginator = Paginator(teachers, 50)
-    page_obj = paginator.get_page(request.GET.get("page"))
-    
-    # Get filter options
-    departments = Department.objects.all()
-    if school:
-        departments = departments.filter(school=school)
-    departments = departments.order_by('name')
-    
-    context = {
-        'teachers': page_obj.object_list,
-        'page_obj': page_obj,
-        'paginator': paginator,
-        'departments': departments,
-        'search_query': search_query,
-        'department_filter': department_filter,
-        'gender_filter': gender_filter,
-        'status_filter': status_filter,
-        'export_schools': (
-            SchoolInformation.objects.filter(is_active=True).order_by("name")
-            if request.user.role == "superadmin"
-            else SchoolInformation.objects.none()
-        ),
-    }
-    
-    return render(request, 'teacher/teacher_list.html', context)
+    return redirect("/app/admin/teachers")
 
 
 @login_required

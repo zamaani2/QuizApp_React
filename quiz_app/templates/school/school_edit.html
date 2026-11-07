@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}Edit School Information - {{ school.name }}{% endblock title %}
+{% block page_title %}Edit School Information{% endblock page_title %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'quiz_app:school_detail' %}?classic=1">School Information</a></li>
+<li class="breadcrumb-item active" aria-current="page">Edit</li>
+{% endblock breadcrumb %}
+{% block content %}
+<div class="card">
+  <div class="card-body">
+    {% include 'school/partials/school_form.html' %}
+  </div>
+</div>
+{% endblock content %}

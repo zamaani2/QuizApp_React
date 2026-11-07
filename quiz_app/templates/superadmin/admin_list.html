@@ -25,7 +25,7 @@
             type="button"
             class="btn btn-light btn-sm"
             id="addAdminBtn"
-            data-modal-url="{% url 'quiz_app:superadmin_admin_create' %}"
+            data-modal-url="{% url 'quiz_app:superadmin_admin_create' %}?classic=1"
             data-modal-title="Add New School Administrator"
           >
             <i class="bi bi-plus-circle me-1"></i>Add Administrator
@@ -111,7 +111,7 @@
               <td>
                 <div class="btn-group" role="group">
                   <a
-                    href="{% url 'quiz_app:superadmin_admin_detail' admin.id %}"
+                    href="{% url 'quiz_app:superadmin_admin_detail' admin.id %}?classic=1"
                     class="btn btn-sm btn-info"
                     title="View Details"
                   >
@@ -120,7 +120,7 @@
                   <button
                     type="button"
                     class="btn btn-sm btn-warning edit-admin-btn"
-                    data-modal-url="{% url 'quiz_app:superadmin_admin_edit' admin.id %}"
+                    data-modal-url="{% url 'quiz_app:superadmin_admin_edit' admin.id %}?classic=1"
                     data-modal-title="Edit Administrator"
                     title="Edit"
                   >
@@ -230,4 +230,3 @@
   });
 </script>
 {% endblock extra_js %}
-

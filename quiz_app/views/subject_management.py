@@ -36,6 +36,9 @@ def subject_list_view(request):
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:dashboard")
 
+    if request.GET.get("classic") != "1":
+        return redirect("/app/admin/subjects")
+
     school = request.user.school
     subjects = Subject.objects.all()
     
@@ -115,6 +118,8 @@ def subject_create_view(request):
     school = request.user.school
     
     if request.method == "GET":
+        if request.GET.get("classic") != "1":
+            return redirect("/app/admin/subjects")
         # Get learning areas and departments for dropdowns
         learning_areas = LearningArea.objects.all()
         departments = Department.objects.all()
@@ -191,7 +196,7 @@ def subject_create_view(request):
             )
             
             # Validate
-            subject.full_clean()
+            subject.full_clean(exclude=["learning_area"])
             subject.save()
             
             return JsonResponse({
@@ -239,6 +244,8 @@ def subject_edit_view(request, subject_id):
     school = subject.school
     
     if request.method == "GET":
+        if request.GET.get("classic") != "1":
+            return redirect("/app/admin/subjects")
         # Get learning areas and departments for dropdowns
         learning_areas = LearningArea.objects.all()
         departments = Department.objects.all()
@@ -290,7 +297,7 @@ def subject_edit_view(request, subject_id):
                 subject.department = None
             
             # Validate
-            subject.full_clean()
+            subject.full_clean(exclude=["learning_area"])
             subject.save()
             
             return JsonResponse({

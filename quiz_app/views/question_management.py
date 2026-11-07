@@ -59,24 +59,7 @@ def question_list_view(request, quiz_id):
     else:
         # Admin can access any quiz in their school
         quiz = get_object_or_404(Quiz, pk=quiz_id, school=school)
-        teacher = quiz.teacher  # Use quiz's teacher for context
-    
-    # Get questions with answer choices
-    questions = quiz.questions.filter(
-        school=school,
-    ).prefetch_related(
-        Prefetch(
-            'answer_choices',
-            queryset=AnswerChoice.objects.filter(school=school),
-        )
-    ).order_by('order', 'created_at')
-    
-    context = {
-        'quiz': quiz,
-        'questions': questions,
-    }
-    
-    return render(request, 'quiz/question/question_list.html', context)
+    return redirect(f"/app/teacher/quizzes/{quiz.pk}")
 
 
 @login_required
@@ -111,6 +94,8 @@ def question_create_view(request, quiz_id):
         teacher = quiz.teacher  # Use quiz's teacher for context
     
     if request.method == "GET":
+        return redirect(f"/app/teacher/quizzes/{quiz.pk}/questions/new")
+
         # Check if this is an AJAX request for modal
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             html = render(request, 'quiz/question/partials/question_form.html', {
@@ -294,6 +279,10 @@ def question_edit_view(request, quiz_id, question_id):
     question = get_object_or_404(Question, pk=question_id, quiz=quiz, school=school)
     
     if request.method == "GET":
+        return redirect(
+            f"/app/teacher/quizzes/{quiz.pk}/questions/{question.pk}/edit"
+        )
+
         # Get answer choices for multiple choice/true false
         answer_choices = []
         tf_correct_answer = 'true'  # Default for True/False
@@ -777,6 +766,9 @@ def question_duplicate_view(request, quiz_id, question_id):
         quiz_filters['teacher'] = request.user.teacher_profile
     quiz = get_object_or_404(Quiz, **quiz_filters)
     question = get_object_or_404(Question, pk=question_id, quiz=quiz, school=school)
+
+    if request.method == "GET":
+        return redirect(f"/app/teacher/quizzes/{quiz.pk}")
     
     try:
         with transaction.atomic():
@@ -869,6 +861,8 @@ def question_bulk_import_view(request, quiz_id):
         teacher = quiz.teacher  # Use quiz's teacher for context
     
     if request.method == "GET":
+        return redirect(f"/app/teacher/quizzes/{quiz.pk}/questions/import")
+
         # Check if this is an AJAX request for modal
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             html = render(request, 'quiz/question/partials/bulk_import_modal.html', {
@@ -1621,6 +1615,8 @@ def question_bulk_delete_view(request, quiz_id):
     quiz = get_object_or_404(Quiz, **quiz_filters)
     
     if request.method == "GET":
+        return redirect(f"/app/teacher/quizzes/{quiz.pk}")
+
         # Check if this is an AJAX request for modal
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             html = render(request, 'quiz/question/partials/bulk_delete_modal.html', {

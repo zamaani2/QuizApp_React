@@ -25,7 +25,7 @@
             type="button"
             class="btn btn-primary btn-sm"
             id="addSubjectBtn"
-            data-modal-url="{% url 'quiz_app:subject_create' %}"
+            data-modal-url="{% url 'quiz_app:subject_create' %}?classic=1"
             data-modal-title="Add New Subject"
           >
             <i class="bi bi-plus-circle me-1"></i>Add Subject
@@ -123,7 +123,7 @@
                   <button
                     type="button"
                     class="btn btn-sm btn-warning edit-subject-btn"
-                    data-modal-url="{% url 'quiz_app:subject_edit' subject.id %}"
+                    data-modal-url="{% url 'quiz_app:subject_edit' subject.id %}?classic=1"
                     data-modal-title="Edit Subject"
                     title="Edit"
                   >

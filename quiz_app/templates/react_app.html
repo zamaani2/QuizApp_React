@@ -1,0 +1,26 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" data-app-theme="academic">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>QuizApp | React Workspace</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1e40af" />
+  <link rel="icon" href="{% static 'favicon.ico' %}" />
+
+  <link rel="stylesheet" href="{% static 'vendor/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css' %}" />
+
+  <!-- React App Built CSS -->
+  <link rel="stylesheet" href="{% static 'react/assets/index.css' %}" onerror="this.remove()" />
+</head>
+
+<body>
+  <!-- React mount container -->
+  <div id="root"></div>
+
+  <!-- React Bundle -->
+  <script type="module" src="{% static 'react/assets/index.js' %}"></script>
+</body>
+
+</html>

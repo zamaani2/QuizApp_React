@@ -1,3 +1,12 @@
+# Stage 1: Build React Frontend
+FROM node:20-alpine AS frontend-builder
+WORKDIR /app/frontend
+COPY frontend/package*.json ./
+RUN npm ci || npm install
+COPY frontend/ ./
+RUN npm run build
+
+# Stage 2: Python Backend Runtime
 FROM python:3.12-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -14,6 +23,9 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
+
+# Copy built frontend assets into Django static tree
+COPY --from=frontend-builder /app/quiz_app/static/react/ ./quiz_app/static/react/
 
 RUN if [ -f /app/entrypoint.sh ]; then sed -i 's/\r$//' /app/entrypoint.sh && chmod +x /app/entrypoint.sh; fi
 

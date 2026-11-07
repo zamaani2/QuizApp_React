@@ -79,6 +79,8 @@ CSRF_TRUSTED_ORIGINS = [
     for origin in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",")
     if origin.strip()
 ]
+if DEBUG:
+    CSRF_TRUSTED_ORIGINS.extend(("http://localhost:5173", "http://127.0.0.1:5173"))
 
 
 # Application definition
@@ -234,12 +236,12 @@ AUTH_USER_MODEL = "quiz_app.User"
 # Login settings
 LOGIN_URL = "quiz_app:login"
 LOGIN_REDIRECT_URL = "quiz_app:dashboard"
-LOGOUT_REDIRECT_URL = "quiz_app:login"
+LOGOUT_REDIRECT_URL = "quiz_app:auth_core_app"
 
 # Superadmin login settings
 SUPERADMIN_LOGIN_URL = "quiz_app:superadmin_login"
 SUPERADMIN_LOGIN_REDIRECT_URL = "quiz_app:superadmin_dashboard"
-SUPERADMIN_LOGOUT_REDIRECT_URL = "quiz_app:superadmin_login"
+SUPERADMIN_LOGOUT_REDIRECT_URL = "/auth-app/?portal=superadmin"
 
 # Session settings
 SESSION_COOKIE_AGE = 3600 * 8  # 8 hours

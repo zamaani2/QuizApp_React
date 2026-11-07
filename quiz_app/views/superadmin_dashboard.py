@@ -42,6 +42,8 @@ def superadmin_dashboard_view(request):
     if request.user.role != "superadmin":
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:login")
+    if request.method == "GET" and request.GET.get("classic") != "1":
+        return redirect("/app/superadmin/dashboard")
     
     # Get system-wide statistics
     stats = {}

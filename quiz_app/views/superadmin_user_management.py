@@ -30,6 +30,8 @@ def superadmin_admin_list_view(request):
     if request.user.role != "superadmin":
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:superadmin_login")
+    if request.GET.get("classic") != "1":
+        return redirect("/app/superadmin/admins")
     
     # Get all admin users
     admins = User.objects.filter(role="admin").select_related('school').order_by('school__name', 'full_name')
@@ -83,6 +85,8 @@ def superadmin_admin_create_view(request):
         return redirect("quiz_app:superadmin_login")
     
     if request.method == "GET":
+        if request.GET.get("classic") != "1":
+            return redirect("/app/superadmin/admins/new")
         # Get all active schools for dropdown
         schools = SchoolInformation.objects.filter(is_active=True).order_by('name')
         
@@ -177,6 +181,8 @@ def superadmin_admin_edit_view(request, admin_id):
     admin = get_object_or_404(User, pk=admin_id, role="admin")
     
     if request.method == "GET":
+        if request.GET.get("classic") != "1":
+            return redirect(f"/app/superadmin/admins/{admin_id}/edit")
         # Get all active schools for dropdown
         schools = SchoolInformation.objects.filter(is_active=True).order_by('name')
         
@@ -292,6 +298,8 @@ def superadmin_admin_detail_view(request, admin_id):
     if request.user.role != "superadmin":
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:superadmin_login")
+    if request.GET.get("classic") != "1":
+        return redirect(f"/app/superadmin/admins/{admin_id}")
     
     admin = get_object_or_404(User, pk=admin_id, role="admin")
     
@@ -300,7 +308,6 @@ def superadmin_admin_detail_view(request, admin_id):
     }
     
     return render(request, 'superadmin/admin_detail.html', context)
-
 
 
 

@@ -23,7 +23,7 @@ Information{% endblock page_title %} {% block breadcrumb %}
             type="button"
             class="btn btn-warning btn-sm"
             id="editSchoolBtn"
-            data-modal-url="{% if user.role == 'superadmin' %}{% url 'quiz_app:school_edit' school.id %}{% else %}{% url 'quiz_app:school_edit' %}{% endif %}"
+            data-modal-url="{% if user.role == 'superadmin' %}{% url 'quiz_app:school_edit' school.id %}{% else %}{% url 'quiz_app:school_edit' %}{% endif %}?classic=1"
             data-modal-title="Edit School Information"
           >
             <i class="bi bi-pencil me-1"></i>Edit Information

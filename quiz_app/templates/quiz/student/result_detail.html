@@ -26,6 +26,13 @@
 </li>
 <li class="breadcrumb-item active" aria-current="page">{{ quiz.title }}</li>
 {% endblock breadcrumb %} {% block content %}
+<div class="alert alert-info d-flex align-items-center justify-content-between flex-wrap gap-2 shadow-sm mb-3" role="alert">
+  <div>
+    <i class="bi bi-clipboard-check-fill me-2 fs-5 text-success"></i>
+    <strong>View this result in the React Learning Portal!</strong> Interactive question breakdown, explanation review, and performance analytics.
+  </div>
+  <a href="/app/student/attempts/{{ attempt.id }}/result" class="btn btn-primary btn-sm px-3">Open React Result</a>
+</div>
 <div class="row">
   <div class="col-md-4">
     <!-- Result Information Card -->

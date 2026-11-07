@@ -15,3 +15,5 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 artifacts/playwright/
+frontend/node_modules/
+frontend/dist/

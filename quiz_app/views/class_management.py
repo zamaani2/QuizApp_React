@@ -9,12 +9,11 @@ This module provides views for managing classes including:
 - Viewing class details
 - Managing ClassSubjects (subjects assigned to classes)
 """
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
-from django.db.models import Count, F, Q
 from django.db import transaction
 from django.core.exceptions import ValidationError
 
@@ -36,89 +35,13 @@ from ..utils.tenant_utils import get_object_or_404_with_school, get_write_school
 @login_required
 @require_http_methods(["GET"])
 def class_list_view(request):
-    """
-    Display list of all classes with filtering and search capabilities.
-    """
+    """Redirect the legacy class directory URL to the React screen."""
     if request.user.role not in ["admin", "superadmin"]:
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:dashboard")
 
-    school = request.user.school
-    classes = Class.objects.all()
-    
-    if school:
-        classes = classes.filter(school=school)
-    status_filter = request.GET.get("status", "active")
-    if status_filter == "archived":
-        classes = classes.filter(is_active=False)
-    elif status_filter == "all":
-        pass
-    else:
-        status_filter = "active"
-        classes = classes.filter(is_active=True)
-    
-    # Search functionality
-    search_query = request.GET.get('search', '')
-    if search_query:
-        classes = classes.filter(
-            Q(name__icontains=search_query) |
-            Q(class_id__icontains=search_query)
-        )
-    
-    # Filter by form
-    form_filter = request.GET.get('form', '')
-    if form_filter:
-        classes = classes.filter(form_id=form_filter)
-    
-    # Filter by learning area
-    learning_area_filter = request.GET.get('learning_area', '')
-    if learning_area_filter:
-        classes = classes.filter(learning_area_id=learning_area_filter)
-    
-    # Filter by academic year
-    academic_year_filter = request.GET.get('academic_year', '')
-    if academic_year_filter:
-        classes = classes.filter(academic_year_id=academic_year_filter)
-    
-    # Order by academic year and name
-    classes = classes.select_related(
-        "form", "learning_area", "academic_year"
-    ).annotate(
-        current_student_count=Count(
-            "studentclass",
-            filter=Q(
-                studentclass__is_active=True,
-                studentclass__school_id=F("school_id"),
-                studentclass__student__school_id=F("school_id"),
-            ),
-        )
-    ).order_by('-academic_year__start_date', 'name')
-    
-    # Get filter options
-    forms = Form.objects.all()
-    learning_areas = LearningArea.objects.all()
-    academic_years = AcademicYear.objects.all()
-    if school:
-        forms = forms.filter(school=school)
-        learning_areas = learning_areas.filter(school=school)
-        academic_years = academic_years.filter(school=school)
-    forms = forms.order_by('form_number')
-    learning_areas = learning_areas.order_by('name')
-    academic_years = academic_years.order_by('-start_date')
-    
-    context = {
-        'classes': classes,
-        'forms': forms,
-        'learning_areas': learning_areas,
-        'academic_years': academic_years,
-        'search_query': search_query,
-        'form_filter': form_filter,
-        'learning_area_filter': learning_area_filter,
-        'academic_year_filter': academic_year_filter,
-        'status_filter': status_filter,
-    }
-    
-    return render(request, 'class/class_list.html', context)
+    app_section = "superadmin" if request.user.role == "superadmin" else "admin"
+    return redirect(f"/app/{app_section}/classes")
 
 
 @login_required
@@ -456,45 +379,13 @@ def class_restore_view(request, class_id):
 @login_required
 @require_http_methods(["GET"])
 def class_detail_view(request, class_id):
-    """
-    View class details and manage ClassSubjects.
-    """
+    """Redirect the legacy class detail URL to its React route."""
     if request.user.role not in ["admin", "superadmin"]:
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:dashboard")
-    
-    school = request.user.school
     class_obj = get_object_or_404_with_school(Class, request, pk=class_id)
-    
-    # Get class subjects
-    class_subjects = ClassSubject.objects.filter(
-        class_name=class_obj,
-        school=class_obj.school,
-        subject__school=class_obj.school,
-    ).order_by('subject__subject_name')
-    
-    # Get available subjects (not already assigned to this class for the same academic year)
-    assigned_subject_ids = class_subjects.values_list('subject_id', flat=True)
-    available_subjects = Subject.objects.filter(
-        school=class_obj.school
-    ).exclude(pk__in=assigned_subject_ids).order_by('subject_name')
-    
-    # Get students in this class
-    students = StudentClass.objects.filter(
-        assigned_class=class_obj,
-        is_active=True,
-        school=class_obj.school,
-        student__school=class_obj.school,
-    ).select_related('student').order_by('student__full_name')
-    
-    context = {
-        'class_obj': class_obj,
-        'class_subjects': class_subjects,
-        'available_subjects': available_subjects,
-        'students': students,
-    }
-    
-    return render(request, 'class/class_detail.html', context)
+    app_section = "superadmin" if request.user.role == "superadmin" else "admin"
+    return redirect(f"/app/{app_section}/classes/{class_obj.pk}")
 
 
 @login_required
