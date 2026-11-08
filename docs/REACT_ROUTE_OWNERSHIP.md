@@ -49,7 +49,7 @@ The `/auth-app/*` portal is the target React sign-in presentation. Django contin
 | `/dashboard/` | `dashboard_view` | N/A (Role redirect) | All | Django | Django | N/A | Low | `RETAINED AS DJANGO` |
 | `/dashboard/admin/` | `admin_dashboard_view` | `dashboard/admin_dashboard.html` | Admin | Django (fallback) / React | React (`/app/admin/dashboard`) | `GET /api/v1/dashboard/admin/` | Low | `DONE` |
 | `/dashboard/teacher/` | `teacher_dashboard_view` | `dashboard/teacher_dashboard.html` | Teacher | Django (fallback) / React | React (`/app/teacher/dashboard`) | `GET /api/v1/dashboard/teacher/` | Low | `DONE` |
-| `/dashboard/student/` | `student_dashboard_view` | `dashboard/student_dashboard.html` | Student | Django | React (`/app/student/dashboard`) | `GET /api/v1/dashboard/student/` | Low | `PLANNED` |
+| `/dashboard/student/` | `student_dashboard_view` | `dashboard/student_dashboard.html` | Student | Django | React (`/app/student/dashboard`) | `GET /api/v1/dashboard/student/` | Low | `DONE` |
 | `/superadmin/dashboard/` | `superadmin_dashboard_view` | `superadmin/dashboard.html` | Superadmin | Django (fallback) / React redirect | React (`/app/superadmin/dashboard`) | `GET /api/v1/superadmin/dashboard/` | Low | `DONE` |
 
 ---

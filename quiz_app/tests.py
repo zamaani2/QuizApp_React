@@ -252,6 +252,42 @@ class TenantAccessMiddlewareTests(SimpleTestCase):
 
         self.assertEqual(response.status_code, 403)
 
+    def test_django_admin_allows_active_django_superuser_without_app_role(self):
+        request = self.factory.get("/admin/")
+        request.user = make_user(role="", school=None)
+        request.user.is_staff = True
+        request.user.is_superuser = True
+
+        response = self.middleware.process_view(
+            request,
+            SimpleNamespace(
+                __module__="django.contrib.admin.sites",
+                __name__="index",
+            ),
+            (),
+            {},
+        )
+
+        self.assertIsNone(response)
+
+    def test_django_admin_denies_inactive_django_superuser(self):
+        request = self.factory.get("/admin/")
+        request.user = make_user(role="", school=None, active=False)
+        request.user.is_staff = True
+        request.user.is_superuser = True
+
+        response = self.middleware.process_view(
+            request,
+            SimpleNamespace(
+                __module__="django.contrib.admin.sites",
+                __name__="index",
+            ),
+            (),
+            {},
+        )
+
+        self.assertEqual(response.status_code, 403)
+
     def test_django_admin_allows_login_view_for_authentication(self):
         request = self.factory.get("/admin/login/")
         request.user = AnonymousUser()

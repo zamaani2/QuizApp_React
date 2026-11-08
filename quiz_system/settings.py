@@ -247,8 +247,12 @@ SUPERADMIN_LOGOUT_REDIRECT_URL = "/auth-app/?portal=superadmin"
 SESSION_COOKIE_AGE = 3600 * 8  # 8 hours
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 SESSION_SAVE_EVERY_REQUEST = True
-SESSION_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_SECURE = os.environ.get(
+    "SESSION_COOKIE_SECURE", str(not DEBUG)
+).strip().lower() in {"1", "true", "yes", "on"}
+CSRF_COOKIE_SECURE = os.environ.get(
+    "CSRF_COOKIE_SECURE", str(not DEBUG)
+).strip().lower() in {"1", "true", "yes", "on"}
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field

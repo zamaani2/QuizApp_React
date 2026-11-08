@@ -901,7 +901,7 @@ const AppShellWithRoutes: FC = () => {
 export const App: FC = () => {
   return (
     <AuthProvider>
-      <BrowserRouter basename="/app">
+      <BrowserRouter basename={import.meta.env.DEV ? '/' : '/app'}>
         <AppShellWithRoutes />
       </BrowserRouter>
     </AuthProvider>

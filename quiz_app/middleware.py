@@ -39,9 +39,17 @@ class TenantAccessMiddleware:
             "/admin/login/",
             "/admin/login",
         }:
-            if getattr(user, "is_authenticated", False) and not (
+            is_django_superuser = (
+                getattr(user, "is_active", False)
+                and getattr(user, "is_staff", False)
+                and getattr(user, "is_superuser", False)
+            )
+            is_app_superadmin = (
                 is_authorized_superadmin(user)
                 and getattr(user, "is_staff", False)
+            )
+            if getattr(user, "is_authenticated", False) and not (
+                is_django_superuser or is_app_superadmin
             ):
                 return HttpResponseForbidden("Django admin access is restricted.")
 
