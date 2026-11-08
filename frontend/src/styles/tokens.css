@@ -1,0 +1,109 @@
+/* ==========================================================================
+   QuizApp Design Tokens - Shared Design Foundation
+   Central source of truth for Student, Teacher, Admin, and Superadmin portals.
+   Palette: Navy (#0f2942), Sky Blue (#0284c7), Pale Blue Background (#f0f7fc),
+            White Surfaces (#ffffff), Light Borders (#e0eef8).
+   ========================================================================== */
+
+:root {
+  /* Brand Palette */
+  --qa-navy: #0f2942;
+  --qa-navy-dark: #0a1b2d;
+  --qa-navy-light: #1e3a5f;
+  --qa-sky: #0284c7;
+  --qa-sky-light: #e0f2fe;
+  --qa-sky-subtle: #f0f9ff;
+  --qa-sky-border: #bae6fd;
+  --qa-bg: #f0f7fc;
+  --qa-surface: #ffffff;
+  --qa-surface-alt: #f8fafc;
+  --qa-border: #e0eef8;
+  --qa-border-light: #edf2f7;
+
+  /* Typography & Ink */
+  --qa-text-main: #0f2942;
+  --qa-text-body: #334155;
+  --qa-text-muted: #64748b;
+  --qa-font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --qa-font-mono: 'Cascadia Code', Consolas, 'SF Mono', Menlo, monospace;
+
+  /* Status Colors */
+  --qa-success: #10b981;
+  --qa-success-bg: #ecfdf5;
+  --qa-success-border: #a7f3d0;
+  --qa-warning: #f59e0b;
+  --qa-warning-bg: #fffbeb;
+  --qa-warning-border: #fde68a;
+  --qa-danger: #ef4444;
+  --qa-danger-bg: #fef2f2;
+  --qa-danger-border: #fecaca;
+  --qa-info: #0284c7;
+  --qa-info-bg: #f0f9ff;
+  --qa-info-border: #bae6fd;
+
+  /* Border Radii */
+  --qa-radius-xs: 4px;
+  --qa-radius-sm: 8px;
+  --qa-radius-md: 12px;
+  --qa-radius-lg: 16px;
+  --qa-radius-pill: 9999px;
+
+  /* Elevation Shadows */
+  --qa-shadow-xs: 0 1px 2px rgba(15, 41, 66, 0.04);
+  --qa-shadow-sm: 0 2px 4px rgba(15, 41, 66, 0.05);
+  --qa-shadow: 0 4px 12px rgba(15, 41, 66, 0.06);
+  --qa-shadow-md: 0 6px 18px rgba(15, 41, 66, 0.08);
+  --qa-shadow-lg: 0 12px 28px rgba(15, 41, 66, 0.12);
+
+  /* Student Specific Aliases (100% backwards-compatible with student.css) */
+  --stu-navy: var(--qa-navy);
+  --stu-navy-dark: var(--qa-navy-dark);
+  --stu-navy-light: var(--qa-navy-light);
+  --stu-sky: var(--qa-sky);
+  --stu-sky-light: var(--qa-sky-light);
+  --stu-sky-subtle: var(--qa-sky-subtle);
+  --stu-sky-border: var(--qa-sky-border);
+  --stu-bg: var(--qa-bg);
+  --stu-surface: var(--qa-surface);
+  --stu-surface-alt: var(--qa-surface-alt);
+  --stu-border: var(--qa-border);
+  --stu-border-light: var(--qa-border-light);
+  --stu-text-main: var(--qa-text-main);
+  --stu-text-body: var(--qa-text-body);
+  --stu-text-muted: var(--qa-text-muted);
+  --stu-success: var(--qa-success);
+  --stu-success-bg: var(--qa-success-bg);
+  --stu-success-border: var(--qa-success-border);
+  --stu-warning: var(--qa-warning);
+  --stu-warning-bg: var(--qa-warning-bg);
+  --stu-warning-border: var(--qa-warning-border);
+  --stu-danger: var(--qa-danger);
+  --stu-danger-bg: var(--qa-danger-bg);
+  --stu-radius-sm: var(--qa-radius-sm);
+  --stu-radius-md: var(--qa-radius-md);
+  --stu-radius-lg: var(--qa-radius-lg);
+  --stu-radius-pill: var(--qa-radius-pill);
+  --stu-shadow-sm: var(--qa-shadow-xs);
+  --stu-shadow: var(--qa-shadow-sm);
+  --stu-shadow-md: var(--qa-shadow);
+
+  /* Core Shell Tokens Aliases (Replaces dark charcoal & green with QuizApp palette) */
+  --core-ink: var(--qa-navy);
+  --core-ink-soft: var(--qa-navy-light);
+  --core-accent: var(--qa-sky);
+  --core-accent-soft: var(--qa-sky-light);
+  --core-canvas: var(--qa-bg);
+  --core-surface: var(--qa-surface);
+  --core-line: var(--qa-border);
+  --core-muted: var(--qa-text-muted);
+  --core-danger: var(--qa-danger);
+  --core-warning: var(--qa-warning);
+  --core-info: var(--qa-info);
+  --core-success: var(--qa-success);
+  --core-primary: var(--qa-navy);
+  --core-primary-soft: var(--qa-sky-light);
+  --core-border: var(--qa-border);
+  --core-text: var(--qa-navy);
+  --core-text-muted: var(--qa-text-muted);
+  --core-bg: var(--qa-bg);
+}

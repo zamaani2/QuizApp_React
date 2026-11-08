@@ -376,8 +376,8 @@ describe('Phase 3 Feature Components', () => {
       expect(screen.getByText('28')).toBeInTheDocument();
       expect(screen.getByText('12')).toBeInTheDocument();
       expect(screen.getByText('45')).toBeInTheDocument();
-      expect(screen.getByText('Open Student Directory')).toBeInTheDocument();
-      expect(screen.getByText('Open Teacher Directory')).toBeInTheDocument();
+      expect(screen.getByText(/Student directory/i)).toBeInTheDocument();
+      expect(screen.getByText(/Teacher directory/i)).toBeInTheDocument();
     });
   });
 });

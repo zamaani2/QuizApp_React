@@ -3,7 +3,9 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { AuthProvider, useAuth, RoleGuard } from './auth';
 import './features/assessment.css';
 import {
-  AppShell,
+  StudentAppLayout,
+  TeacherAppLayout,
+  AdminAppLayout,
   Button,
   Alert,
   Modal,
@@ -142,6 +144,9 @@ const StudentQuizTake = lazy(() =>
 );
 const StudentProfileView = lazy(() =>
   import('./features/student/StudentProfileView').then((m) => ({ default: m.StudentProfileView }))
+);
+const StudentProgressView = lazy(() =>
+  import('./features/student/StudentProgressView').then((m) => ({ default: m.StudentProgressView }))
 );
 
 interface ComponentStatusItem {
@@ -376,7 +381,7 @@ export const ComponentInventoryPreview: FC = () => {
 };
 
 const AppShellWithRoutes: FC = () => {
-  const { data, loading } = useAuth();
+  const { data, loading, error } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -387,173 +392,48 @@ const AppShellWithRoutes: FC = () => {
     );
   }
 
+  if (error) {
+    const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    const authHref = `/auth-app/?next=${encodeURIComponent(currentPath)}`;
+    if (error.status === 401) {
+      return (
+        <main className="core-gate">
+          <section className="core-gate__panel">
+            <p className="core-eyebrow">SESSION SECURITY</p>
+            <h1>Session expired</h1>
+            <p>Your session is no longer active. Sign in again to continue to the page you requested.</p>
+            <a href={authHref} className="core-button">Log in to QuizApp</a>
+          </section>
+        </main>
+      );
+    }
+
+    if (error.status === 403) {
+      return (
+        <main className="core-gate">
+          <section className="core-gate__panel">
+            <p className="core-eyebrow">ACCESS CONTROL</p>
+            <h1>Access restricted</h1>
+            <p>{error.message || 'A valid school association is required to access this application.'}</p>
+            <a href={authHref} className="core-button">Return to Sign In</a>
+          </section>
+        </main>
+      );
+    }
+  }
+
   const role = data?.user?.role;
   const isSuperadmin = role === 'superadmin';
   const isTeacher = role === 'teacher';
   const isStudent = role === 'student';
 
-  const getBreadcrumbs = () => {
-    const path = location.pathname;
-    const base = [{ label: 'QuizApp', href: '/app/' }];
-    if (path.includes('/superadmin/dashboard')) {
-      return [...base, { label: 'Superadmin' }, { label: 'System Overview', active: true }];
-    }
-    if (path.endsWith('/superadmin/schools/new')) {
-      return [...base, { label: 'Superadmin' }, { label: 'Schools', href: '/app/superadmin/schools' }, { label: 'Add School', active: true }];
-    }
-    if (/\/superadmin\/schools\/\d+\/edit$/.test(path)) {
-      return [...base, { label: 'Superadmin' }, { label: 'Schools', href: '/app/superadmin/schools' }, { label: 'Edit School', active: true }];
-    }
-    if (/\/superadmin\/schools\/\d+$/.test(path)) {
-      return [...base, { label: 'Superadmin' }, { label: 'Schools', href: '/app/superadmin/schools' }, { label: 'School Details', active: true }];
-    }
-    if (path.includes('/superadmin/schools')) {
-      return [...base, { label: 'Superadmin' }, { label: 'Schools Registry', active: true }];
-    }
-    if (/\/superadmin\/admins\/\d+\/edit$/.test(path)) {
-      return [...base, { label: 'Superadmin' }, { label: 'School Administrators', href: '/app/superadmin/admins' }, { label: 'Edit Administrator', active: true }];
-    }
-    if (/\/superadmin\/admins\/new$/.test(path)) {
-      return [...base, { label: 'Superadmin' }, { label: 'School Administrators', href: '/app/superadmin/admins' }, { label: 'Add Administrator', active: true }];
-    }
-    if (/\/superadmin\/admins\/\d+$/.test(path)) {
-      return [...base, { label: 'Superadmin' }, { label: 'School Administrators', href: '/app/superadmin/admins' }, { label: 'Administrator Details', active: true }];
-    }
-    if (path.includes('/superadmin/admins')) {
-      return [...base, { label: 'Superadmin' }, { label: 'School Administrators', active: true }];
-    }
-    if (path.includes('/admin/students')) {
-      return [...base, { label: 'Admin' }, { label: 'Students Directory', active: true }];
-    }
-    if (path.includes('/admin/forms')) {
-      return [...base, { label: 'Admin' }, { label: 'Forms & Grade Levels', active: true }];
-    }
-    if (path.includes('/admin/learning-areas')) {
-      return [...base, { label: 'Admin' }, { label: 'Learning Areas', active: true }];
-    }
-    if (path.includes('/admin/departments')) {
-      return [...base, { label: 'Admin' }, { label: 'Departments', active: true }];
-    }
-    if (path.includes('/admin/teachers')) {
-      return [...base, { label: 'Admin' }, { label: 'Teachers Directory', active: true }];
-    }
-    if (path.includes('/admin/dashboard')) {
-      return [...base, { label: 'Admin' }, { label: 'Dashboard Overview', active: true }];
-    }
-    if (path.includes('/admin/academic-years')) {
-      return [...base, { label: 'Admin' }, { label: 'Academic Years', active: true }];
-    }
-    if (path.includes('/admin/terms')) {
-      return [...base, { label: 'Admin' }, { label: 'Academic Terms', active: true }];
-    }
-    if (path.includes('/admin/classes/') && path.split('/').length > 3) {
-      return [...base, { label: 'Admin' }, { label: 'Classes', href: '/app/admin/classes' }, { label: 'Class Cohort Details', active: true }];
-    }
-    if (path.includes('/admin/classes')) {
-      return [...base, { label: 'Admin' }, { label: 'Classes Management', active: true }];
-    }
-    if (path.includes('/admin/subjects')) {
-      return [...base, { label: 'Admin' }, { label: 'Subjects Catalog', active: true }];
-    }
-    if (path.includes('/admin/school')) {
-      return [...base, { label: 'Admin' }, { label: 'School Profile & Settings', active: true }];
-    }
-    if (path.includes('/admin/enrollments')) {
-      return [...base, { label: 'Admin' }, { label: 'Student Class Enrollments', active: true }];
-    }
-    if (path.includes('/admin/assignments')) {
-      return [...base, { label: 'Admin' }, { label: 'Teacher Subject Assignments', active: true }];
-    }
-    if (path.includes('/teacher/dashboard')) {
-      return [...base, { label: 'Teacher' }, { label: 'Teaching Workspace', active: true }];
-    }
-    if (path.includes('/teacher/quizzes/') && path.split('/').length > 3) {
-      return [...base, { label: 'Teacher' }, { label: 'Quizzes', href: '/app/teacher/quizzes' }, { label: 'Quiz Detail', active: true }];
-    }
-    if (path.includes('/teacher/quizzes')) {
-      return [...base, { label: 'Teacher' }, { label: 'Quiz Catalog', active: true }];
-    }
-    if (path.includes('/teacher/results')) {
-      return [...base, { label: 'Teacher' }, { label: 'Results & Analytics', active: true }];
-    }
-    if (path.includes('/teacher/grading')) {
-      return [...base, { label: 'Teacher' }, { label: 'Manual Grading Queue', active: true }];
-    }
-    if (path.includes('/student/dashboard')) {
-      return [...base, { label: 'Student' }, { label: 'Learning Portal', active: true }];
-    }
-    if (path.includes('/student/profile')) {
-      return [...base, { label: 'Student' }, { label: 'My Profile', active: true }];
-    }
-    if (path.includes('/student/quizzes/') && path.split('/').length > 3) {
-      return [...base, { label: 'Student' }, { label: 'Available Quizzes', href: '/app/student/quizzes' }, { label: 'Quiz Preview', active: true }];
-    }
-    if (path.includes('/student/quizzes')) {
-      return [...base, { label: 'Student' }, { label: 'Available Quizzes', active: true }];
-    }
-    if (path.includes('/student/attempts/') && path.includes('/result')) {
-      return [...base, { label: 'Student' }, { label: 'My Attempts', href: '/app/student/attempts' }, { label: 'Assessment Results', active: true }];
-    }
-    if (path.includes('/student/attempts')) {
-      return [...base, { label: 'Student' }, { label: 'My Attempts', active: true }];
-    }
-    if (path.includes('/student/take/')) {
-      return [...base, { label: 'Student' }, { label: 'Quiz Assessment', active: true }];
-    }
-    if (path.includes('/components')) {
-      return [...base, { label: 'UI Inventory', active: true }];
-    }
-    return [...base, { label: 'React Workspace', active: true }];
-  };
+  const isTakeAssessment = location.pathname.startsWith('/student/take/');
+  const isPrintView = location.pathname.endsWith('/print');
+  const isStudentArea = location.pathname.startsWith('/student') || (location.pathname === '/' && isStudent);
+  const isTeacherArea = location.pathname.startsWith('/teacher') || (location.pathname === '/' && isTeacher);
 
-  const getPageTitle = () => {
-    const path = location.pathname;
-    if (path.includes('/superadmin/dashboard')) return 'System Overview';
-    if (path.endsWith('/superadmin/schools/new')) return 'Add School';
-    if (/\/superadmin\/schools\/\d+\/edit$/.test(path)) return 'Edit School';
-    if (/\/superadmin\/schools\/\d+$/.test(path)) return 'School Details';
-    if (path.includes('/superadmin/schools')) return 'Schools Registry';
-    if (/\/superadmin\/admins\/\d+\/edit$/.test(path)) return 'Edit Administrator';
-    if (path.endsWith('/superadmin/admins/new')) return 'Add Administrator';
-    if (/\/superadmin\/admins\/\d+$/.test(path)) return 'Administrator Details';
-    if (path.includes('/superadmin/admins')) return 'School Administrators';
-    if (path.includes('/admin/students')) return 'Students Directory';
-    if (path.includes('/admin/teachers')) return 'Teachers Directory';
-    if (path.includes('/admin/dashboard')) return 'Admin Dashboard';
-    if (path.includes('/admin/academic-years')) return 'Academic Years';
-    if (path.includes('/admin/terms')) return 'Academic Terms';
-    if (path.includes('/admin/classes/') && path.split('/').length > 3) return 'Class Details & Cohort';
-    if (path.includes('/admin/classes')) return 'Classes Management';
-    if (path.includes('/admin/subjects')) return 'Subjects Catalog';
-    if (path.includes('/admin/forms')) return 'Forms & Grade Levels';
-    if (path.includes('/admin/learning-areas')) return 'Learning Areas';
-    if (path.includes('/admin/departments')) return 'Departments';
-    if (path.includes('/admin/school')) return 'School Profile & Settings';
-    if (path.includes('/admin/enrollments')) return 'Student Class Enrollments';
-    if (path.includes('/admin/assignments')) return 'Teacher Subject Assignments';
-    if (path.includes('/teacher/dashboard')) return 'Teaching Workspace';
-    if (path.includes('/teacher/quizzes/') && path.split('/').length > 3) return 'Quiz Details';
-    if (path.includes('/teacher/quizzes')) return 'Quiz Catalog';
-    if (path.includes('/teacher/results')) return 'Quiz Results';
-    if (path.includes('/teacher/grading')) return 'Manual Grading Queue';
-    if (path.includes('/student/dashboard')) return 'Student Learning Portal';
-    if (path.includes('/student/profile')) return 'Student Profile & Records';
-    if (path.includes('/student/quizzes/') && path.split('/').length > 3) return 'Quiz Preview & Rules';
-    if (path.includes('/student/quizzes')) return 'Available Quizzes';
-    if (path.includes('/student/attempts/') && path.includes('/result')) return 'Assessment Result';
-    if (path.includes('/student/attempts')) return 'My Quiz Attempts';
-    if (path.includes('/student/take/')) return 'Quiz Assessment Session';
-    if (path.includes('/components')) return 'Shared UI Inventory';
-    return 'React Migration Workspace';
-  };
-
-  return (
-    <AppShell
-      title={getPageTitle()}
-      breadcrumbs={getBreadcrumbs()}
-      activePath={`/app${location.pathname === '/' ? '' : location.pathname}`}
-    >
-      <Suspense
+  const routeContent = (
+    <Suspense
         fallback={
           <div className="d-flex min-vh-50 align-items-center justify-content-center py-5">
             <LoadingSpinner message="Loading view..." size="md" />
@@ -919,6 +799,14 @@ const AppShellWithRoutes: FC = () => {
             }
           />
           <Route
+            path="/student/assignments"
+            element={
+              <RoleGuard allowedRoles={['student']}>
+                <StudentQuizList />
+              </RoleGuard>
+            }
+          />
+          <Route
             path="/student/quizzes/:id"
             element={
               <RoleGuard allowedRoles={['student']}>
@@ -931,6 +819,14 @@ const AppShellWithRoutes: FC = () => {
             element={
               <RoleGuard allowedRoles={['student']}>
                 <StudentAttemptsList />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/student/progress"
+            element={
+              <RoleGuard allowedRoles={['student']}>
+                <StudentProgressView />
               </RoleGuard>
             }
           />
@@ -985,8 +881,21 @@ const AppShellWithRoutes: FC = () => {
           />
         </Routes>
       </Suspense>
-    </AppShell>
   );
+
+  if (isTakeAssessment || isPrintView) {
+    return routeContent;
+  }
+
+  if (isStudentArea) {
+    return <StudentAppLayout>{routeContent}</StudentAppLayout>;
+  }
+
+  if (isTeacherArea) {
+    return <TeacherAppLayout>{routeContent}</TeacherAppLayout>;
+  }
+
+  return <AdminAppLayout>{routeContent}</AdminAppLayout>;
 };
 
 export const App: FC = () => {

@@ -4,7 +4,7 @@ import { studentApi } from '../../api/student';
 import type { StudentQuizResultData } from '../../types/student';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { Alert } from '../../components/common/Alert';
-import { Button } from '../../components/common/Button';
+import './student.css';
 
 export const StudentQuizResult: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -32,25 +32,23 @@ export const StudentQuizResult: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="assessment-page container-fluid py-4" data-testid="student-quiz-result-loading">
-        <div className="d-flex justify-content-center py-5">
-          <LoadingSpinner size="lg" message="Loading your assessment results..." />
-        </div>
+      <div className="d-flex justify-content-center py-5" data-testid="student-quiz-result-loading">
+        <LoadingSpinner size="lg" message="Loading your assessment results..." />
       </div>
     );
   }
 
   if (error || !result) {
     return (
-      <div className="assessment-page container-fluid py-4" data-testid="student-quiz-result-error">
+      <div data-testid="student-quiz-result-error">
         <Alert variant="danger" dismissible={false}>
           <h5>Unable to load results</h5>
           <p className="mb-2">{error || 'Result details could not be retrieved.'}</p>
           <div className="d-flex gap-2">
-            <Button variant="secondary" size="sm" onClick={loadResult}>
+            <button className="stu-btn-outline" onClick={loadResult}>
               Retry
-            </Button>
-            <Link to="/student/attempts" className="btn btn-sm btn-outline-secondary">
+            </button>
+            <Link to="/student/attempts" className="stu-btn-outline">
               Back to History
             </Link>
           </div>
@@ -60,210 +58,244 @@ export const StudentQuizResult: React.FC = () => {
   }
 
   return (
-    <div className="assessment-page container-fluid py-4" data-testid="student-quiz-result">
-      {/* Top Navigation */}
-      <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
-        <div>
-          <div className="mb-2">
-            <Link to="/student/attempts" className="text-decoration-none small text-muted">
-              ← Back to My Attempts
-            </Link>
+    <div data-testid="student-quiz-result">
+      {/* Top Back Navigation & Title */}
+      <div className="mb-2">
+        <Link to="/student/attempts" className="stu-section-head__link">
+          ← Back to My Attempts
+        </Link>
+      </div>
+
+      <div className="stu-welcome">
+        <div className="stu-welcome__heading-row">
+          <h1 className="stu-welcome__name">{result.quiz_title}</h1>
+          <span className="stu-badge stu-badge--sky">{result.subject_name || 'General'}</span>
+        </div>
+        <div className="stu-welcome__subtitle">
+          <span>Student: {result.student_name}</span>
+          {result.submitted_at && (
+            <>
+              <span className="mx-2">•</span>
+              <span>{new Date(result.submitted_at).toLocaleDateString()}</span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Prominent Score Summary Card (Promotion Prep Style) */}
+      <div className="stu-cta-card">
+        <div className="stu-cta-card__top">
+          <div
+            className="stu-cta-card__icon-box"
+            style={{
+              backgroundColor: result.is_passed ? 'var(--stu-success-bg)' : 'var(--stu-danger-bg)',
+              color: result.is_passed ? 'var(--stu-success)' : 'var(--stu-danger)',
+            }}
+          >
+            <i
+              className={`bi ${result.is_passed ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}`}
+              aria-hidden="true"
+            />
           </div>
-          <h2 className="h3 fw-bold text-dark mb-1">{result.quiz_title}</h2>
-          <div className="d-flex flex-wrap align-items-center gap-2 mt-2">
-            <span className="badge bg-primary">{result.subject_name || 'General'}</span>
-            <span className="text-muted small">Student: {result.student_name}</span>
+          <div className="stu-cta-card__info">
+            <div className="stu-cta-card__eyebrow">
+              {result.is_passed ? 'ASSESSMENT PASSED' : 'NEEDS IMPROVEMENT'}
+            </div>
+            <h2 className="stu-cta-card__title">
+              {result.score} / {result.total_marks} Marks ({result.percentage}%)
+            </h2>
+            <p className="stu-cta-card__desc">
+              Passing threshold: {result.passing_marks} marks. Outcome:{' '}
+              <strong>{result.is_passed ? 'Passed' : 'Needs Improvement'}</strong>.
+            </p>
           </div>
         </div>
-        <div className="d-flex gap-2">
+
+        <div className="d-flex align-items-center gap-2 flex-wrap">
           <a
             href={`/app/student/attempts/${result.attempt_id}/result/print`}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn btn-sm btn-outline-secondary"
+            className="stu-btn-outline"
+            style={{ flex: 1, minWidth: '140px' }}
           >
-            <i className="bi bi-printer me-1"></i> Print Result
+            <i className="bi bi-printer me-1" aria-hidden="true" /> Print Result
           </a>
+          <Link
+            to="/student/quizzes"
+            className="stu-btn-primary"
+            style={{ flex: 1, minWidth: '140px' }}
+          >
+            More Quizzes →
+          </Link>
         </div>
       </div>
 
-      {/* Primary Score Summary Card */}
-      <div
-        className={`card shadow-sm border-0 mb-4 border-start border-4 ${
-          result.is_passed ? 'border-success' : 'border-danger'
-        }`}
-      >
-        <div className="card-body p-4">
-          <div className="row align-items-center g-4">
-            <div className="col-md-3 text-center border-end-md">
-              <span className="text-muted small text-uppercase fw-semibold d-block mb-1">
-                Assessment Outcome
-              </span>
-              <span
-                className={`badge fs-5 px-3 py-2 ${
-                  result.is_passed ? 'bg-success' : 'bg-danger'
-                }`}
-              >
-                <i
-                  className={`bi me-1 ${
-                    result.is_passed ? 'bi-check-circle-fill' : 'bi-x-circle-fill'
-                  }`}
-                ></i>
-                {result.is_passed ? 'Passed' : 'Needs Improvement'}
-              </span>
-            </div>
-
-            <div className="col-md-3 text-center border-end-md">
-              <span className="text-muted small text-uppercase fw-semibold d-block mb-1">
-                Final Score
-              </span>
-              <h2 className="fw-bold mb-0 text-dark">
-                {result.score}{' '}
-                <span className="fs-5 text-muted fw-normal">/ {result.total_marks}</span>
-              </h2>
-            </div>
-
-            <div className="col-md-3 text-center border-end-md">
-              <span className="text-muted small text-uppercase fw-semibold d-block mb-1">
-                Percentage
-              </span>
-              <h2
-                className={`fw-bold mb-0 ${
-                  result.is_passed ? 'text-success' : 'text-danger'
-                }`}
-              >
-                {result.percentage}%
-              </h2>
-              <span className="small text-muted">Passing: {result.passing_marks} pts</span>
-            </div>
-
-            <div className="col-md-3 text-center">
-              <span className="text-muted small text-uppercase fw-semibold d-block mb-1">
-                Submitted At
-              </span>
-              <div className="small text-dark fw-semibold">
-                {result.submitted_at
-                  ? new Date(result.submitted_at).toLocaleDateString()
-                  : '—'}
-              </div>
-              <div className="small text-muted">
-                {result.submitted_at
-                  ? new Date(result.submitted_at).toLocaleTimeString()
-                  : ''}
-              </div>
-            </div>
+      {/* Metrics Row */}
+      <div className="stu-stats-grid mb-4">
+        <div className="stu-stat-box">
+          <div className="stu-stat-box__val" style={{ color: 'var(--stu-navy)' }}>
+            {result.score}
           </div>
+          <div className="stu-stat-box__label">Marks Obtained</div>
+        </div>
+
+        <div className="stu-stat-box">
+          <div
+            className="stu-stat-box__val"
+            style={{ color: result.is_passed ? 'var(--stu-success)' : 'var(--stu-danger)' }}
+          >
+            {result.percentage}%
+          </div>
+          <div className="stu-stat-box__label">Score</div>
+        </div>
+
+        <div className="stu-stat-box">
+          <div className="stu-stat-box__val" style={{ color: 'var(--stu-sky)' }}>
+            {result.passing_marks}
+          </div>
+          <div className="stu-stat-box__label">Passing Mark</div>
         </div>
       </div>
 
-      {/* Question Review Section */}
-      <div className="card shadow-sm border-0">
-        <div className="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
-          <h5 className="card-title fw-bold mb-0">
-            <i className="bi bi-card-checklist me-2 text-primary"></i>
-            Question-by-Question Review
-          </h5>
-          <span className="text-muted small">{result.questions.length} Questions Reviewed</span>
+      {/* Question-by-Question Review Section */}
+      <div className="stu-section-head">
+        <div className="stu-section-head__title-group">
+          <h2 className="stu-section-head__title">Question-by-Question Review</h2>
+          <p className="stu-section-head__subtitle">
+            {result.questions.length} Questions Reviewed
+          </p>
         </div>
-        <div className="card-body">
-          {!result.allow_review ? (
-            <div className="alert alert-info mb-0">
-              <i className="bi bi-info-circle me-2"></i>
-              Detailed question review is disabled by your instructor for this quiz.
-            </div>
-          ) : result.questions.length === 0 ? (
-            <p className="text-muted mb-0">No questions available for review.</p>
-          ) : (
-            <div className="d-flex flex-column gap-4">
-              {result.questions.map((q, idx) => (
-                <div
-                  key={q.id}
-                  className={`p-3 rounded border ${
-                    q.is_correct ? 'border-success-subtle bg-light' : 'border-danger-subtle bg-light'
-                  }`}
+      </div>
+
+      {!result.allow_review ? (
+        <div className="stu-card text-center py-4">
+          <i className="bi bi-info-circle text-muted" style={{ fontSize: '1.75rem' }} aria-hidden="true" />
+          <p className="text-muted small mb-0 mt-2">
+            Detailed question review is disabled by your instructor for this quiz.
+          </p>
+        </div>
+      ) : result.questions.length === 0 ? (
+        <div className="stu-card text-center py-4">
+          <p className="text-muted small mb-0">No questions available for review.</p>
+        </div>
+      ) : (
+        <div className="stu-card-list">
+          {result.questions.map((q, idx) => (
+            <div
+              key={q.id}
+              className="stu-card"
+              style={{
+                borderLeft: `4px solid ${q.is_correct ? 'var(--stu-success)' : 'var(--stu-danger)'}`,
+              }}
+            >
+              <div className="d-flex justify-content-between align-items-start gap-2 mb-2">
+                <h3 className="fw-bold mb-0 text-dark" style={{ fontSize: '0.95rem', lineHeight: '1.4' }}>
+                  Question {idx + 1}: {q.question_text}
+                </h3>
+                <span
+                  className={`stu-badge ${q.is_correct ? 'stu-badge--success' : 'stu-badge--danger'}`}
                 >
-                  <div className="d-flex justify-content-between align-items-start gap-2 mb-2">
-                    <h6 className="fw-bold mb-0 text-dark">
-                      Question {idx + 1}: {q.question_text}
-                    </h6>
-                    <span
-                      className={`badge ${
-                        q.is_correct ? 'bg-success' : 'bg-danger'
-                      } text-nowrap`}
-                    >
-                      {q.marks_obtained} / {q.marks} pts
-                    </span>
+                  {q.marks_obtained} / {q.marks} pts
+                </span>
+              </div>
+
+              {/* Multiple Choice / True-False Choices */}
+              {q.choices.length > 0 && (
+                <div className="mt-3 d-flex flex-column gap-2">
+                  {q.choices.map((c) => {
+                    let borderCol = 'var(--stu-border)';
+                    let bgCol = 'var(--stu-surface)';
+                    if (c.is_selected && c.is_correct) {
+                      borderCol = 'var(--stu-success)';
+                      bgCol = 'var(--stu-success-bg)';
+                    } else if (c.is_selected && !c.is_correct) {
+                      borderCol = 'var(--stu-danger)';
+                      bgCol = 'var(--stu-danger-bg)';
+                    } else if (result.show_correct_answers && c.is_correct) {
+                      borderCol = 'var(--stu-warning-border)';
+                      bgCol = 'var(--stu-warning-bg)';
+                    }
+
+                    return (
+                      <div
+                        key={c.id}
+                        className="p-2 rounded d-flex justify-content-between align-items-center"
+                        style={{
+                          backgroundColor: bgCol,
+                          border: `1px solid ${borderCol}`,
+                          fontSize: '0.875rem',
+                        }}
+                      >
+                        <span className="text-dark">{c.choice_text}</span>
+                        <div className="d-flex gap-1 align-items-center flex-shrink-0">
+                          {c.is_selected && (
+                            <span className="stu-badge stu-badge--muted">Your Answer</span>
+                          )}
+                          {result.show_correct_answers && c.is_correct && (
+                            <span className="stu-badge stu-badge--success">Correct Key</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Text / Essay Answers */}
+              {q.choices.length === 0 && (
+                <div className="mt-3">
+                  <div className="small fw-semibold text-muted mb-1">Your Submission:</div>
+                  <div
+                    className="p-2 rounded mb-2 text-dark"
+                    style={{
+                      backgroundColor: 'var(--stu-surface-alt)',
+                      border: '1px solid var(--stu-border)',
+                      fontSize: '0.875rem',
+                    }}
+                  >
+                    {q.student_answer || <span className="text-muted fst-italic">No response entered</span>}
                   </div>
 
-                  {/* Multiple Choice / True False Choices */}
-                  {q.choices.length > 0 && (
-                    <div className="mt-3">
-                      <ul className="list-group list-group-flush border rounded bg-white">
-                        {q.choices.map((c) => {
-                          let choiceClass = 'list-group-item py-2 px-3';
-                          if (c.is_selected && c.is_correct) {
-                            choiceClass += ' list-group-item-success fw-semibold';
-                          } else if (c.is_selected && !c.is_correct) {
-                            choiceClass += ' list-group-item-danger';
-                          } else if (result.show_correct_answers && c.is_correct) {
-                            choiceClass += ' list-group-item-warning fw-semibold';
-                          }
-
-                          return (
-                            <li
-                              key={c.id}
-                              className={`${choiceClass} d-flex justify-content-between align-items-center`}
-                            >
-                              <span>{c.choice_text}</span>
-                              <div className="d-flex gap-2 align-items-center">
-                                {c.is_selected && (
-                                  <span className="badge bg-secondary">Your Answer</span>
-                                )}
-                                {result.show_correct_answers && c.is_correct && (
-                                  <span className="badge bg-success">Correct Key</span>
-                                )}
-                              </div>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* Text / Essay Answers */}
-                  {q.choices.length === 0 && (
-                    <div className="mt-3">
-                      <div className="small fw-semibold text-muted mb-1">Your Submission:</div>
-                      <div className="p-2 bg-white rounded border mb-2 text-dark">
-                        {q.student_answer || <span className="text-muted fst-italic">No response entered</span>}
+                  {result.show_correct_answers && q.correct_answer && (
+                    <div>
+                      <div className="small fw-semibold text-success mb-1">Model / Correct Answer:</div>
+                      <div
+                        className="p-2 rounded text-dark"
+                        style={{
+                          backgroundColor: 'var(--stu-success-bg)',
+                          border: '1px solid var(--stu-success-border)',
+                          fontSize: '0.875rem',
+                        }}
+                      >
+                        {q.correct_answer}
                       </div>
-
-                      {result.show_correct_answers && q.correct_answer && (
-                        <div>
-                          <div className="small fw-semibold text-success mb-1">Sample Answer / Model Answer:</div>
-                          <div className="p-2 bg-success-subtle rounded border border-success-subtle text-dark">
-                            {q.correct_answer}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Explanation Callout */}
-                  {result.show_correct_answers && q.explanation && (
-                    <div className="mt-3 p-2 bg-info-subtle border border-info-subtle rounded small text-dark">
-                      <strong>
-                        <i className="bi bi-lightbulb me-1"></i> Explanation:
-                      </strong>{' '}
-                      {q.explanation}
                     </div>
                   )}
                 </div>
-              ))}
+              )}
+
+              {/* Explanation Callout */}
+              {result.show_correct_answers && q.explanation && (
+                <div
+                  className="mt-3 p-2 rounded small text-dark"
+                  style={{
+                    backgroundColor: 'var(--stu-sky-subtle)',
+                    border: '1px solid var(--stu-sky-border)',
+                  }}
+                >
+                  <strong style={{ color: 'var(--stu-sky)' }}>
+                    <i className="bi bi-lightbulb me-1" aria-hidden="true" /> Explanation:
+                  </strong>{' '}
+                  {q.explanation}
+                </div>
+              )}
             </div>
-          )}
+          ))}
         </div>
-      </div>
+      )}
     </div>
   );
 };
+
+export default StudentQuizResult;

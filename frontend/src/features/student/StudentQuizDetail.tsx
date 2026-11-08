@@ -5,6 +5,7 @@ import type { StudentQuizDetail as IStudentQuizDetail } from '../../types/studen
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { Alert } from '../../components/common/Alert';
 import { Button } from '../../components/common/Button';
+import './student.css';
 
 export const StudentQuizDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -55,25 +56,23 @@ export const StudentQuizDetail: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="assessment-page container-fluid py-4" data-testid="student-quiz-detail-loading">
-        <div className="d-flex justify-content-center py-5">
-          <LoadingSpinner size="lg" message="Loading quiz details..." />
-        </div>
+      <div className="d-flex justify-content-center py-5" data-testid="student-quiz-detail-loading">
+        <LoadingSpinner size="lg" message="Loading quiz details..." />
       </div>
     );
   }
 
   if (error || !quiz) {
     return (
-      <div className="assessment-page container-fluid py-4" data-testid="student-quiz-detail-error">
+      <div data-testid="student-quiz-detail-error">
         <Alert variant="danger" dismissible={false}>
           <h5>Unable to load quiz</h5>
           <p className="mb-2">{error || 'Quiz not found or not assigned to your class.'}</p>
           <div className="d-flex gap-2">
-            <Button variant="secondary" size="sm" onClick={loadDetail}>
+            <button className="stu-btn-outline" onClick={loadDetail}>
               Retry
-            </Button>
-            <Link to="/student/quizzes" className="btn btn-sm btn-outline-secondary">
+            </button>
+            <Link to="/student/quizzes" className="stu-btn-outline">
               Back to Available Quizzes
             </Link>
           </div>
@@ -83,243 +82,223 @@ export const StudentQuizDetail: React.FC = () => {
   }
 
   return (
-    <div className="assessment-page container-fluid py-4" data-testid="student-quiz-detail">
-      {/* Header & Back link */}
-      <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
-        <div>
-          <div className="mb-2">
-            <Link to="/student/quizzes" className="text-decoration-none small text-muted">
-              ← Back to Available Quizzes
-            </Link>
-          </div>
-          <h2 className="h3 fw-bold text-dark mb-1">{quiz.title}</h2>
-          <div className="d-flex flex-wrap align-items-center gap-2 mt-2">
-            <span className="badge bg-primary">{quiz.subject_name}</span>
-            <span className="text-muted small">Instructor: {quiz.teacher_name}</span>
-          </div>
+    <div data-testid="student-quiz-detail">
+      {/* Back Link & Header */}
+      <div className="mb-3">
+        <Link to="/student/quizzes" className="stu-section-head__link">
+          ← Back to Available Quizzes
+        </Link>
+      </div>
+
+      <div className="stu-welcome">
+        <div className="stu-welcome__heading-row">
+          <h1 className="stu-welcome__name">{quiz.title}</h1>
+          <span className="stu-badge stu-badge--sky">{quiz.subject_name}</span>
         </div>
-        <div className="d-flex gap-2">
-          <Button variant="secondary" size="sm" onClick={loadDetail}>
-            Refresh
-          </Button>
-        </div>
+        <p className="stu-welcome__subtitle">
+          Instructor: {quiz.teacher_name}
+          {quiz.available_until && (
+            <> • Available until {new Date(quiz.available_until).toLocaleDateString()}</>
+          )}
+        </p>
       </div>
 
       {startError && (
-        <Alert variant="danger" dismissible onDismiss={() => setStartError(null)}>
+        <Alert variant="danger" dismissible onDismiss={() => setStartError(null)} className="mb-3">
           {startError}
         </Alert>
       )}
 
-      <div className="row g-4">
-        {/* Left Column: Instructions and Rules */}
-        <div className="col-lg-8">
-          <div className="card shadow-sm border-0 mb-4">
-            <div className="card-header bg-white py-3 border-0">
-              <h5 className="card-title fw-bold mb-0">Quiz Overview & Instructions</h5>
-            </div>
-            <div className="card-body">
-              {quiz.description && <p className="lead fs-6 text-dark mb-4">{quiz.description}</p>}
-
-              <h6 className="fw-bold text-uppercase small text-muted mb-2">Instructions</h6>
-              <div className="p-3 bg-light rounded border mb-4">
-                {quiz.instructions ? (
-                  <p className="mb-0 text-dark" style={{ whiteSpace: 'pre-line' }}>
-                    {quiz.instructions}
-                  </p>
-                ) : (
-                  <p className="mb-0 text-muted fst-italic">No specific instructions provided.</p>
-                )}
-              </div>
-
-              {/* Assessment Rules Grid */}
-              <h6 className="fw-bold text-uppercase small text-muted mb-3">Assessment Rules</h6>
-              <div className="row g-3">
-                <div className="col-sm-6 col-md-3">
-                  <div className="p-3 border rounded text-center">
-                    <span className="small text-muted d-block">Time Limit</span>
-                    <strong className="fs-5 text-dark">
-                      {quiz.duration_minutes > 0 ? `${quiz.duration_minutes}m` : 'Untimed'}
-                    </strong>
-                  </div>
-                </div>
-                <div className="col-sm-6 col-md-3">
-                  <div className="p-3 border rounded text-center">
-                    <span className="small text-muted d-block">Questions</span>
-                    <strong className="fs-5 text-dark">{quiz.total_questions}</strong>
-                  </div>
-                </div>
-                <div className="col-sm-6 col-md-3">
-                  <div className="p-3 border rounded text-center">
-                    <span className="small text-muted d-block">Total Marks</span>
-                    <strong className="fs-5 text-dark">{quiz.total_marks}</strong>
-                  </div>
-                </div>
-                <div className="col-sm-6 col-md-3">
-                  <div className="p-3 border rounded text-center">
-                    <span className="small text-muted d-block">Passing Mark</span>
-                    <strong className="fs-5 text-dark">
-                      {quiz.passing_marks} ({quiz.pass_percentage}%)
-                    </strong>
-                  </div>
-                </div>
-              </div>
-            </div>
+      {/* Prominent Action Callout Card */}
+      <div className="stu-cta-card">
+        <div className="stu-cta-card__top">
+          <div className="stu-cta-card__icon-box">
+            <i className="bi bi-pencil-square" aria-hidden="true" />
           </div>
-
-          {/* Past Attempts Table */}
-          <div className="card shadow-sm border-0">
-            <div className="card-header bg-white py-3 border-0">
-              <h5 className="card-title fw-bold mb-0">Your Past Attempts</h5>
+          <div className="stu-cta-card__info">
+            <div className="stu-cta-card__eyebrow">
+              {quiz.subject_name.toUpperCase()} • {quiz.total_questions} QUESTIONS
             </div>
-            <div className="card-body p-0">
-              {quiz.past_attempts.length === 0 ? (
-                <div className="text-center py-4 text-muted small">
-                  You haven't attempted this quiz yet.
-                </div>
-              ) : (
-                <div className="table-responsive">
-                  <table className="table table-hover align-middle mb-0">
-                    <thead className="table-light">
-                      <tr>
-                        <th scope="col">Attempt</th>
-                        <th scope="col">Score</th>
-                        <th scope="col">Percentage</th>
-                        <th scope="col">Status</th>
-                        <th scope="col">Date</th>
-                        <th scope="col" className="text-end">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {quiz.past_attempts.map((att) => (
-                        <tr key={att.id}>
-                          <td className="fw-semibold">Attempt #{att.attempt_number}</td>
-                          <td>
-                            {att.score} / {att.total_marks}
-                          </td>
-                          <td>{att.percentage}%</td>
-                          <td>
-                            <span
-                              className={`badge ${
-                                att.is_passed ? 'bg-success' : 'bg-danger'
-                              }`}
-                            >
-                              {att.is_passed ? 'Passed' : 'Failed'}
-                            </span>
-                          </td>
-                          <td className="small text-muted">
-                            {att.submitted_at
-                              ? new Date(att.submitted_at).toLocaleString()
-                              : 'In Progress'}
-                          </td>
-                          <td className="text-end">
-                            {att.is_submitted ? (
-                              <Link
-                                to={`/student/attempts/${att.id}/result`}
-                                className="btn btn-sm btn-outline-primary"
-                              >
-                                Review
-                              </Link>
-                            ) : (
-                              <Link
-                                to={`/student/take/${att.id}`}
-                                className="btn btn-sm btn-warning fw-bold text-dark"
-                              >
-                                Resume
-                              </Link>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+            <h2 className="stu-cta-card__title">
+              {quiz.in_progress_attempt_id ? 'Resume In-Progress Assessment' : 'Ready to Begin?'}
+            </h2>
+            <p className="stu-cta-card__desc">
+              {quiz.description || 'Review the instructions and assessment rules below before starting.'}
+            </p>
           </div>
         </div>
 
-        {/* Right Column: Quiz Action Card */}
-        <div className="col-lg-4">
-          <div className="card shadow-sm border-0">
-            <div className="card-body p-4">
-              <h5 className="fw-bold text-dark mb-3">Ready to Begin?</h5>
+        {/* Password Prompt if required */}
+        {quiz.require_password && !quiz.in_progress_attempt_id && (
+          <div className="mt-2">
+            <label htmlFor="quiz-password" className="form-label small fw-bold" style={{ color: 'var(--stu-navy)' }}>
+              Quiz Access Password:
+            </label>
+            <input
+              id="quiz-password"
+              type="password"
+              className="form-control"
+              placeholder="Enter quiz password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              style={{ borderColor: 'var(--stu-border)', borderRadius: 'var(--stu-radius-sm)' }}
+            />
+          </div>
+        )}
 
-              <div className="mb-3">
-                <div className="d-flex justify-content-between small text-muted mb-1">
-                  <span>Attempts allowed:</span>
-                  <strong>{quiz.max_attempts}</strong>
-                </div>
-                <div className="d-flex justify-content-between small text-muted mb-1">
-                  <span>Attempts taken:</span>
-                  <strong>{quiz.attempts_count}</strong>
-                </div>
-                <div className="d-flex justify-content-between small text-muted">
-                  <span>Attempts remaining:</span>
-                  <strong className={quiz.remaining_attempts > 0 ? 'text-success' : 'text-danger'}>
-                    {quiz.remaining_attempts}
-                  </strong>
-                </div>
+        {/* Start / Resume Button */}
+        {quiz.in_progress_attempt_id ? (
+          <div>
+            <div className="stu-banner stu-banner--warning mb-2">
+              <div className="stu-banner__content">
+                <span className="stu-banner__dot" aria-hidden="true" />
+                <span>You have an attempt currently in progress!</span>
               </div>
-
-              <hr />
-
-              {quiz.require_password && (
-                <div className="mb-3">
-                  <label htmlFor="quiz-password" className="form-label small fw-semibold">
-                    Quiz Access Password:
-                  </label>
-                  <input
-                    id="quiz-password"
-                    type="password"
-                    className="form-control"
-                    placeholder="Enter quiz password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </div>
-              )}
-
-              {quiz.in_progress_attempt_id ? (
-                <div>
-                  <div className="alert alert-warning small mb-3">
-                    You have an attempt in progress!
-                  </div>
-                  <Button
-                    variant="primary"
-                    className="w-100 py-2 fw-bold"
-                    onClick={handleStartOrResume}
-                    loading={starting}
-                  >
-                    Resume In-Progress Quiz
-                  </Button>
-                </div>
-              ) : quiz.can_attempt ? (
-                <div>
-                  <Button
-                    variant="primary"
-                    className="w-100 py-2 fw-bold"
-                    onClick={handleStartOrResume}
-                    loading={starting}
-                    disabled={quiz.require_password && !password.trim()}
-                  >
-                    Start Assessment Now
-                  </Button>
-                  <p className="small text-muted text-center mt-2 mb-0">
-                    Timer starts immediately upon clicking.
-                  </p>
-                </div>
-              ) : (
-                <div>
-                  <div className="alert alert-secondary small mb-0">
-                    {quiz.attempt_message || 'You cannot take this assessment at this time.'}
-                  </div>
-                </div>
-              )}
+            </div>
+            <Button
+              variant="primary"
+              className="w-100 py-3 fw-bold"
+              style={{ backgroundColor: 'var(--stu-navy)', borderColor: 'var(--stu-navy)' }}
+              onClick={handleStartOrResume}
+              loading={starting}
+            >
+              Resume In-Progress Quiz
+            </Button>
+          </div>
+        ) : quiz.can_attempt ? (
+          <div>
+            <Button
+              variant="primary"
+              className="w-100 py-3 fw-bold"
+              style={{ backgroundColor: 'var(--stu-navy)', borderColor: 'var(--stu-navy)' }}
+              onClick={handleStartOrResume}
+              loading={starting}
+              disabled={quiz.require_password && !password.trim()}
+            >
+              Start Assessment Now
+            </Button>
+            <p className="small text-muted text-center mt-2 mb-0">
+              Timer starts immediately once clicked. Ensure a stable internet connection.
+            </p>
+          </div>
+        ) : (
+          <div className="stu-banner">
+            <div className="stu-banner__content">
+              <span>{quiz.attempt_message || 'You cannot take this assessment at this time.'}</span>
             </div>
           </div>
+        )}
+      </div>
+
+      {/* Assessment Rules Grid */}
+      <div className="stu-section-head">
+        <div className="stu-section-head__title-group">
+          <h2 className="stu-section-head__title">Assessment Rules</h2>
+          <p className="stu-section-head__subtitle">Structure and passing criteria</p>
         </div>
       </div>
+
+      <div className="stu-stats-grid mb-4">
+        <div className="stu-stat-box">
+          <div className="stu-stat-box__val" style={{ color: 'var(--stu-navy)' }}>
+            {quiz.duration_minutes > 0 ? `${quiz.duration_minutes}m` : 'Untimed'}
+          </div>
+          <div className="stu-stat-box__label">Time Limit</div>
+        </div>
+
+        <div className="stu-stat-box">
+          <div className="stu-stat-box__val" style={{ color: 'var(--stu-sky)' }}>
+            {quiz.total_questions}
+          </div>
+          <div className="stu-stat-box__label">Questions</div>
+        </div>
+
+        <div className="stu-stat-box">
+          <div className="stu-stat-box__val" style={{ color: 'var(--stu-success)' }}>
+            {quiz.passing_marks} ({quiz.pass_percentage}%)
+          </div>
+          <div className="stu-stat-box__label">Passing Mark</div>
+        </div>
+      </div>
+
+      {/* Overview & Instructions Card */}
+      <div className="stu-card mb-4">
+        <h3 className="fw-bold mb-2" style={{ fontSize: '1rem', color: 'var(--stu-navy)' }}>
+          Instructions
+        </h3>
+        {quiz.instructions ? (
+          <div
+            className="p-3 rounded mb-3"
+            style={{ backgroundColor: 'var(--stu-surface-alt)', border: '1px solid var(--stu-border-light)' }}
+          >
+            <p className="mb-0 text-dark" style={{ whiteSpace: 'pre-line', fontSize: '0.9rem', lineHeight: '1.5' }}>
+              {quiz.instructions}
+            </p>
+          </div>
+        ) : (
+          <p className="text-muted small fst-italic mb-3">No specific instructions provided.</p>
+        )}
+
+        <div className="d-flex justify-content-between text-muted small pt-2 border-top">
+          <span>Total Marks: <strong className="text-dark">{quiz.total_marks}</strong></span>
+          <span>Max Attempts: <strong className="text-dark">{quiz.max_attempts}</strong></span>
+          <span>Remaining: <strong className="text-primary">{quiz.remaining_attempts}</strong></span>
+        </div>
+      </div>
+
+      {/* Past Attempts Section */}
+      <div className="stu-section-head">
+        <div className="stu-section-head__title-group">
+          <h2 className="stu-section-head__title">Your Past Attempts</h2>
+          <p className="stu-section-head__subtitle">History for this assessment</p>
+        </div>
+      </div>
+
+      {quiz.past_attempts.length === 0 ? (
+        <div className="stu-card text-center py-4">
+          <i className="bi bi-clock-history text-muted" style={{ fontSize: '1.75rem' }} aria-hidden="true" />
+          <p className="text-muted small mb-0 mt-2">You haven't attempted this quiz yet.</p>
+        </div>
+      ) : (
+        <div className="stu-card-list">
+          {quiz.past_attempts.map((att) => (
+            <div key={att.id} className="stu-result-card">
+              <div className="stu-result-card__info">
+                <h3 className="stu-result-card__title">Attempt #{att.attempt_number}</h3>
+                <div className="stu-result-card__sub">
+                  <span>Score: {att.score} / {att.total_marks}</span>
+                  {att.submitted_at && <span> • {new Date(att.submitted_at).toLocaleDateString()}</span>}
+                </div>
+              </div>
+
+              <div className="stu-result-card__score-box">
+                <span className={`stu-badge ${att.is_passed ? 'stu-badge--success' : 'stu-badge--danger'}`}>
+                  {att.percentage}% ({att.is_passed ? 'Passed' : 'Failed'})
+                </span>
+                {att.is_submitted ? (
+                  <Link
+                    to={`/student/attempts/${att.id}/result`}
+                    className="stu-section-head__link"
+                    style={{ fontSize: '0.75rem' }}
+                  >
+                    Review →
+                  </Link>
+                ) : (
+                  <Link
+                    to={`/student/take/${att.id}`}
+                    className="stu-section-head__link text-warning"
+                    style={{ fontSize: '0.75rem' }}
+                  >
+                    Resume →
+                  </Link>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
+
+export default StudentQuizDetail;

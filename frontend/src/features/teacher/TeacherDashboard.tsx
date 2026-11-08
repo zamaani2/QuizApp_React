@@ -58,6 +58,43 @@ export const TeacherDashboard: React.FC = () => {
         </div>
       ) : (
         <>
+          {/* Quick Shortcuts Row */}
+          <div className="d-flex flex-wrap gap-2 mb-4" aria-label="Quick teaching shortcuts">
+            <Link to="/teacher/quizzes" className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 rounded-pill px-3">
+              <i className="bi bi-patch-question" aria-hidden="true" /> Quiz Catalog
+            </Link>
+            <Link to="/teacher/quizzes/new" className="btn btn-sm btn-primary d-inline-flex align-items-center gap-1 rounded-pill px-3">
+              <i className="bi bi-plus-circle" aria-hidden="true" /> Create Quiz
+            </Link>
+            <Link to="/teacher/grading" className="btn btn-sm btn-outline-warning text-dark d-inline-flex align-items-center gap-1 rounded-pill px-3">
+              <i className="bi bi-pencil-square" aria-hidden="true" /> Grading Queue
+            </Link>
+            <Link to="/teacher/results" className="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1 rounded-pill px-3">
+              <i className="bi bi-bar-chart" aria-hidden="true" /> Results & Reports
+            </Link>
+          </div>
+
+          {/* Primary Action Card */}
+          <div className="card shadow-sm border-0 mb-4 p-4" style={{ background: 'linear-gradient(135deg, #0f2942 0%, #1e3a5f 100%)', color: '#ffffff', borderRadius: '12px' }}>
+            <div className="d-flex flex-wrap justify-content-between align-items-center gap-3">
+              <div>
+                <span className="badge bg-info text-dark rounded-pill px-3 py-1 mb-2 fw-semibold">Teaching Workspace</span>
+                <h3 className="h4 fw-bold text-white mb-1">Assessment Builder & Evaluation</h3>
+                <p className="mb-0 text-white-50" style={{ maxWidth: '650px' }}>
+                  Create customized quizzes, build questions with multiple answer formats, and evaluate student submissions in real time.
+                </p>
+              </div>
+              <div className="d-flex flex-wrap gap-2">
+                <Link to="/teacher/quizzes/new" className="btn btn-light fw-bold px-3 py-2 text-dark">
+                  New Quiz &rarr;
+                </Link>
+                <Link to="/teacher/grading" className="btn btn-outline-light fw-bold px-3 py-2">
+                  Open Grading
+                </Link>
+              </div>
+            </div>
+          </div>
+
           {/* Key Metric Cards */}
           <div className="row g-4 mb-4">
             <div className="col-12 col-sm-6 col-xl-3">

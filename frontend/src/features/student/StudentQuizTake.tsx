@@ -9,6 +9,7 @@ import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { Alert } from '../../components/common/Alert';
 import { Button } from '../../components/common/Button';
 import { Modal } from '../../components/common/Modal';
+import './student.css';
 
 export const StudentQuizTake: React.FC = () => {
   const { attemptId } = useParams<{ attemptId: string }>();
@@ -31,10 +32,11 @@ export const StudentQuizTake: React.FC = () => {
   // Server-authoritative timer (in seconds)
   const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
 
-  // Modals
+  // Modals & Drawers
   const [showSubmitModal, setShowSubmitModal] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [showPaletteDrawer, setShowPaletteDrawer] = useState<boolean>(false);
 
   // Auto-submitted due to timer expiration
   const [timeExpiredModal, setTimeExpiredModal] = useState<boolean>(false);
@@ -63,7 +65,7 @@ export const StudentQuizTake: React.FC = () => {
         ...res.existing_responses,
       };
 
-      // Also check localStorage for any unsaved local draft (safeguard against connection drop)
+      // Also check localStorage for unsaved local draft
       try {
         const localDraft = localStorage.getItem(`quiz_draft_${attemptId}`);
         if (localDraft) {
@@ -158,7 +160,7 @@ export const StudentQuizTake: React.FC = () => {
     };
     setResponses(nextResponses);
 
-    // Save local draft to localStorage (safeguard)
+    // Save local draft
     try {
       localStorage.setItem(`quiz_draft_${attemptId}`, JSON.stringify(nextResponses));
     } catch {
@@ -201,25 +203,21 @@ export const StudentQuizTake: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="assessment-page container-fluid py-4" data-testid="student-quiz-take-loading">
-        <div className="d-flex justify-content-center py-5">
-          <LoadingSpinner size="lg" message="Loading your assessment..." />
-        </div>
+      <div className="d-flex justify-content-center align-items-center min-vh-100" data-testid="student-quiz-take-loading">
+        <LoadingSpinner size="lg" message="Loading your assessment..." />
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="assessment-page container-fluid py-4" data-testid="student-quiz-take-error">
+      <div className="p-4" data-testid="student-quiz-take-error">
         <Alert variant="danger" dismissible={false}>
           <h5>Unable to load quiz session</h5>
           <p className="mb-2">{error || 'Session could not be initialized.'}</p>
-          <div className="d-flex gap-2">
-            <Button variant="secondary" size="sm" onClick={loadAttempt}>
-              Retry
-            </Button>
-          </div>
+          <button className="stu-btn-outline" onClick={loadAttempt}>
+            Retry
+          </button>
         </Alert>
       </div>
     );
@@ -238,253 +236,316 @@ export const StudentQuizTake: React.FC = () => {
     r.selected_choice_id !== null || (r.text_answer && r.text_answer.trim() !== '')
   ).length;
 
+  const progressPercent = data.total_questions > 0 ? (answeredCount / data.total_questions) * 100 : 0;
+
   return (
-    <div className="assessment-page container-fluid py-3" data-testid="student-quiz-take">
-      {/* Top Header / Status Bar */}
-      <div className="card shadow-sm border-0 mb-3 bg-white">
-        <div className="card-body py-2 px-3">
-          <div className="d-flex flex-wrap justify-content-between align-items-center gap-2">
-            <div>
-              <h5 className="fw-bold mb-0 text-dark">{data.quiz_title}</h5>
-              <div className="small text-muted">
-                Question {currentIndex + 1} of {data.total_questions} • Answered:{' '}
-                <strong>{answeredCount}</strong> / {data.total_questions}
-              </div>
-            </div>
-
-            {/* Timer and Status Indicator */}
-            <div className="d-flex align-items-center gap-3">
-              {/* Autosave status pill */}
-              <div className="small">
-                {saveStatus === 'saving' && (
-                  <span className="text-muted">
-                    <span className="spinner-border spinner-border-sm me-1" />
-                    Saving...
-                  </span>
-                )}
-                {saveStatus === 'saved' && (
-                  <span className="text-success">
-                    <i className="bi bi-cloud-check me-1" />
-                    Draft saved
-                  </span>
-                )}
-                {saveStatus === 'error' && (
-                  <span className="text-warning fw-semibold" title={saveErrorMessage || ''}>
-                    <i className="bi bi-exclamation-triangle me-1" />
-                    Draft saved offline
-                  </span>
-                )}
-              </div>
-
-              {/* Timer Pill */}
-              {secondsRemaining !== null && (
-                <div
-                  className={`badge fs-6 px-3 py-2 ${
-                    secondsRemaining < 300 ? 'bg-danger animate-pulse' : 'bg-primary'
-                  }`}
-                  data-testid="quiz-timer"
-                >
-                  <i className="bi bi-stopwatch me-1"></i>
-                  {formatTime(secondsRemaining)}
-                </div>
-              )}
-
-              {/* Submit Quiz CTA */}
-              <Button
-                variant="success"
-                size="sm"
-                className="fw-bold"
-                onClick={() => setShowSubmitModal(true)}
-              >
-                Submit Quiz
-              </Button>
-
+    <div className="stu-exam-shell" data-testid="student-quiz-take">
+      {/* Distraction-Free Top Bar */}
+      <header className="stu-exam-top-bar" role="banner">
+        <div className="stu-exam-top-bar__inner">
+          <div className="stu-exam-top-bar__title-wrap">
+            <h1 className="stu-exam-top-bar__title">{data.quiz_title}</h1>
+            <div className="stu-exam-top-bar__qcount">
+              Question {currentIndex + 1} of {data.total_questions} • Answered: {answeredCount}/{data.total_questions}
             </div>
           </div>
-        </div>
-      </div>
 
-      <div className="row g-3">
-        {/* Left Column: Current Question */}
-        <div className="col-lg-9">
-          {currentQuestion && (
-            <div className="card shadow-sm border-0 mb-3">
-              <div className="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
-                <span className="badge bg-light text-dark border fs-6">
-                  Question {currentIndex + 1}
+          <div className="d-flex align-items-center gap-2">
+            {/* Autosave status indicator */}
+            <div className="d-none d-sm-block" style={{ fontSize: '0.75rem' }}>
+              {saveStatus === 'saving' && (
+                <span className="text-muted">
+                  <span className="spinner-border spinner-border-sm me-1" style={{ width: '10px', height: '10px' }} />
+                  Saving...
                 </span>
-                <span className="badge bg-secondary text-white">{currentQuestion.marks} pts</span>
-              </div>
-              <div className="card-body p-4">
-                <p className="fs-5 text-dark fw-medium mb-4">{currentQuestion.question_text}</p>
-
-                {/* Multiple Choice & True/False Choices */}
-                {(currentQuestion.question_type === 'multiple_choice' ||
-                  currentQuestion.question_type === 'true_false') && (
-                  <div className="d-flex flex-column gap-2 mb-4">
-                    {currentQuestion.choices.map((choice) => {
-                      const isSelected = currentAnswer?.selected_choice_id === choice.id;
-                      return (
-                        <label
-                          key={choice.id}
-                          className={`p-3 border rounded d-flex align-items-center gap-3 cursor-pointer transition ${
-                            isSelected
-                              ? 'border-primary bg-primary-subtle text-dark fw-semibold'
-                              : 'border-light-subtle bg-white hover-bg-light'
-                          }`}
-                          style={{ cursor: 'pointer' }}
-                        >
-                          <input
-                            type="radio"
-                            name={`question_${currentQuestion.id}`}
-                            value={choice.id}
-                            checked={isSelected}
-                            onChange={() =>
-                              saveAnswer(currentQuestion.id, { selected_choice_id: choice.id })
-                            }
-                            className="form-check-input mt-0"
-                          />
-                          <span className="fs-6">{choice.choice_text}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Text / Essay Input */}
-                {(currentQuestion.question_type === 'essay' ||
-                  currentQuestion.question_type === 'short_answer' ||
-                  currentQuestion.question_type === 'fill_blank') && (
-                  <div className="mb-4">
-                    <label htmlFor="essay-answer" className="form-label small fw-semibold text-muted">
-                      Type your response below:
-                    </label>
-                    <textarea
-                      id="essay-answer"
-                      className="form-control"
-                      rows={6}
-                      placeholder="Write your answer here..."
-                      value={currentAnswer?.text_answer || ''}
-                      onChange={(e) =>
-                        setResponses((prev) => ({
-                          ...prev,
-                          [String(currentQuestion.id)]: {
-                            selected_choice_id: null,
-                            selected_choice_ids: [],
-                            text_answer: e.target.value,
-                          },
-                        }))
-                      }
-                      onBlur={(e) =>
-                        saveAnswer(currentQuestion.id, { text_answer: e.target.value })
-                      }
-                    />
-                    <div className="form-text text-muted">
-                      Your answer will automatically save when you navigate or finish typing.
-                    </div>
-                  </div>
-                )}
-
-                {/* Navigation Buttons: Previous / Next */}
-                <div className="d-flex justify-content-between align-items-center pt-3 border-top">
-                  <Button
-                    variant="outline-secondary"
-                    size="sm"
-                    disabled={currentIndex === 0}
-                    onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
-                  >
-                    ← Previous Question
-                  </Button>
-
-                  {currentIndex < data.total_questions - 1 ? (
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() =>
-                        setCurrentIndex((prev) =>
-                          Math.min(data.total_questions - 1, prev + 1)
-                        )
-                      }
-                    >
-                      Next Question →
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="success"
-                      size="sm"
-                      className="fw-bold"
-                      onClick={() => setShowSubmitModal(true)}
-                    >
-                      Review & Submit
-                    </Button>
-                  )}
-                </div>
-              </div>
+              )}
+              {saveStatus === 'saved' && (
+                <span className="text-success fw-semibold">
+                  <i className="bi bi-cloud-check me-1" />
+                  Saved
+                </span>
+              )}
+              {saveStatus === 'error' && (
+                <span className="text-warning fw-semibold" title={saveErrorMessage || ''}>
+                  <i className="bi bi-cloud-slash me-1" />
+                  Saved Offline
+                </span>
+              )}
             </div>
-          )}
+
+            {/* Server-authoritative timer badge */}
+            {secondsRemaining !== null && (
+              <div
+                className={`stu-exam-timer-badge ${
+                  secondsRemaining < 60
+                    ? 'stu-exam-timer-badge--critical'
+                    : secondsRemaining < 300
+                    ? 'stu-exam-timer-badge--warning'
+                    : ''
+                }`}
+                data-testid="quiz-timer"
+                aria-label={`Time remaining: ${formatTime(secondsRemaining)}`}
+              >
+                <i className="bi bi-clock" aria-hidden="true" />
+                <span>{formatTime(secondsRemaining)}</span>
+              </div>
+            )}
+
+            {/* Direct Submit Action */}
+            <button
+              type="button"
+              className="stu-btn-primary"
+              style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+              onClick={() => setShowSubmitModal(true)}
+            >
+              Submit Quiz
+            </button>
+          </div>
         </div>
 
-        {/* Right Column: Question Navigator Palette */}
-        <div className="col-lg-3">
-          <div className="card shadow-sm border-0 sticky-top" style={{ top: '1rem' }}>
-            <div className="card-header bg-white py-3 border-0">
-              <h6 className="card-title fw-bold mb-0">Question Navigator</h6>
+        {/* Minimal Progress Bar */}
+        <div
+          style={{
+            height: '3px',
+            backgroundColor: 'var(--stu-border-light)',
+            width: '100%',
+            marginTop: '0.45rem',
+            borderRadius: '2px',
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            style={{
+              height: '100%',
+              backgroundColor: 'var(--stu-sky)',
+              width: `${progressPercent}%`,
+              transition: 'width 0.3s ease',
+            }}
+          />
+        </div>
+      </header>
+
+      {/* Main Examination Area */}
+      <main className="stu-exam-body" id="quiz-question-container">
+        {currentQuestion && (
+          <div className="stu-exam-card">
+            {/* Question Heading & Marks */}
+            <div className="stu-exam-question-head">
+              <span className="stu-badge stu-badge--sky">
+                Question {currentIndex + 1} of {data.total_questions}
+              </span>
+              <span className="stu-badge stu-badge--muted">
+                {currentQuestion.marks} {currentQuestion.marks === 1 ? 'mark' : 'marks'}
+              </span>
             </div>
-            <div className="card-body">
-              <div className="d-flex flex-wrap gap-2 mb-3">
-                {data.questions.map((q, idx) => {
-                  const ans = responses[String(q.id)];
-                  const isAnswered =
-                    ans &&
-                    (ans.selected_choice_id !== null ||
-                      (ans.text_answer && ans.text_answer.trim() !== ''));
-                  const isCurrent = idx === currentIndex;
 
-                  let btnClass = 'btn btn-sm ';
-                  if (isCurrent) {
-                    btnClass += 'btn-primary fw-bold';
-                  } else if (isAnswered) {
-                    btnClass += 'btn-success text-white';
-                  } else {
-                    btnClass += 'btn-outline-secondary';
-                  }
+            {/* Large Readable Question Text */}
+            <div className="stu-exam-question-text">
+              {currentQuestion.question_text}
+            </div>
 
+            {/* Multiple Choice & True/False Choices */}
+            {(currentQuestion.question_type === 'multiple_choice' ||
+              currentQuestion.question_type === 'true_false') && (
+              <div className="d-flex flex-column" role="radiogroup" aria-label="Answer options">
+                {currentQuestion.choices.map((choice) => {
+                  const isSelected = currentAnswer?.selected_choice_id === choice.id;
                   return (
-                    <button
-                      key={q.id}
-                      type="button"
-                      className={btnClass}
-                      style={{ width: '38px', height: '38px' }}
-                      onClick={() => setCurrentIndex(idx)}
-                      title={`Question ${idx + 1}: ${isAnswered ? 'Answered' : 'Not answered'}`}
+                    <label
+                      key={choice.id}
+                      className={`stu-exam-choice ${isSelected ? 'stu-exam-choice--selected' : ''}`}
                     >
-                      {idx + 1}
-                    </button>
+                      <input
+                        type="radio"
+                        name={`question_${currentQuestion.id}`}
+                        value={choice.id}
+                        checked={isSelected}
+                        onChange={() =>
+                          saveAnswer(currentQuestion.id, { selected_choice_id: choice.id })
+                        }
+                        className="stu-exam-choice__input"
+                        aria-label={choice.choice_text}
+                      />
+                      <span className="stu-exam-choice__label">{choice.choice_text}</span>
+                    </label>
                   );
                 })}
               </div>
+            )}
 
-              <div className="small text-muted d-flex flex-column gap-1 pt-2 border-top">
-                <div className="d-flex align-items-center gap-2">
-                  <span className="badge bg-primary" style={{ width: '12px', height: '12px' }} />
-                  <span>Current Question</span>
-                </div>
-                <div className="d-flex align-items-center gap-2">
-                  <span className="badge bg-success" style={{ width: '12px', height: '12px' }} />
-                  <span>Answered</span>
-                </div>
-                <div className="d-flex align-items-center gap-2">
-                  <span
-                    className="badge border border-secondary"
-                    style={{ width: '12px', height: '12px' }}
-                  />
-                  <span>Unanswered</span>
+            {/* Text / Essay Input */}
+            {(currentQuestion.question_type === 'essay' ||
+              currentQuestion.question_type === 'short_answer' ||
+              currentQuestion.question_type === 'fill_blank') && (
+              <div className="mb-3">
+                <label
+                  htmlFor="essay-answer"
+                  className="form-label small fw-bold"
+                  style={{ color: 'var(--stu-navy)' }}
+                >
+                  Type your response below:
+                </label>
+                <textarea
+                  id="essay-answer"
+                  className="form-control"
+                  rows={6}
+                  placeholder="Write your answer clearly..."
+                  style={{
+                    borderColor: 'var(--stu-border)',
+                    borderRadius: 'var(--stu-radius-md)',
+                    fontSize: '0.95rem',
+                    lineHeight: '1.5',
+                  }}
+                  value={currentAnswer?.text_answer || ''}
+                  onChange={(e) =>
+                    setResponses((prev) => ({
+                      ...prev,
+                      [String(currentQuestion.id)]: {
+                        selected_choice_id: null,
+                        selected_choice_ids: [],
+                        text_answer: e.target.value,
+                      },
+                    }))
+                  }
+                  onBlur={(e) =>
+                    saveAnswer(currentQuestion.id, { text_answer: e.target.value })
+                  }
+                />
+                <div className="small text-muted mt-2">
+                  <i className="bi bi-info-circle me-1" />
+                  Your answer saves automatically when you navigate or finish typing.
                 </div>
               </div>
+            )}
+          </div>
+        )}
+      </main>
+
+      {/* Distraction-Free Sticky Bottom Bar */}
+      <footer className="stu-exam-bottom-bar" role="contentinfo">
+        <div className="stu-exam-bottom-bar__inner">
+          {/* Previous Button */}
+          <button
+            type="button"
+            className="stu-btn-outline"
+            disabled={currentIndex === 0}
+            onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
+            style={{ minWidth: '95px' }}
+          >
+            ← Previous
+          </button>
+
+          {/* Question Palette Trigger / Progress Pill */}
+          <button
+            type="button"
+            className="stu-btn-outline"
+            style={{ fontSize: '0.8rem', padding: '0.45rem 0.75rem' }}
+            onClick={() => setShowPaletteDrawer(!showPaletteDrawer)}
+            aria-label="Toggle Question Navigator"
+          >
+            <i className="bi bi-grid-3x3-gap me-1" aria-hidden="true" />
+            <span>
+              {currentIndex + 1} / {data.total_questions}
+            </span>
+          </button>
+
+          {/* Next or Review & Submit Button */}
+          {currentIndex < data.total_questions - 1 ? (
+            <button
+              type="button"
+              className="stu-btn-primary"
+              onClick={() =>
+                setCurrentIndex((prev) => Math.min(data.total_questions - 1, prev + 1))
+              }
+              style={{ minWidth: '95px' }}
+            >
+              Next →
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="stu-btn-primary"
+              onClick={() => setShowSubmitModal(true)}
+              style={{ minWidth: '130px', backgroundColor: 'var(--stu-navy)' }}
+            >
+              Review & Submit
+            </button>
+          )}
+        </div>
+      </footer>
+
+      {/* Question Palette Modal Drawer */}
+      <Modal
+        isOpen={showPaletteDrawer}
+        onClose={() => setShowPaletteDrawer(false)}
+        title="Question Navigator"
+        size="md"
+        footer={
+          <div className="d-flex justify-content-end w-100">
+            <button
+              type="button"
+              className="stu-btn-primary"
+              onClick={() => setShowPaletteDrawer(false)}
+            >
+              Back to Assessment
+            </button>
+          </div>
+        }
+      >
+        <div>
+          <p className="small text-muted mb-3">
+            Tap any question number to jump directly to it:
+          </p>
+
+          <div className="stu-palette-grid mb-3">
+            {data.questions.map((q, idx) => {
+              const ans = responses[String(q.id)];
+              const isAnswered =
+                ans &&
+                (ans.selected_choice_id !== null ||
+                  (ans.text_answer && ans.text_answer.trim() !== ''));
+              const isCurrent = idx === currentIndex;
+
+              let btnModifier = 'stu-palette-btn--unanswered';
+              if (isCurrent) {
+                btnModifier = 'stu-palette-btn--current';
+              } else if (isAnswered) {
+                btnModifier = 'stu-palette-btn--answered';
+              }
+
+              return (
+                <button
+                  key={q.id}
+                  type="button"
+                  className={`stu-palette-btn ${btnModifier}`}
+                  onClick={() => {
+                    setCurrentIndex(idx);
+                    setShowPaletteDrawer(false);
+                  }}
+                  title={`Question ${idx + 1}: ${isAnswered ? 'Answered' : 'Unanswered'}`}
+                >
+                  {idx + 1}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="d-flex align-items-center gap-3 pt-2 border-top small text-muted">
+            <div className="d-flex align-items-center gap-1">
+              <span className="stu-palette-btn stu-palette-btn--current" style={{ width: '16px', height: '16px', fontSize: '9px' }}>✓</span>
+              <span>Current</span>
+            </div>
+            <div className="d-flex align-items-center gap-1">
+              <span className="stu-palette-btn stu-palette-btn--answered" style={{ width: '16px', height: '16px', fontSize: '9px' }}>✓</span>
+              <span>Answered</span>
+            </div>
+            <div className="d-flex align-items-center gap-1">
+              <span className="stu-palette-btn stu-palette-btn--unanswered" style={{ width: '16px', height: '16px', fontSize: '9px' }}>-</span>
+              <span>Unanswered</span>
             </div>
           </div>
         </div>
-      </div>
+      </Modal>
 
       {/* Confirmation Submit Modal */}
       <Modal
@@ -516,7 +577,7 @@ export const StudentQuizTake: React.FC = () => {
       >
         <div>
           {submitError && (
-            <Alert variant="danger" dismissible onDismiss={() => setSubmitError(null)}>
+            <Alert variant="danger" dismissible onDismiss={() => setSubmitError(null)} className="mb-3">
               {submitError}
             </Alert>
           )}
@@ -526,15 +587,15 @@ export const StudentQuizTake: React.FC = () => {
           </p>
 
           <div className="p-3 bg-light rounded border mb-3">
-            <div className="d-flex justify-content-between mb-1">
+            <div className="d-flex justify-content-between mb-1 small">
               <span>Total Questions:</span>
               <strong>{data.total_questions}</strong>
             </div>
-            <div className="d-flex justify-content-between mb-1">
+            <div className="d-flex justify-content-between mb-1 small">
               <span>Questions Answered:</span>
               <strong className="text-success">{answeredCount}</strong>
             </div>
-            <div className="d-flex justify-content-between">
+            <div className="d-flex justify-content-between small">
               <span>Unanswered Questions:</span>
               <strong
                 className={
@@ -548,7 +609,7 @@ export const StudentQuizTake: React.FC = () => {
 
           {data.total_questions - answeredCount > 0 && (
             <div className="alert alert-warning small mb-0">
-              <i className="bi bi-exclamation-triangle me-1"></i>
+              <i className="bi bi-exclamation-triangle me-1" />
               You have unanswered questions. Unanswered questions will receive 0 marks.
             </div>
           )}
@@ -574,7 +635,7 @@ export const StudentQuizTake: React.FC = () => {
         }
       >
         <div className="text-center py-2">
-          <i className="bi bi-alarm fs-1 text-danger d-block mb-2"></i>
+          <i className="bi bi-alarm fs-1 text-danger d-block mb-2" />
           <h5 className="fw-bold">Time has expired!</h5>
           <p className="text-muted small mb-0">
             Your assessment has been automatically finalized and submitted with your saved answers.
@@ -584,3 +645,5 @@ export const StudentQuizTake: React.FC = () => {
     </div>
   );
 };
+
+export default StudentQuizTake;

@@ -1,26 +1,28 @@
+@import '../../styles/tokens.css';
+
 :root {
-  --core-ink: #202a24;
-  --core-ink-soft: #344238;
-  --core-accent: #607c4e;
-  --core-accent-soft: #e8eedf;
-  --core-canvas: #f3f5ef;
-  --core-surface: #ffffff;
-  --core-line: #dce2d8;
-  --core-muted: #717c71;
-  --core-danger: #a63f35;
-  --core-warning: #a76e20;
-  --core-info: #426d7c;
-  --core-success: #39754f;
+  --core-ink: var(--qa-navy, #0f2942);
+  --core-ink-soft: var(--qa-navy-light, #1e3a5f);
+  --core-accent: var(--qa-sky, #0284c7);
+  --core-accent-soft: var(--qa-sky-light, #e0f2fe);
+  --core-canvas: var(--qa-bg, #f0f7fc);
+  --core-surface: var(--qa-surface, #ffffff);
+  --core-line: var(--qa-border, #e0eef8);
+  --core-muted: var(--qa-text-muted, #64748b);
+  --core-danger: var(--qa-danger, #ef4444);
+  --core-warning: var(--qa-warning, #f59e0b);
+  --core-info: var(--qa-info, #0284c7);
+  --core-success: var(--qa-success, #10b981);
 
   /* Semantic Theme Aliases */
-  --core-primary: var(--core-accent);
-  --core-primary-soft: var(--core-accent-soft);
-  --core-border: var(--core-line);
-  --core-text: var(--core-ink);
-  --core-text-muted: var(--core-muted);
-  --core-bg: var(--core-canvas);
+  --core-primary: var(--qa-navy, #0f2942);
+  --core-primary-soft: var(--qa-sky-light, #e0f2fe);
+  --core-border: var(--qa-border, #e0eef8);
+  --core-text: var(--qa-navy, #0f2942);
+  --core-text-muted: var(--qa-text-muted, #64748b);
+  --core-bg: var(--qa-bg, #f0f7fc);
 
-  font-family: 'Aptos', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--qa-font-sans, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
   color: var(--core-ink);
 }
 
@@ -258,7 +260,33 @@
 .core-error-boundary { padding: 16px; }
 .core-error-boundary > .core-notice p { margin: 0 0 12px; }
 .core-error-boundary__actions { display: flex; flex-wrap: wrap; gap: 8px; }
-@media (max-width: 520px) { .core-modal { padding: 12px; } .core-modal__body { max-height: 75vh; padding: 16px; } }
+@media (max-width: 576px) {
+  .core-modal {
+    padding: 0;
+    align-items: flex-end;
+  }
+  .core-modal__dialog {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+  }
+  .core-modal__panel {
+    border-radius: 16px 16px 0 0;
+    max-height: 90vh;
+    border-bottom: 0;
+  }
+  .core-modal__body {
+    max-height: 75vh;
+    padding: 16px;
+  }
+  .core-modal__actions {
+    flex-direction: column-reverse;
+    width: 100%;
+  }
+  .core-modal__actions .core-button {
+    width: 100%;
+  }
+}
 .core-gate { display: grid; min-height: 100vh; place-items: center; padding: 24px; background: var(--core-canvas); }
 .core-gate__panel { width: min(100%, 460px); border: 1px solid var(--core-line); border-radius: 7px; padding: 30px; background: var(--core-surface); box-shadow: 0 10px 28px rgb(32 42 36 / 7%); }
 .core-gate__panel h1 { margin: 0 0 10px; font-family: Georgia, serif; font-size: 26px; font-weight: 400; }

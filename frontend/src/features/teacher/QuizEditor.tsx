@@ -196,7 +196,7 @@ export const QuizEditor: React.FC = () => {
             </div>
           </div>
         </div>
-        <div className="card-footer bg-white d-flex justify-content-end gap-2">
+        <div className="card-footer bg-white d-flex flex-wrap justify-content-end gap-2">
           <Link to={quizId ? `/teacher/quizzes/${quizId}` : '/teacher/quizzes'} className="btn btn-outline-secondary">Cancel</Link>
           <Button type="submit" loading={saving}>{quizId ? 'Save Changes' : 'Create Quiz'}</Button>
         </div>

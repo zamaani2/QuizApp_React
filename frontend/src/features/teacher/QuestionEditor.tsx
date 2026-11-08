@@ -172,13 +172,13 @@ export const QuestionEditor: React.FC = () => {
                   ) : (
                     <>
                       {choices.map((choice, index) => (
-                        <div className="row g-2 align-items-center mb-2" key={choice.id ?? index}>
-                          <div className="col">
+                        <div className="row g-2 align-items-center mb-2 flex-wrap" key={choice.id ?? index}>
+                          <div className="col-12 col-sm">
                             <label className="visually-hidden" htmlFor={`choice-${index}`}>Choice {index + 1}</label>
                             <input id={`choice-${index}`} className="form-control" value={choice.text} onChange={(event) => changeChoice(index, { text: event.target.value })} placeholder={`Choice ${index + 1}`} />
                           </div>
                           <div className="col-auto">
-                            <label className="form-check">
+                            <label className="form-check mb-0">
                               <input className="form-check-input" type="checkbox" checked={choice.isCorrect} onChange={(event) => changeChoice(index, { isCorrect: event.target.checked })} />
                               <span className="form-check-label">Correct</span>
                             </label>
@@ -225,7 +225,7 @@ export const QuestionEditor: React.FC = () => {
             </div>
           </div>
         </div>
-        <div className="card-footer bg-white d-flex justify-content-end gap-2">
+        <div className="card-footer bg-white d-flex flex-wrap justify-content-end gap-2">
           <Link to={`/teacher/quizzes/${quizId}`} className="btn btn-outline-secondary">Cancel</Link>
           <Button type="submit" loading={saving}>{parsedQuestionId ? 'Save Question' : 'Add Question'}</Button>
         </div>

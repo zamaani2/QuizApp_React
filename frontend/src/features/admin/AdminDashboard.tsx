@@ -79,6 +79,46 @@ export const AdminDashboard: React.FC = () => {
         </div>
       ) : (
         <>
+          {/* Quick Shortcuts Row */}
+          <div className="d-flex flex-wrap gap-2 mb-4" aria-label="Quick management shortcuts">
+            <Link to="/admin/students" className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 rounded-pill px-3">
+              <i className="bi bi-people" aria-hidden="true" /> Students Directory
+            </Link>
+            <Link to="/admin/teachers" className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 rounded-pill px-3">
+              <i className="bi bi-person-badge" aria-hidden="true" /> Teachers Directory
+            </Link>
+            <Link to="/admin/classes" className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 rounded-pill px-3">
+              <i className="bi bi-building" aria-hidden="true" /> Classes
+            </Link>
+            <Link to="/admin/enrollments" className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 rounded-pill px-3">
+              <i className="bi bi-person-plus" aria-hidden="true" /> Enrollments
+            </Link>
+            <Link to="/admin/school" className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 rounded-pill px-3">
+              <i className="bi bi-gear" aria-hidden="true" /> School Profile
+            </Link>
+          </div>
+
+          {/* Primary Action Card */}
+          <div className="card shadow-sm border-0 mb-4 p-4" style={{ background: 'linear-gradient(135deg, #0f2942 0%, #1e3a5f 100%)', color: '#ffffff', borderRadius: '12px' }}>
+            <div className="d-flex flex-wrap justify-content-between align-items-center gap-3">
+              <div>
+                <span className="badge bg-info text-dark rounded-pill px-3 py-1 mb-2 fw-semibold">Academic Workspace</span>
+                <h3 className="h4 fw-bold text-white mb-1">Manage School Allocations & Cohorts</h3>
+                <p className="mb-0 text-white-50" style={{ maxWidth: '650px' }}>
+                  Assign subject teachers to classes, verify student enrollments, and configure the active academic term.
+                </p>
+              </div>
+              <div className="d-flex flex-wrap gap-2">
+                <Link to="/admin/enrollments" className="btn btn-light fw-bold px-3 py-2 text-dark">
+                  Manage Enrollments &rarr;
+                </Link>
+                <Link to="/admin/assignments" className="btn btn-outline-light fw-bold px-3 py-2">
+                  Assign Teachers
+                </Link>
+              </div>
+            </div>
+          </div>
+
           <section className="admin-dashboard__metrics" aria-label="School overview metrics">
             {metrics.map((metric) => (
               <article className={`admin-metric admin-metric--${metric.tone}`} key={metric.label}>

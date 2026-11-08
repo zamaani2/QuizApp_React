@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import './styles/tokens.css';
 import './components/layout/core-shell.css';
 
 const rootElement = document.getElementById('root');

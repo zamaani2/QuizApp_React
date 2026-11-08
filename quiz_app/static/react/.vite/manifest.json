@@ -7,6 +7,14 @@
     "file": "assets/AdminDirectory.css",
     "src": "_AdminDirectory.css"
   },
+  "_ConfirmDialog.js": {
+    "file": "assets/ConfirmDialog.js",
+    "name": "ConfirmDialog",
+    "imports": [
+      "_me.js",
+      "index.html"
+    ]
+  },
   "_academic.js": {
     "file": "assets/academic.js",
     "name": "academic",
@@ -111,7 +119,8 @@
       "src/features/student/StudentQuizResult.tsx",
       "src/features/QuizResultPrint.tsx",
       "src/features/student/StudentQuizTake.tsx",
-      "src/features/student/StudentProfileView.tsx"
+      "src/features/student/StudentProfileView.tsx",
+      "src/features/student/StudentProgressView.tsx"
     ],
     "css": [
       "assets/index.css"
@@ -140,7 +149,8 @@
     "imports": [
       "_me.js",
       "_academic.js",
-      "index.html"
+      "index.html",
+      "_ConfirmDialog.js"
     ],
     "css": [
       "assets/AdminAcademic.css"
@@ -168,7 +178,8 @@
     "imports": [
       "_me.js",
       "_academic.js",
-      "index.html"
+      "index.html",
+      "_ConfirmDialog.js"
     ]
   },
   "src/features/admin/ClassesManager.tsx": {
@@ -179,7 +190,8 @@
     "imports": [
       "_me.js",
       "_academic.js",
-      "index.html"
+      "index.html",
+      "_ConfirmDialog.js"
     ],
     "css": [
       "assets/AdminAcademic.css"
@@ -204,7 +216,8 @@
     "imports": [
       "_me.js",
       "_academic.js",
-      "index.html"
+      "index.html",
+      "_ConfirmDialog.js"
     ],
     "css": [
       "assets/AdminAcademic.css"
@@ -218,7 +231,8 @@
     "imports": [
       "_me.js",
       "_allocations.js",
-      "index.html"
+      "index.html",
+      "_ConfirmDialog.js"
     ],
     "css": [
       "assets/StudentEnrollmentsManager.css"
@@ -233,7 +247,8 @@
       "_me.js",
       "_admin.js",
       "_academic.js",
-      "index.html"
+      "index.html",
+      "_ConfirmDialog.js"
     ],
     "css": [
       "assets/AdminDirectory.css"
@@ -247,7 +262,8 @@
     "imports": [
       "_me.js",
       "_academic.js",
-      "index.html"
+      "index.html",
+      "_ConfirmDialog.js"
     ],
     "css": [
       "assets/AdminAcademic.css"
@@ -261,7 +277,8 @@
     "imports": [
       "_me.js",
       "_allocations.js",
-      "index.html"
+      "index.html",
+      "_ConfirmDialog.js"
     ]
   },
   "src/features/admin/TeacherList.tsx": {
@@ -273,7 +290,8 @@
       "_me.js",
       "_admin.js",
       "_academic.js",
-      "index.html"
+      "index.html",
+      "_ConfirmDialog.js"
     ],
     "css": [
       "assets/AdminDirectory.css"
@@ -287,7 +305,8 @@
     "imports": [
       "_me.js",
       "_academic.js",
-      "index.html"
+      "index.html",
+      "_ConfirmDialog.js"
     ],
     "css": [
       "assets/AdminAcademic.css"
@@ -301,6 +320,7 @@
     "imports": [
       "_me.js",
       "index.html",
+      "_ConfirmDialog.js",
       "_admin.js"
     ],
     "css": [
@@ -333,6 +353,17 @@
     "file": "assets/StudentProfileView.js",
     "name": "StudentProfileView",
     "src": "src/features/student/StudentProfileView.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_student.js",
+      "index.html"
+    ]
+  },
+  "src/features/student/StudentProgressView.tsx": {
+    "file": "assets/StudentProgressView.js",
+    "name": "StudentProgressView",
+    "src": "src/features/student/StudentProgressView.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_me.js",
@@ -522,7 +553,8 @@
     "imports": [
       "_me.js",
       "_teacher.js",
-      "index.html"
+      "index.html",
+      "_ConfirmDialog.js"
     ]
   },
   "src/features/teacher/QuizDetail.tsx": {
@@ -533,7 +565,8 @@
     "imports": [
       "_me.js",
       "_teacher.js",
-      "index.html"
+      "index.html",
+      "_ConfirmDialog.js"
     ]
   },
   "src/features/teacher/QuizEditor.tsx": {
