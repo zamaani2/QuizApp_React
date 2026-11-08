@@ -1,4 +1,5 @@
 import { useState, type FC } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 
 interface SidebarProps {
@@ -37,6 +38,8 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen, onClose, activePath = '/app/
     return activePath === href || (href !== '/app/' && activePath.startsWith(href));
   };
 
+  const routeForLink = (href: string) => href.startsWith('/app/') ? href.slice('/app'.length) || '/' : href;
+
   const renderNavGroup = (header: string, items: NavItem[]) => (
     <div key={header} className="core-nav-group">
       <p className="core-nav-label">
@@ -66,15 +69,15 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen, onClose, activePath = '/app/
                   <ul className="core-nav-sublist">
                     {item.subItems.map((sub) => (
                       <li key={`${sub.href}-${sub.title}`} className="core-nav-item">
-                        <a
-                          href={sub.href}
+                        <Link
+                          to={routeForLink(sub.href)}
                           className={`core-nav-link ${
                             isLinkActive(sub.href) ? 'is-active' : ''
                           }`}
                         >
                           <i className="bi bi-circle" aria-hidden="true" />
                           {sub.title}
-                        </a>
+                        </Link>
                       </li>
                     ))}
                   </ul>
@@ -85,8 +88,8 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen, onClose, activePath = '/app/
 
           return (
             <li key={`${item.href || ''}-${item.title}`} className="core-nav-item">
-              <a
-                href={item.href || '#'}
+              <Link
+                to={routeForLink(item.href || '/')}
                 className={`core-nav-link ${isLinkActive(item.href || '') ? 'is-active' : ''}`}
               >
                 <span className="core-nav__mark" aria-hidden="true">
@@ -98,7 +101,7 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen, onClose, activePath = '/app/
                     {item.badge}
                   </span>
                 )}
-              </a>
+              </Link>
             </li>
           );
         })}
@@ -114,14 +117,12 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen, onClose, activePath = '/app/
         aria-label="Main sidebar"
       >
         <div className="core-sidebar__brand">
-          <a
-            href="/app/"
-          >
+          <Link to="/">
             <i className="bi bi-mortarboard-fill" aria-hidden="true" />{' '}
             <span>
               {role === 'superadmin' ? 'Superadmin Portal' : school?.name || 'School System'}
             </span>
-          </a>
+          </Link>
           <button
             type="button"
             className="core-sidebar__close"
@@ -137,15 +138,15 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen, onClose, activePath = '/app/
             <ul className="core-sidebar__menu">
               {/* Dashboard */}
               <li className="core-nav-item">
-                <a
-                  href="/app/"
+                <Link
+                  to="/"
                   className={`core-nav-link ${activePath === '/app/' ? 'is-active' : ''}`}
                 >
                   <span className="core-nav__mark" aria-hidden="true">
                     <i className="bi bi-speedometer2" />
                   </span>
                   <span>React Workspace</span>
-                </a>
+                </Link>
               </li>
 
               {/* Role-Specific Navigation Sections */}

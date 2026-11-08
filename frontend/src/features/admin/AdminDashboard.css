@@ -32,6 +32,79 @@
 .admin-workflow__links a { display: inline-flex; align-items: center; gap: 8px; color: var(--core-accent); font-size: 11px; font-weight: 700; text-decoration: none; }
 .admin-workflow__links a:hover { color: var(--core-ink); text-decoration: underline; text-underline-offset: 3px; }
 
+/* Current dashboard refresh */
+.admin-dashboard { max-width: 1480px; }
+.admin-dashboard__heading { align-items: center; border: 1px solid #e1e7dd; border-radius: 14px; margin-bottom: 22px; padding: 26px 28px; background: radial-gradient(ellipse at 95% 10%, rgb(214 232 158 / 23%), transparent 36%), linear-gradient(125deg, #fff 0%, #f9fbf7 100%); box-shadow: 0 8px 24px rgb(32 42 36 / 4%); }
+.admin-dashboard__title-group h2 { font-size: clamp(25px, 3vw, 34px); letter-spacing: -.035em; }
+.admin-dashboard__eyebrow { display: flex; align-items: center; gap: 8px; margin-bottom: 11px; color: #718171; font-size: 9px; letter-spacing: .13em; }
+.admin-dashboard__eyebrow > span { width: 7px; height: 7px; border-radius: 50%; background: var(--core-accent); box-shadow: 0 0 0 4px var(--core-accent-soft); }
+.admin-dashboard__intro { margin: 9px 0 0; color: var(--core-muted); font-size: 12px; line-height: 1.6; }
+.admin-dashboard__period { gap: 8px; margin-top: 15px; }
+.admin-dashboard__period-chip { display: inline-flex; align-items: center; gap: 7px; border: 1px solid #e1e7dd; border-radius: 999px; padding: 7px 10px; background: #fff; color: #566456; font-size: 10px; }
+.admin-dashboard__period-chip i { color: var(--core-accent); }
+.admin-dashboard__refresh { min-height: 40px; border-color: var(--core-accent); border-radius: 7px; padding: 0 14px; background: var(--core-accent); color: #fff; font-weight: 700; box-shadow: 0 4px 10px rgb(49 83 55 / 15%); transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease; }
+.admin-dashboard__refresh:hover { transform: translateY(-1px); background: var(--core-ink-soft); color: #fff; box-shadow: 0 7px 16px rgb(32 42 36 / 16%); }
+.admin-dashboard__refresh:focus-visible { outline: 3px solid var(--core-accent-soft); outline-offset: 2px; }
+.admin-dashboard__refresh-icon--loading { animation: admin-dashboard-spin .8s linear infinite; }
+@keyframes admin-dashboard-spin { to { transform: rotate(360deg); } }
+.admin-dashboard__metrics { gap: 14px; border: 0; background: transparent; }
+.admin-metric { position: relative; overflow: hidden; border: 1px solid #e2e8df; border-radius: 11px; padding: 18px 19px 16px; background: #fff; box-shadow: 0 5px 16px rgb(32 42 36 / 4%); transition: transform 160ms ease, box-shadow 160ms ease; }
+.admin-metric::after { position: absolute; right: -26px; bottom: -38px; width: 100px; height: 100px; border-radius: 50%; background: var(--metric-soft); content: ''; }
+.admin-metric + .admin-metric { border-left: 1px solid #e2e8df; }
+.admin-metric:hover { transform: translateY(-3px); box-shadow: 0 12px 26px rgb(32 42 36 / 9%); }
+.admin-metric__label { position: relative; z-index: 1; gap: 10px; }
+.admin-metric__icon { display: grid; width: 35px; height: 35px; flex: 0 0 35px; place-items: center; border-radius: 10px; background: var(--metric-soft); color: var(--metric-accent); font-size: 14px; }
+.admin-metric__label h3 { color: #667367; font-size: 11px; font-weight: 700; }
+.admin-metric__value { position: relative; z-index: 1; margin: 16px 0 0; font-size: 32px; font-weight: 650; letter-spacing: -.04em; }
+.admin-metric__detail { position: relative; z-index: 1; margin: 6px 0 0; color: #899489; font-size: 10px; }
+.admin-metric--students { --metric-accent: #39754f; --metric-soft: #e8f2e9; }
+.admin-metric--teachers { --metric-accent: #426d7c; --metric-soft: #e9f1f3; }
+.admin-metric--classes { --metric-accent: #9a682a; --metric-soft: #f6efe2; }
+.admin-metric--quizzes { --metric-accent: #72518a; --metric-soft: #f0eaf4; }
+.admin-dashboard__workflows { display: block; padding-top: 34px; }
+.admin-dashboard__section-intro { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 16px; }
+.admin-dashboard__section-intro h3 { font-size: 24px; letter-spacing: -.02em; }
+.admin-dashboard__section-intro > p:last-child { max-width: 340px; margin: 0; color: var(--core-muted); font-size: 11px; line-height: 1.6; }
+.admin-workflow-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.admin-workflow { position: relative; display: flex; min-width: 0; flex-direction: column; align-items: stretch; gap: 12px; border: 1px solid #e2e8df; border-radius: 11px; padding: 19px; background: #fff; box-shadow: 0 5px 16px rgb(32 42 36 / 4%); }
+.admin-workflow, .admin-workflow:last-child { border-bottom: 1px solid #e2e8df; }
+.admin-workflow__category { align-items: center; gap: 11px; }
+.admin-workflow__icon { display: grid; width: 39px; height: 39px; flex: 0 0 39px; place-items: center; border: 1px solid #e0e9dd; border-radius: 11px; background: #f1f5ee; color: var(--core-accent); font-size: 16px; }
+.admin-workflow__number { display: block; margin-bottom: 4px; color: #899489; font-size: 8px; font-weight: 800; letter-spacing: .12em; }
+.admin-workflow__category h4 { font-size: 14px; letter-spacing: -.01em; }
+.admin-workflow > p { min-height: 34px; color: #727e73; font-size: 11px; }
+.admin-workflow__links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 2px; }
+.admin-workflow__links a { min-height: 38px; justify-content: flex-start; gap: 8px; border: 1px solid #edf0eb; border-radius: 6px; padding: 8px 9px; background: #fbfcfa; color: #425646; font-size: 10px; font-weight: 650; transition: border-color 150ms ease, background 150ms ease, color 150ms ease; }
+.admin-workflow__links a > i { color: var(--core-accent); font-size: 12px; }
+.admin-workflow__links a > span { margin-left: auto; color: #8a9889; font-size: 12px; }
+.admin-workflow__links a:hover { border-color: #c8d7c3; background: #f3f7f0; color: var(--core-accent); text-decoration: none; }
+.admin-workflow__links a:focus-visible { outline: 2px solid var(--core-accent); outline-offset: 2px; }
+.admin-dashboard__loading { min-height: 340px; border: 1px solid #e2e8df; border-radius: 12px; background: #fff; }
+
+@media (max-width: 900px) {
+  .admin-dashboard__heading { padding: 22px; }
+  .admin-dashboard__workflows { padding-top: 28px; }
+  .admin-workflow-list { grid-template-columns: 1fr; }
+  .admin-workflow { display: grid; grid-template-columns: minmax(180px, .8fr) minmax(0, 1fr); gap: 12px 18px; }
+  .admin-workflow__category, .admin-workflow > p { grid-column: 1; }
+  .admin-workflow__links { grid-column: 2; grid-row: 1 / span 2; }
+}
+
+@media (max-width: 620px) {
+  .admin-dashboard__heading { align-items: flex-start; padding: 19px; }
+  .admin-dashboard__intro { max-width: 420px; }
+  .admin-dashboard__metrics { gap: 9px; }
+  .admin-metric { padding: 14px; }
+  .admin-metric:nth-child(3), .admin-metric:nth-child(4) { border-top: 1px solid #e2e8df; }
+  .admin-metric__icon { width: 31px; height: 31px; flex-basis: 31px; }
+  .admin-metric__value { font-size: 28px; }
+  .admin-dashboard__section-intro { align-items: flex-start; flex-direction: column; gap: 7px; }
+  .admin-dashboard__section-intro > p:last-child { max-width: none; }
+  .admin-workflow { display: flex; gap: 11px; padding: 16px; }
+  .admin-workflow > p { min-height: auto; }
+  .admin-workflow__links { grid-template-columns: 1fr; width: 100%; }
+}
+
 @media (max-width: 900px) {
   .admin-dashboard__workflows { grid-template-columns: minmax(150px, 0.7fr) minmax(0, 2fr); gap: 24px; }
   .admin-workflow { grid-template-columns: minmax(120px, 0.8fr) minmax(0, 1.2fr); }
