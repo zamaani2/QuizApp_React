@@ -1,3 +1,4 @@
+import { AppIcon } from '../../components/common/AppIcon';
 import React, { useEffect, useState, useCallback } from 'react';
 import { academicApi } from '../../api/academic';
 import type { SchoolSettingsData, SchoolSettingsInput, StructureLookups } from '../../types';
@@ -104,7 +105,7 @@ export const SchoolSettingsView: React.FC = () => {
 
   if (loading && !data) {
     return (
-      <div className="container-fluid py-5 text-center">
+      <div className="core-container core-space--padding-y-5 core-text--center">
         <LoadingSpinner size="lg" message="Loading school settings..." />
       </div>
     );
@@ -119,30 +120,30 @@ export const SchoolSettingsView: React.FC = () => {
   );
 
   return (
-    <div className="container-fluid py-4">
+    <div className="core-container core-space--padding-y-4">
       {/* Header */}
-      <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+      <div className="core-display-flex core-layout--column core-layout--md-row core-layout--justify-between core-layout--align-md-center core-layout--gap-3 core-space--margin-bottom-4">
         <div>
-          <div className="d-flex align-items-center gap-2">
-            <h1 className="h3 fw-bold mb-0 text-dark">School Settings & Profile</h1>
-            <code className="text-muted fw-bold">{sch?.school_code}</code>
-            <span className={`badge ${sch?.is_active ? 'bg-success' : 'bg-secondary'}`}>
+          <div className="core-display-flex core-layout--align-center core-layout--gap-2">
+            <h1 className="core-type--heading-3 core-type--weight-bold core-space--margin-bottom-0 core-text--dark">School Settings & Profile</h1>
+            <code className="core-text--muted core-type--weight-bold">{sch?.school_code}</code>
+            <span className={`core-badge ${sch?.is_active ? 'core-surface--success' : 'core-surface--secondary'}`}>
               {sch?.is_active ? 'Active Institution' : 'Suspended'}
             </span>
           </div>
-          <p className="text-muted small mb-0 mt-1">
+          <p className="core-text--muted core-type--small core-space--margin-bottom-0 core-space--margin-top-1">
             Manage institutional identity, campus contact details, and default academic calendar terms.
           </p>
         </div>
 
-        <div className="d-flex align-items-center gap-2">
+        <div className="core-display-flex core-layout--align-center core-layout--gap-2">
           <Button
             variant="outline-secondary"
             size="sm"
             onClick={loadData}
             loading={loading}
           >
-            <i className="bi bi-arrow-repeat me-1" />
+            <AppIcon name="refresh" className="core-space--margin-end-1" />
             Refresh
           </Button>
         </div>
@@ -154,7 +155,7 @@ export const SchoolSettingsView: React.FC = () => {
           variant="success"
           dismissible
           onDismiss={() => setSuccessMessage(null)}
-          className="mb-4"
+          className="core-space--margin-bottom-4"
         >
           {successMessage}
         </Alert>
@@ -165,55 +166,55 @@ export const SchoolSettingsView: React.FC = () => {
           variant="danger"
           dismissible
           onDismiss={() => setError(null)}
-          className="mb-4"
+          className="core-space--margin-bottom-4"
         >
           {error}
         </Alert>
       )}
 
       {/* Overview Stat Cards */}
-      <div className="row g-3 mb-4">
-        <div className="col-12 col-sm-6 col-md-4 col-xl">
-          <div className="card shadow-sm border-0 border-start border-primary border-4 h-100">
-            <div className="card-body">
-              <div className="text-muted small text-uppercase fw-bold">Active Students</div>
-              <div className="h3 fw-bold text-dark mt-2 mb-0">{stats?.total_students ?? 0}</div>
+      <div className="core-grid core-grid--gap-3 core-space--margin-bottom-4">
+        <div className="core-grid__span-12 core-grid__span-sm-6 core-grid__span-md-4 core-grid__column-xl">
+          <div className="core-card core-shadow--sm core-border--none core-border--start core-border--primary core-border--width-4 core-size--height-full">
+            <div className="core-card__body">
+              <div className="core-text--muted core-type--small core-text--uppercase core-type--weight-bold">Active Students</div>
+              <div className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-top-2 core-space--margin-bottom-0">{stats?.total_students ?? 0}</div>
             </div>
           </div>
         </div>
 
-        <div className="col-12 col-sm-6 col-md-4 col-xl">
-          <div className="card shadow-sm border-0 border-start border-success border-4 h-100">
-            <div className="card-body">
-              <div className="text-muted small text-uppercase fw-bold">Active Faculty</div>
-              <div className="h3 fw-bold text-dark mt-2 mb-0">{stats?.total_teachers ?? 0}</div>
+        <div className="core-grid__span-12 core-grid__span-sm-6 core-grid__span-md-4 core-grid__column-xl">
+          <div className="core-card core-shadow--sm core-border--none core-border--start core-border--success core-border--width-4 core-size--height-full">
+            <div className="core-card__body">
+              <div className="core-text--muted core-type--small core-text--uppercase core-type--weight-bold">Active Faculty</div>
+              <div className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-top-2 core-space--margin-bottom-0">{stats?.total_teachers ?? 0}</div>
             </div>
           </div>
         </div>
 
-        <div className="col-12 col-sm-6 col-md-4 col-xl">
-          <div className="card shadow-sm border-0 border-start border-warning border-4 h-100">
-            <div className="card-body">
-              <div className="text-muted small text-uppercase fw-bold">Active Classes</div>
-              <div className="h3 fw-bold text-dark mt-2 mb-0">{stats?.total_classes ?? 0}</div>
+        <div className="core-grid__span-12 core-grid__span-sm-6 core-grid__span-md-4 core-grid__column-xl">
+          <div className="core-card core-shadow--sm core-border--none core-border--start core-border--warning core-border--width-4 core-size--height-full">
+            <div className="core-card__body">
+              <div className="core-text--muted core-type--small core-text--uppercase core-type--weight-bold">Active Classes</div>
+              <div className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-top-2 core-space--margin-bottom-0">{stats?.total_classes ?? 0}</div>
             </div>
           </div>
         </div>
 
-        <div className="col-12 col-sm-6 col-md-4 col-xl">
-          <div className="card shadow-sm border-0 border-start border-info border-4 h-100">
-            <div className="card-body">
-              <div className="text-muted small text-uppercase fw-bold">Subjects</div>
-              <div className="h3 fw-bold text-dark mt-2 mb-0">{stats?.total_subjects ?? 0}</div>
+        <div className="core-grid__span-12 core-grid__span-sm-6 core-grid__span-md-4 core-grid__column-xl">
+          <div className="core-card core-shadow--sm core-border--none core-border--start core-border--info core-border--width-4 core-size--height-full">
+            <div className="core-card__body">
+              <div className="core-text--muted core-type--small core-text--uppercase core-type--weight-bold">Subjects</div>
+              <div className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-top-2 core-space--margin-bottom-0">{stats?.total_subjects ?? 0}</div>
             </div>
           </div>
         </div>
 
-        <div className="col-12 col-sm-6 col-md-4 col-xl">
-          <div className="card shadow-sm border-0 border-start border-danger border-4 h-100">
-            <div className="card-body">
-              <div className="text-muted small text-uppercase fw-bold">Quizzes</div>
-              <div className="h3 fw-bold text-dark mt-2 mb-0">{stats?.total_quizzes ?? 0}</div>
+        <div className="core-grid__span-12 core-grid__span-sm-6 core-grid__span-md-4 core-grid__column-xl">
+          <div className="core-card core-shadow--sm core-border--none core-border--start core-border--danger core-border--width-4 core-size--height-full">
+            <div className="core-card__body">
+              <div className="core-text--muted core-type--small core-text--uppercase core-type--weight-bold">Quizzes</div>
+              <div className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-top-2 core-space--margin-bottom-0">{stats?.total_quizzes ?? 0}</div>
             </div>
           </div>
         </div>
@@ -221,95 +222,95 @@ export const SchoolSettingsView: React.FC = () => {
 
       {/* Main Settings Form */}
       <form onSubmit={handleSubmit}>
-        <div className="row g-4">
+        <div className="core-grid core-grid--gap-4">
           {/* Identity & Basic Information */}
-          <div className="col-lg-6">
-            <div className="card shadow-sm border-0 h-100">
-              <div className="card-header bg-white border-bottom py-3">
-                <h5 className="h6 fw-bold mb-0 text-dark">
-                  <i className="bi bi-mortarboard me-2 text-primary" />
+          <div className="core-grid__span-lg-6">
+            <div className="core-card core-shadow--sm core-border--none core-size--height-full">
+              <div className="core-card__header core-surface--white core-border--bottom core-space--padding-y-3">
+                <h5 className="core-type--heading-6 core-type--weight-bold core-space--margin-bottom-0 core-text--dark">
+                  <AppIcon name="graduationCap" className="core-space--margin-end-2 core-text--primary" />
                   Institutional Information
                 </h5>
               </div>
-              <div className="card-body">
-                <div className="mb-3">
-                  <label htmlFor="school-name" className="form-label small fw-semibold">
-                    Full School Name <span className="text-danger">*</span>
+              <div className="core-card__body">
+                <div className="core-space--margin-bottom-3">
+                  <label htmlFor="school-name" className="core-field__label core-type--small core-type--weight-semibold">
+                    Full School Name <span className="core-text--danger">*</span>
                   </label>
                   <input
                     id="school-name"
                     type="text"
-                    className="form-control"
+                    className="core-field__input"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
                   />
                 </div>
 
-                <div className="row g-3 mb-3">
-                  <div className="col-sm-6">
-                    <label htmlFor="school-short-name" className="form-label small fw-semibold">
-                      Short / Display Name <span className="text-danger">*</span>
+                <div className="core-grid core-grid--gap-3 core-space--margin-bottom-3">
+                  <div className="core-grid__span-sm-6">
+                    <label htmlFor="school-short-name" className="core-field__label core-type--small core-type--weight-semibold">
+                      Short / Display Name <span className="core-text--danger">*</span>
                     </label>
                     <input
                       id="school-short-name"
                       type="text"
-                      className="form-control"
+                      className="core-field__input"
                       value={formData.short_name || ''}
                       onChange={(e) => setFormData({ ...formData, short_name: e.target.value })}
                       required
                     />
                   </div>
 
-                  <div className="col-sm-6">
-                    <label htmlFor="school-code" className="form-label small fw-semibold">
+                  <div className="core-grid__span-sm-6">
+                    <label htmlFor="school-code" className="core-field__label core-type--small core-type--weight-semibold">
                       School Code (Assigned)
                     </label>
                     <input
                       id="school-code"
                       type="text"
-                      className="form-control bg-light"
+                      className="core-field__input core-surface--light"
                       value={formData.school_code || ''}
                       onChange={(e) => setFormData({ ...formData, school_code: e.target.value })}
                     />
                   </div>
                 </div>
 
-                <div className="mb-3">
-                  <label htmlFor="school-motto" className="form-label small fw-semibold">
+                <div className="core-space--margin-bottom-3">
+                  <label htmlFor="school-motto" className="core-field__label core-type--small core-type--weight-semibold">
                     School Motto
                   </label>
                   <input
                     id="school-motto"
                     type="text"
-                    className="form-control"
+                    className="core-field__input"
                     placeholder="e.g. Excellence in Character and Learning"
                     value={formData.motto || ''}
                     onChange={(e) => setFormData({ ...formData, motto: e.target.value })}
                   />
                 </div>
 
-                <div className="mb-3">
-                  <label htmlFor="school-vision" className="form-label small fw-semibold">
+                <div className="core-space--margin-bottom-3">
+                  <label htmlFor="school-vision" className="core-field__label core-type--small core-type--weight-semibold">
                     Vision Statement
                   </label>
                   <textarea
                     id="school-vision"
                     rows={2}
-                    className="form-control"
+                    className="core-field__input"
                     value={formData.vision || ''}
                     onChange={(e) => setFormData({ ...formData, vision: e.target.value })}
                   />
                 </div>
 
-                <div className="mb-3">
-                  <label htmlFor="school-mission" className="form-label small fw-semibold">
+                <div className="core-space--margin-bottom-3">
+                  <label htmlFor="school-mission" className="core-field__label core-type--small core-type--weight-semibold">
                     Mission Statement
                   </label>
                   <textarea
                     id="school-mission"
                     rows={2}
-                    className="form-control"
+                    className="core-field__input"
                     value={formData.mission || ''}
                     onChange={(e) => setFormData({ ...formData, mission: e.target.value })}
                   />
@@ -319,23 +320,23 @@ export const SchoolSettingsView: React.FC = () => {
           </div>
 
           {/* Contact Details & Academic Calendar Scope */}
-          <div className="col-lg-6">
-            <div className="card shadow-sm border-0 mb-4">
-              <div className="card-header bg-white border-bottom py-3">
-                <h5 className="h6 fw-bold mb-0 text-dark">
-                  <i className="bi bi-geo-alt me-2 text-danger" />
+          <div className="core-grid__span-lg-6">
+            <div className="core-card core-shadow--sm core-border--none core-space--margin-bottom-4">
+              <div className="core-card__header core-surface--white core-border--bottom core-space--padding-y-3">
+                <h5 className="core-type--heading-6 core-type--weight-bold core-space--margin-bottom-0 core-text--dark">
+                  <AppIcon name="mapPin" className="core-space--margin-end-2 core-text--danger" />
                   Campus & Contact Details
                 </h5>
               </div>
-              <div className="card-body">
-                <div className="mb-3">
-                  <label htmlFor="school-address" className="form-label small fw-semibold">
+              <div className="core-card__body">
+                <div className="core-space--margin-bottom-3">
+                  <label htmlFor="school-address" className="core-field__label core-type--small core-type--weight-semibold">
                     Physical Address
                   </label>
                   <input
                     id="school-address"
                     type="text"
-                    className="form-control"
+                    className="core-field__input"
                     placeholder="Street / Campus Location"
                     value={formData.address || ''}
                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
@@ -343,28 +344,28 @@ export const SchoolSettingsView: React.FC = () => {
                   />
                 </div>
 
-                <div className="row g-3 mb-3">
-                  <div className="col-sm-6">
-                    <label htmlFor="school-postal" className="form-label small fw-semibold">
+                <div className="core-grid core-grid--gap-3 core-space--margin-bottom-3">
+                  <div className="core-grid__span-sm-6">
+                    <label htmlFor="school-postal" className="core-field__label core-type--small core-type--weight-semibold">
                       Postal Code / P.O. Box
                     </label>
                     <input
                       id="school-postal"
                       type="text"
-                      className="form-control"
+                      className="core-field__input"
                       value={formData.postal_code || ''}
                       onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
                     />
                   </div>
 
-                  <div className="col-sm-6">
-                    <label htmlFor="school-phone" className="form-label small fw-semibold">
+                  <div className="core-grid__span-sm-6">
+                    <label htmlFor="school-phone" className="core-field__label core-type--small core-type--weight-semibold">
                       Phone Number
                     </label>
                     <input
                       id="school-phone"
                       type="text"
-                      className="form-control"
+                      className="core-field__input"
                       value={formData.phone_number || ''}
                       onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
                       required
@@ -372,28 +373,28 @@ export const SchoolSettingsView: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="row g-3">
-                  <div className="col-sm-6">
-                    <label htmlFor="school-email" className="form-label small fw-semibold">
+                <div className="core-grid core-grid--gap-3">
+                  <div className="core-grid__span-sm-6">
+                    <label htmlFor="school-email" className="core-field__label core-type--small core-type--weight-semibold">
                       Official Email
                     </label>
                     <input
                       id="school-email"
                       type="email"
-                      className="form-control"
+                      className="core-field__input"
                       value={formData.email || ''}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     />
                   </div>
 
-                  <div className="col-sm-6">
-                    <label htmlFor="school-website" className="form-label small fw-semibold">
+                  <div className="core-grid__span-sm-6">
+                    <label htmlFor="school-website" className="core-field__label core-type--small core-type--weight-semibold">
                       Website URL
                     </label>
                     <input
                       id="school-website"
                       type="url"
-                      className="form-control"
+                      className="core-field__input"
                       placeholder="https://..."
                       value={formData.website || ''}
                       onChange={(e) => setFormData({ ...formData, website: e.target.value })}
@@ -404,26 +405,26 @@ export const SchoolSettingsView: React.FC = () => {
             </div>
 
             {/* Active Academic Calendar Controls */}
-            <div className="card shadow-sm border-0">
-              <div className="card-header bg-white border-bottom py-3">
-                <h5 className="h6 fw-bold mb-0 text-dark">
-                  <i className="bi bi-calendar-check me-2 text-success" />
+            <div className="core-card core-shadow--sm core-border--none">
+              <div className="core-card__header core-surface--white core-border--bottom core-space--padding-y-3">
+                <h5 className="core-type--heading-6 core-type--weight-bold core-space--margin-bottom-0 core-text--dark">
+                  <AppIcon name="calendarCheck" className="core-space--margin-end-2 core-text--success" />
                   Default Active Calendar Scope
                 </h5>
               </div>
-              <div className="card-body">
-                <p className="text-muted small mb-3">
+              <div className="core-card__body">
+                <p className="core-text--muted core-type--small core-space--margin-bottom-3">
                   Select which academic session and term serve as the default focus for reporting and quiz creation.
                 </p>
 
-                <div className="row g-3 mb-2">
-                  <div className="col-sm-6">
-                    <label htmlFor="school-current-year" className="form-label small fw-semibold">
+                <div className="core-grid core-grid--gap-3 core-space--margin-bottom-2">
+                  <div className="core-grid__span-sm-6">
+                    <label htmlFor="school-current-year" className="core-field__label core-type--small core-type--weight-semibold">
                       Current Academic Year
                     </label>
                     <select
                       id="school-current-year"
-                      className="form-select"
+                      className="core-field__select"
                       value={formData.current_academic_year_id ?? ''}
                       onChange={(e) =>
                         {
@@ -453,13 +454,13 @@ export const SchoolSettingsView: React.FC = () => {
                     </select>
                   </div>
 
-                  <div className="col-sm-6">
-                    <label htmlFor="school-current-term" className="form-label small fw-semibold">
+                  <div className="core-grid__span-sm-6">
+                    <label htmlFor="school-current-term" className="core-field__label core-type--small core-type--weight-semibold">
                       Current Active Term
                     </label>
                     <select
                       id="school-current-term"
-                      className="form-select"
+                      className="core-field__select"
                       value={formData.current_term_id ?? ''}
                       onChange={(e) =>
                         setFormData({
@@ -480,22 +481,22 @@ export const SchoolSettingsView: React.FC = () => {
               </div>
             </div>
 
-            <div className="card shadow-sm border-0 mt-4">
-              <div className="card-header bg-white border-bottom py-3">
-                <h5 className="h6 fw-bold mb-0 text-dark">School Status</h5>
+            <div className="core-card core-shadow--sm core-border--none core-space--margin-top-4">
+              <div className="core-card__header core-surface--white core-border--bottom core-space--padding-y-3">
+                <h5 className="core-type--heading-6 core-type--weight-bold core-space--margin-bottom-0 core-text--dark">School Status</h5>
               </div>
-              <div className="card-body">
-                <div className="form-check form-switch">
+              <div className="core-card__body">
+                <div className="core-field__check core-field__switch">
                   <input
                     id="school-active"
-                    className="form-check-input"
+                    className="core-field__check-input"
                     type="checkbox"
                     checked={Boolean(formData.is_active)}
                     onChange={(event) =>
                       setFormData({ ...formData, is_active: event.target.checked })
                     }
                   />
-                  <label className="form-check-label" htmlFor="school-active">
+                  <label className="core-field__check-label" htmlFor="school-active">
                     Institution is active
                   </label>
                 </div>
@@ -504,38 +505,38 @@ export const SchoolSettingsView: React.FC = () => {
           </div>
         </div>
 
-        <div className="row g-4 mt-1">
-          <div className="col-12 col-lg-6">
-            <div className="card shadow-sm border-0 h-100">
-              <div className="card-header bg-white border-bottom py-3">
-                <h5 className="h6 fw-bold mb-0 text-dark">Visual Elements</h5>
+        <div className="core-grid core-grid--gap-4 core-space--margin-top-1">
+          <div className="core-grid__span-12 core-grid__span-lg-6">
+            <div className="core-card core-shadow--sm core-border--none core-size--height-full">
+              <div className="core-card__header core-surface--white core-border--bottom core-space--padding-y-3">
+                <h5 className="core-type--heading-6 core-type--weight-bold core-space--margin-bottom-0 core-text--dark">Visual Elements</h5>
               </div>
-              <div className="card-body">
-                <div className="mb-3">
-                  <label htmlFor="school-logo" className="form-label">School Logo</label>
+              <div className="core-card__body">
+                <div className="core-space--margin-bottom-3">
+                  <label htmlFor="school-logo" className="core-field__label">School Logo</label>
                   {sch?.logo_url && (
-                    <div className="mb-2">
+                    <div className="core-space--margin-bottom-2">
                       <img src={sch.logo_url} alt="Current school logo" className="img-thumbnail" style={{ maxHeight: 120 }} />
                     </div>
                   )}
                   <input
                     id="school-logo"
-                    className="form-control"
+                    className="core-field__input"
                     type="file"
                     accept="image/*"
                     onChange={(event) => setLogoFile(event.target.files?.[0] ?? null)}
                   />
                 </div>
                 <div>
-                  <label htmlFor="school-stamp" className="form-label">School Stamp</label>
+                  <label htmlFor="school-stamp" className="core-field__label">School Stamp</label>
                   {sch?.school_stamp_url && (
-                    <div className="mb-2">
+                    <div className="core-space--margin-bottom-2">
                       <img src={sch.school_stamp_url} alt="Current school stamp" className="img-thumbnail" style={{ maxHeight: 120 }} />
                     </div>
                   )}
                   <input
                     id="school-stamp"
-                    className="form-control"
+                    className="core-field__input"
                     type="file"
                     accept="image/*"
                     onChange={(event) => setStampFile(event.target.files?.[0] ?? null)}
@@ -544,17 +545,17 @@ export const SchoolSettingsView: React.FC = () => {
               </div>
             </div>
           </div>
-          <div className="col-12 col-lg-6">
-            <div className="card shadow-sm border-0 h-100">
-              <div className="card-header bg-white border-bottom py-3">
-                <h5 className="h6 fw-bold mb-0 text-dark">Report Settings</h5>
+          <div className="core-grid__span-12 core-grid__span-lg-6">
+            <div className="core-card core-shadow--sm core-border--none core-size--height-full">
+              <div className="core-card__header core-surface--white core-border--bottom core-space--padding-y-3">
+                <h5 className="core-type--heading-6 core-type--weight-bold core-space--margin-bottom-0 core-text--dark">Report Settings</h5>
               </div>
-              <div className="card-body">
-                <div className="mb-3">
-                  <label htmlFor="school-report-header" className="form-label">Report Header</label>
+              <div className="core-card__body">
+                <div className="core-space--margin-bottom-3">
+                  <label htmlFor="school-report-header" className="core-field__label">Report Header</label>
                   <textarea
                     id="school-report-header"
-                    className="form-control"
+                    className="core-field__input"
                     rows={3}
                     value={formData.report_header || ''}
                     onChange={(event) =>
@@ -562,11 +563,11 @@ export const SchoolSettingsView: React.FC = () => {
                     }
                   />
                 </div>
-                <div className="mb-3">
-                  <label htmlFor="school-report-footer" className="form-label">Report Footer</label>
+                <div className="core-space--margin-bottom-3">
+                  <label htmlFor="school-report-footer" className="core-field__label">Report Footer</label>
                   <textarea
                     id="school-report-footer"
-                    className="form-control"
+                    className="core-field__input"
                     rows={3}
                     value={formData.report_footer || ''}
                     onChange={(event) =>
@@ -575,12 +576,12 @@ export const SchoolSettingsView: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label htmlFor="school-grading-description" className="form-label">
+                  <label htmlFor="school-grading-description" className="core-field__label">
                     Grading System Description
                   </label>
                   <textarea
                     id="school-grading-description"
-                    className="form-control"
+                    className="core-field__input"
                     rows={4}
                     value={formData.grading_system_description || ''}
                     onChange={(event) =>
@@ -597,8 +598,8 @@ export const SchoolSettingsView: React.FC = () => {
         </div>
 
         {/* Submit Actions Bar */}
-        <div className="card shadow-sm border-0 mt-4">
-          <div className="card-body d-flex justify-content-end gap-2 p-3">
+        <div className="core-card core-shadow--sm core-border--none core-space--margin-top-4">
+          <div className="core-card__body core-display-flex core-layout--justify-end core-layout--gap-2 core-space--padding-3">
             <Button
               variant="secondary"
               size="sm"
@@ -613,7 +614,7 @@ export const SchoolSettingsView: React.FC = () => {
               type="submit"
               loading={saving}
             >
-              <i className="bi bi-check-lg me-1" />
+              <AppIcon name="check" className="core-space--margin-end-1" />
               Save School Settings
             </Button>
           </div>

@@ -95,8 +95,8 @@ export const QuizResultsList: React.FC = () => {
       sortable: true,
       accessor: (row) => (
         <div>
-          <span className="fw-semibold text-dark">{row.student_name}</span>
-          <div className="small text-muted">{row.admission_number} · {row.class_name}</div>
+          <span className="core-type--weight-semibold core-text--dark">{row.student_name}</span>
+          <div className="core-type--small core-text--muted">{row.admission_number} · {row.class_name}</div>
         </div>
       ),
     },
@@ -106,8 +106,8 @@ export const QuizResultsList: React.FC = () => {
       sortable: true,
       accessor: (row) => (
         <div>
-          <Link to={`/teacher/results/${row.id}`} className="fw-medium text-dark text-decoration-none">{row.quiz_title}</Link>
-          <div className="small text-muted">View submission details</div>
+          <Link to={`/teacher/results/${row.id}`} className="core-type--weight-medium core-text--dark core-text--decoration-none">{row.quiz_title}</Link>
+          <div className="core-type--small core-text--muted">View submission details</div>
         </div>
       ),
     },
@@ -118,10 +118,10 @@ export const QuizResultsList: React.FC = () => {
       align: 'center',
       accessor: (row) => (
         <div>
-          <span className="fw-bold fs-6">
+          <span className="core-type--weight-bold core-type--size-6">
             {row.score}/{row.total_marks}
           </span>
-          <div className="small text-muted">{row.percentage}%</div>
+          <div className="core-type--small core-text--muted">{row.percentage}%</div>
         </div>
       ),
     },
@@ -131,7 +131,7 @@ export const QuizResultsList: React.FC = () => {
       sortable: true,
       align: 'center',
       accessor: (row) => (
-        <span className={`badge ${row.is_passed ? 'bg-success' : 'bg-danger'}`}>
+        <span className={`core-badge ${row.is_passed ? 'core-surface--success' : 'core-surface--danger'}`}>
           {row.is_passed ? 'Passed' : 'Failed'}
         </span>
       ),
@@ -143,10 +143,10 @@ export const QuizResultsList: React.FC = () => {
       align: 'center',
       accessor: (row) => (
         <span
-          className={`badge ${
+          className={`core-badge ${
             row.is_graded
-              ? 'bg-light text-dark border'
-              : 'bg-warning-subtle text-warning-emphasis border'
+              ? 'core-surface--light core-text--dark core-border'
+              : 'core-surface--warning-subtle core-text--warning-emphasis core-border'
           }`}
         >
           {row.is_graded ? 'Completed' : 'Needs Review'}
@@ -159,21 +159,21 @@ export const QuizResultsList: React.FC = () => {
       sortable: true,
       accessor: (row) => {
         if (!row.submitted_at) return '—';
-        return <small className="text-muted">{row.submitted_at.split('T')[0]}</small>;
+        return <small className="core-text--muted">{row.submitted_at.split('T')[0]}</small>;
       },
     },
   ];
 
   return (
-    <div className="assessment-page container-fluid py-4" data-testid="teacher-results-list">
-      <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div className="assessment-page core-container core-space--padding-y-4" data-testid="teacher-results-list">
+      <div className="core-display-flex core-layout--wrap core-layout--justify-between core-layout--align-center core-space--margin-bottom-4 core-layout--gap-3">
         <div>
-          <h2 className="h3 fw-bold text-dark mb-1">Quiz Results & Analytics</h2>
-          <p className="text-muted mb-0">
+          <h2 className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-bottom-1">Quiz Results & Analytics</h2>
+          <p className="core-text--muted core-space--margin-bottom-0">
             Review student attempts, scores, and performance records
           </p>
         </div>
-        <div className="d-flex gap-2">
+        <div className="core-display-flex core-layout--gap-2">
           <Button variant="secondary" size="sm" onClick={loadResults} disabled={loading}>
             Refresh
           </Button>
@@ -193,7 +193,7 @@ export const QuizResultsList: React.FC = () => {
           >
             Print All Filtered
           </Button>
-          <a href={`/quizzes/results/export/${quizIdParam ? `?quiz=${encodeURIComponent(quizIdParam)}` : ''}`} className="btn btn-sm btn-outline-primary">
+          <a href={`/quizzes/results/export/${quizIdParam ? `?quiz=${encodeURIComponent(quizIdParam)}` : ''}`} className="core-button core-button--sm core-button--outline-primary">
             Export Excel
           </a>
         </div>
@@ -205,7 +205,7 @@ export const QuizResultsList: React.FC = () => {
         </Alert>
       )}
 
-      <div className="d-flex justify-content-end mb-3">
+      <div className="core-display-flex core-layout--justify-end core-space--margin-bottom-3">
         <Button
           variant="secondary"
           size="sm"
@@ -219,35 +219,35 @@ export const QuizResultsList: React.FC = () => {
       </div>
 
       {/* Metrics */}
-      <div className="row g-3 mb-4">
-        <div className="col-12 col-sm-4">
-          <div className="card shadow-sm border-0 border-start border-primary border-4">
-            <div className="card-body">
-              <div className="text-muted small text-uppercase fw-bold">Total Attempts</div>
-              <div className="h3 fw-bold text-dark mt-2 mb-0">{results.length}</div>
+      <div className="core-grid core-grid--gap-3 core-space--margin-bottom-4">
+        <div className="core-grid__span-12 core-grid__span-sm-4">
+          <div className="core-card core-shadow--sm core-border--none core-border--start core-border--primary core-border--width-4">
+            <div className="core-card__body">
+              <div className="core-text--muted core-type--small core-text--uppercase core-type--weight-bold">Total Attempts</div>
+              <div className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-top-2 core-space--margin-bottom-0">{results.length}</div>
             </div>
           </div>
         </div>
-        <div className="col-12 col-sm-4">
-          <div className="card shadow-sm border-0 border-start border-success border-4">
-            <div className="card-body">
-              <div className="text-muted small text-uppercase fw-bold">Passed Attempts</div>
-              <div className="h3 fw-bold text-dark mt-2 mb-0">{passedCount}</div>
+        <div className="core-grid__span-12 core-grid__span-sm-4">
+          <div className="core-card core-shadow--sm core-border--none core-border--start core-border--success core-border--width-4">
+            <div className="core-card__body">
+              <div className="core-text--muted core-type--small core-text--uppercase core-type--weight-bold">Passed Attempts</div>
+              <div className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-top-2 core-space--margin-bottom-0">{passedCount}</div>
             </div>
           </div>
         </div>
-        <div className="col-12 col-sm-4">
-          <div className="card shadow-sm border-0 border-start border-info border-4">
-            <div className="card-body">
-              <div className="text-muted small text-uppercase fw-bold">Pass Rate</div>
-              <div className="h3 fw-bold text-dark mt-2 mb-0">{passRate}%</div>
+        <div className="core-grid__span-12 core-grid__span-sm-4">
+          <div className="core-card core-shadow--sm core-border--none core-border--start core-border--info core-border--width-4">
+            <div className="core-card__body">
+              <div className="core-text--muted core-type--small core-text--uppercase core-type--weight-bold">Pass Rate</div>
+              <div className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-top-2 core-space--margin-bottom-0">{passRate}%</div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="card shadow-sm border-0">
-        <div className="card-body p-0">
+      <div className="core-card core-shadow--sm core-border--none">
+        <div className="core-card__body core-space--padding-0">
           <DataTable<QuizResultItem>
             columns={columns}
             data={results}

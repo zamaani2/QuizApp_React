@@ -55,20 +55,20 @@ export const AdminDetail: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="container-fluid py-5 text-center" role="status">Loading administrator details...</div>;
+    return <div className="core-container core-space--padding-y-5 core-text--center" role="status">Loading administrator details...</div>;
   }
 
   return (
-    <div className="container-fluid py-4" data-testid="superadmin-admin-detail">
-      <div className="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div className="core-container core-space--padding-y-4" data-testid="superadmin-admin-detail">
+      <div className="core-display-flex core-layout--wrap core-layout--justify-between core-layout--align-start core-layout--gap-3 core-space--margin-bottom-4">
         <div>
-          <h2 className="h3 fw-bold text-dark mb-1">Administrator Details</h2>
-          <p className="text-muted mb-0">Account profile and assigned school information</p>
+          <h2 className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-bottom-1">Administrator Details</h2>
+          <p className="core-text--muted core-space--margin-bottom-0">Account profile and assigned school information</p>
         </div>
-        <div className="d-flex flex-wrap gap-2">
-          <Link to="/superadmin/admins" className="btn btn-outline-secondary">Back to Administrators</Link>
+        <div className="core-display-flex core-layout--wrap core-layout--gap-2">
+          <Link to="/superadmin/admins" className="core-button core-button--outline-secondary">Back to Administrators</Link>
           {admin && (
-            <Link to={`/superadmin/admins/${admin.id}/edit`} className="btn btn-primary">
+            <Link to={`/superadmin/admins/${admin.id}/edit`} className="core-button core-button--primary">
               Edit Administrator
             </Link>
           )}
@@ -82,63 +82,63 @@ export const AdminDetail: React.FC = () => {
       )}
 
       {admin && (
-        <div className="row g-4">
-          <div className="col-12 col-lg-8">
-            <section className="card shadow-sm border-0 h-100">
-              <div className="card-header bg-white d-flex justify-content-between align-items-center py-3">
-                <h3 className="h5 mb-0">{admin.full_name}</h3>
-                <span className={`badge ${admin.is_active ? 'bg-success' : 'bg-secondary'}`}>
+        <div className="core-grid core-grid--gap-4">
+          <div className="core-grid__span-12 core-grid__span-lg-8">
+            <section className="core-card core-shadow--sm core-border--none core-size--height-full">
+              <div className="core-card__header core-surface--white core-display-flex core-layout--justify-between core-layout--align-center core-space--padding-y-3">
+                <h3 className="core-type--heading-5 core-space--margin-bottom-0">{admin.full_name}</h3>
+                <span className={`core-badge ${admin.is_active ? 'core-surface--success' : 'core-surface--secondary'}`}>
                   {admin.is_active ? 'Active' : 'Inactive'}
                 </span>
               </div>
-              <div className="card-body">
-                <dl className="row mb-0">
-                  <dt className="col-sm-4 text-muted">Username</dt>
-                  <dd className="col-sm-8">{admin.username}</dd>
-                  <dt className="col-sm-4 text-muted">Email</dt>
-                  <dd className="col-sm-8">{admin.email || '—'}</dd>
-                  <dt className="col-sm-4 text-muted">Date Joined</dt>
-                  <dd className="col-sm-8">{admin.date_joined ? new Date(admin.date_joined).toLocaleString() : '—'}</dd>
-                  <dt className="col-sm-4 text-muted">Last Login</dt>
-                  <dd className="col-sm-8">{admin.last_login ? new Date(admin.last_login).toLocaleString() : 'Never'}</dd>
-                  <dt className="col-sm-4 text-muted">Last Login IP</dt>
-                  <dd className="col-sm-8">{admin.last_login_ip || '—'}</dd>
+              <div className="core-card__body">
+                <dl className="core-grid core-space--margin-bottom-0">
+                  <dt className="core-grid__span-sm-4 core-text--muted">Username</dt>
+                  <dd className="core-grid__span-sm-8">{admin.username}</dd>
+                  <dt className="core-grid__span-sm-4 core-text--muted">Email</dt>
+                  <dd className="core-grid__span-sm-8">{admin.email || '—'}</dd>
+                  <dt className="core-grid__span-sm-4 core-text--muted">Date Joined</dt>
+                  <dd className="core-grid__span-sm-8">{admin.date_joined ? new Date(admin.date_joined).toLocaleString() : '—'}</dd>
+                  <dt className="core-grid__span-sm-4 core-text--muted">Last Login</dt>
+                  <dd className="core-grid__span-sm-8">{admin.last_login ? new Date(admin.last_login).toLocaleString() : 'Never'}</dd>
+                  <dt className="core-grid__span-sm-4 core-text--muted">Last Login IP</dt>
+                  <dd className="core-grid__span-sm-8">{admin.last_login_ip || '—'}</dd>
                 </dl>
               </div>
             </section>
           </div>
-          <div className="col-12 col-lg-4">
-            <section className="card shadow-sm border-0 h-100">
-              <div className="card-header bg-white py-3">
-                <h3 className="h5 mb-0">Assigned School</h3>
+          <div className="core-grid__span-12 core-grid__span-lg-4">
+            <section className="core-card core-shadow--sm core-border--none core-size--height-full">
+              <div className="core-card__header core-surface--white core-space--padding-y-3">
+                <h3 className="core-type--heading-5 core-space--margin-bottom-0">Assigned School</h3>
               </div>
-              <div className="card-body">
+              <div className="core-card__body">
                 {admin.school ? (
                   <>
-                    <div className="fw-bold fs-5">{admin.school.name}</div>
-                    <div className="text-muted small mb-3">{admin.school.school_code || 'No school code'}</div>
+                    <div className="core-type--weight-bold core-type--size-5">{admin.school.name}</div>
+                    <div className="core-text--muted core-type--small core-space--margin-bottom-3">{admin.school.school_code || 'No school code'}</div>
                     {!admin.school.is_active && (
-                      <div className="alert alert-warning py-2">This school is inactive.</div>
+                      <div className="core-alert core-alert--warning core-space--padding-y-2">This school is inactive.</div>
                     )}
-                    <dl className="row mb-0">
-                      <dt className="col-sm-5 text-muted">Address</dt>
-                      <dd className="col-sm-7">{admin.school.address || '—'}</dd>
-                      <dt className="col-sm-5 text-muted">Phone</dt>
-                      <dd className="col-sm-7">{admin.school.phone_number || '—'}</dd>
+                    <dl className="core-grid core-space--margin-bottom-0">
+                      <dt className="core-grid__span-sm-5 core-text--muted">Address</dt>
+                      <dd className="core-grid__span-sm-7">{admin.school.address || '—'}</dd>
+                      <dt className="core-grid__span-sm-5 core-text--muted">Phone</dt>
+                      <dd className="core-grid__span-sm-7">{admin.school.phone_number || '—'}</dd>
                     </dl>
                   </>
                 ) : (
-                  <p className="text-muted mb-0">No school is currently assigned.</p>
+                  <p className="core-text--muted core-space--margin-bottom-0">No school is currently assigned.</p>
                 )}
               </div>
             </section>
           </div>
-          <div className="col-12">
-            <div className="card border-danger-subtle shadow-sm">
-              <div className="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
+          <div className="core-grid__span-12">
+            <div className="core-card core-border--danger-subtle core-shadow--sm">
+              <div className="core-card__body core-display-flex core-layout--wrap core-layout--justify-between core-layout--align-center core-layout--gap-3">
                 <div>
-                  <h3 className="h6 text-danger mb-1">Delete administrator</h3>
-                  <p className="small text-muted mb-0">This permanently removes the account.</p>
+                  <h3 className="core-type--heading-6 core-text--danger core-space--margin-bottom-1">Delete administrator</h3>
+                  <p className="core-type--small core-text--muted core-space--margin-bottom-0">This permanently removes the account.</p>
                 </div>
                 <Button type="button" variant="danger" disabled={deleting} onClick={() => void handleDelete()}>
                   {deleting ? 'Deleting...' : 'Delete Administrator'}

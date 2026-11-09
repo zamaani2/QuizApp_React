@@ -1,3 +1,4 @@
+import { AppIcon } from '../components/common/AppIcon';
 import React, { useEffect, useState, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { fetchTeacherResult } from '../api/teacher';
@@ -67,7 +68,7 @@ const QuizResultPrintReport: React.FC<QuizResultPrintReportProps> = ({
         <div className="quiz-print__actions">
           <Link className="quiz-print__back" to={returnTo}>Back to results</Link>
           <button className="quiz-print__button" type="button" onClick={() => window.print()}>
-            <i className="bi bi-printer" aria-hidden="true" /> Print report
+            <AppIcon name="printer" aria-hidden="true" /> Print report
           </button>
         </div>
       )}
@@ -200,8 +201,8 @@ const PrintLoadState: React.FC<{ error: string | null }> = ({ error }) => (
   <div className="quiz-print-page">
     {error ? (
       <Alert variant="danger" dismissible={false}>
-        <h2 className="h5">Unable to load quiz result</h2>
-        <p className="mb-0">{error}</p>
+        <h2 className="core-type--heading-5">Unable to load quiz result</h2>
+        <p className="core-space--margin-bottom-0">{error}</p>
       </Alert>
     ) : (
       <LoadingSpinner size="lg" message="Preparing your result report..." />
@@ -290,7 +291,7 @@ export const TeacherQuizResultsBulkPrint: React.FC = () => {
       <div className="quiz-print__actions">
         <Link className="quiz-print__back" to="/teacher/results">Back to results</Link>
         <button className="quiz-print__button" type="button" onClick={() => window.print()}>
-          <i className="bi bi-printer" aria-hidden="true" /> Print {results.length} reports
+          <AppIcon name="printer" aria-hidden="true" /> Print {results.length} reports
         </button>
       </div>
       {results.map((result) => (

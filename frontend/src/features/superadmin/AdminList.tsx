@@ -72,10 +72,10 @@ export const AdminList: React.FC = () => {
       sortable: true,
       accessor: (row) => (
         <div>
-          <Link to={`/superadmin/admins/${row.id}`} className="fw-bold text-dark">
+          <Link to={`/superadmin/admins/${row.id}`} className="core-type--weight-bold core-text--dark">
             {row.full_name || row.username}
           </Link>
-          <div className="small text-muted">@{row.username}</div>
+          <div className="core-type--small core-text--muted">@{row.username}</div>
         </div>
       ),
     },
@@ -91,11 +91,11 @@ export const AdminList: React.FC = () => {
       sortable: true,
       accessor: (row) => (
         <div>
-          <span className="badge bg-primary-subtle text-primary border">
+          <span className="core-badge core-surface--primary-subtle core-text--primary core-border">
             {row.school?.name || 'Unassigned'}
           </span>
           {row.school && !row.school.is_active && (
-            <span className="badge bg-warning-subtle text-warning-emphasis border ms-1">
+            <span className="core-badge core-surface--warning-subtle core-text--warning-emphasis core-border core-space--margin-start-1">
               Inactive school
             </span>
           )}
@@ -107,7 +107,7 @@ export const AdminList: React.FC = () => {
       header: 'Joined',
       sortable: true,
       accessor: (row) => (
-        <small className="text-muted">{row.date_joined ? row.date_joined.split('T')[0] : '—'}</small>
+        <small className="core-text--muted">{row.date_joined ? row.date_joined.split('T')[0] : '—'}</small>
       ),
     },
     {
@@ -115,7 +115,7 @@ export const AdminList: React.FC = () => {
       header: 'Last Login',
       sortable: true,
       accessor: (row) => (
-        <small className="text-muted">{row.last_login ? row.last_login.split('T')[0] : 'Never'}</small>
+        <small className="core-text--muted">{row.last_login ? row.last_login.split('T')[0] : 'Never'}</small>
       ),
     },
     {
@@ -124,7 +124,7 @@ export const AdminList: React.FC = () => {
       sortable: true,
       align: 'center',
       accessor: (row) => (
-        <span className={`badge ${row.is_active ? 'bg-success' : 'bg-secondary'}`}>
+        <span className={`core-badge ${row.is_active ? 'core-surface--success' : 'core-surface--secondary'}`}>
           {row.is_active ? 'Active' : 'Inactive'}
         </span>
       ),
@@ -133,11 +133,11 @@ export const AdminList: React.FC = () => {
       id: 'actions',
       header: 'Actions',
       accessor: (row) => (
-        <div className="d-flex flex-wrap gap-2">
-          <Link className="btn btn-sm btn-outline-primary" to={`/superadmin/admins/${row.id}`}>
+        <div className="core-display-flex core-layout--wrap core-layout--gap-2">
+          <Link className="core-button core-button--sm core-button--outline-primary" to={`/superadmin/admins/${row.id}`}>
             View
           </Link>
-          <Link className="btn btn-sm btn-outline-secondary" to={`/superadmin/admins/${row.id}/edit`}>
+          <Link className="core-button core-button--sm core-button--outline-secondary" to={`/superadmin/admins/${row.id}/edit`}>
             Edit
           </Link>
           <Button type="button" variant="danger" size="sm" onClick={() => void handleDelete(row)}>
@@ -149,19 +149,19 @@ export const AdminList: React.FC = () => {
   ];
 
   return (
-    <div className="container-fluid py-4" data-testid="superadmin-admin-list">
-      <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div className="core-container core-space--padding-y-4" data-testid="superadmin-admin-list">
+      <div className="core-display-flex core-layout--wrap core-layout--justify-between core-layout--align-center core-space--margin-bottom-4 core-layout--gap-3">
         <div>
-          <h2 className="h3 fw-bold text-dark mb-1">School Administrators</h2>
-          <p className="text-muted mb-0">
+          <h2 className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-bottom-1">School Administrators</h2>
+          <p className="core-text--muted core-space--margin-bottom-0">
             Manage administrator accounts across tenant institutions
           </p>
         </div>
-        <div className="d-flex flex-wrap gap-2">
+        <div className="core-display-flex core-layout--wrap core-layout--gap-2">
           <Button variant="secondary" size="sm" onClick={() => void loadAdmins()} disabled={loading}>
             Refresh
           </Button>
-          <Link to="/superadmin/admins/new" className="btn btn-sm btn-primary">
+          <Link to="/superadmin/admins/new" className="core-button core-button--sm core-button--primary">
             Add Administrator
           </Link>
         </div>
@@ -173,32 +173,32 @@ export const AdminList: React.FC = () => {
         </Alert>
       )}
 
-      <div className="row g-3 mb-4">
-        <div className="col-12 col-sm-6 col-md-3">
-          <div className="card shadow-sm border-0 border-start border-primary border-4 h-100">
-            <div className="card-body">
-              <div className="text-muted small text-uppercase fw-bold">Total Admins</div>
-              <div className="h3 fw-bold text-dark mt-2 mb-0">{admins.length}</div>
+      <div className="core-grid core-grid--gap-3 core-space--margin-bottom-4">
+        <div className="core-grid__span-12 core-grid__span-sm-6 core-grid__span-md-3">
+          <div className="core-card core-shadow--sm core-border--none core-border--start core-border--primary core-border--width-4 core-size--height-full">
+            <div className="core-card__body">
+              <div className="core-text--muted core-type--small core-text--uppercase core-type--weight-bold">Total Admins</div>
+              <div className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-top-2 core-space--margin-bottom-0">{admins.length}</div>
             </div>
           </div>
         </div>
-        <div className="col-12 col-sm-6 col-md-3">
-          <div className="card shadow-sm border-0 border-start border-success border-4 h-100">
-            <div className="card-body">
-              <div className="text-muted small text-uppercase fw-bold">Active Admins</div>
-              <div className="h3 fw-bold text-dark mt-2 mb-0">{activeCount}</div>
+        <div className="core-grid__span-12 core-grid__span-sm-6 core-grid__span-md-3">
+          <div className="core-card core-shadow--sm core-border--none core-border--start core-border--success core-border--width-4 core-size--height-full">
+            <div className="core-card__body">
+              <div className="core-text--muted core-type--small core-text--uppercase core-type--weight-bold">Active Admins</div>
+              <div className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-top-2 core-space--margin-bottom-0">{activeCount}</div>
             </div>
           </div>
         </div>
-        <div className="col-12 col-sm-6 col-md-3">
-          <div className="card shadow-sm border-0 border-start border-info border-4 h-100">
-            <div className="card-body">
-              <label htmlFor="admin-school-filter" className="text-muted small text-uppercase fw-bold">
+        <div className="core-grid__span-12 core-grid__span-sm-6 core-grid__span-md-3">
+          <div className="core-card core-shadow--sm core-border--none core-border--start core-border--info core-border--width-4 core-size--height-full">
+            <div className="core-card__body">
+              <label htmlFor="admin-school-filter" className="core-text--muted core-type--small core-text--uppercase core-type--weight-bold">
                 School
               </label>
               <select
                 id="admin-school-filter"
-                className="form-select form-select-sm mt-2"
+                className="core-field__select core-field__select--sm core-space--margin-top-2"
                 value={schoolFilter}
                 onChange={(event) => setSchoolFilter(event.target.value)}
               >
@@ -210,15 +210,15 @@ export const AdminList: React.FC = () => {
             </div>
           </div>
         </div>
-        <div className="col-12 col-sm-6 col-md-3">
-          <div className="card shadow-sm border-0 border-start border-secondary border-4 h-100">
-            <div className="card-body">
-              <label htmlFor="admin-status-filter" className="text-muted small text-uppercase fw-bold">
+        <div className="core-grid__span-12 core-grid__span-sm-6 core-grid__span-md-3">
+          <div className="core-card core-shadow--sm core-border--none core-border--start core-border--secondary core-border--width-4 core-size--height-full">
+            <div className="core-card__body">
+              <label htmlFor="admin-status-filter" className="core-text--muted core-type--small core-text--uppercase core-type--weight-bold">
                 Status
               </label>
               <select
                 id="admin-status-filter"
-                className="form-select form-select-sm mt-2"
+                className="core-field__select core-field__select--sm core-space--margin-top-2"
                 value={statusFilter}
                 onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
               >
@@ -231,8 +231,8 @@ export const AdminList: React.FC = () => {
         </div>
       </div>
 
-      <div className="card shadow-sm border-0">
-        <div className="card-body p-0">
+      <div className="core-card core-shadow--sm core-border--none">
+        <div className="core-card__body core-space--padding-0">
           <DataTable<SuperadminAdmin>
             columns={columns}
             data={visibleAdmins}

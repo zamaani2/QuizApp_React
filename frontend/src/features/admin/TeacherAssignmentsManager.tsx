@@ -1,3 +1,4 @@
+import { AppIcon } from '../../components/common/AppIcon';
 import React, { useEffect, useState, useCallback } from 'react';
 import { allocationsApi } from '../../api/allocations';
 import type {
@@ -279,8 +280,8 @@ export const TeacherAssignmentsManager: React.FC = () => {
       sortable: true,
       accessor: (row) => (
         <div>
-          <div className="fw-bold text-dark">{row.teacher_name}</div>
-          <code className="small text-muted">{row.staff_id}</code>
+          <div className="core-type--weight-bold core-text--dark">{row.teacher_name}</div>
+          <code className="core-type--small core-text--muted">{row.staff_id}</code>
         </div>
       ),
     },
@@ -290,8 +291,8 @@ export const TeacherAssignmentsManager: React.FC = () => {
       sortable: true,
       accessor: (row) => (
         <div>
-          <span className="fw-semibold text-dark">{row.subject_name}</span>{' '}
-          <code className="small text-primary">{row.subject_code}</code>
+          <span className="core-type--weight-semibold core-text--dark">{row.subject_name}</span>{' '}
+          <code className="core-type--small core-text--primary">{row.subject_code}</code>
         </div>
       ),
     },
@@ -301,12 +302,12 @@ export const TeacherAssignmentsManager: React.FC = () => {
       sortable: true,
       accessor: (row) => (
         <div>
-          <span className="badge bg-primary-subtle text-primary border border-primary-subtle me-1">
-            <i className="bi bi-building me-1" />
+          <span className="core-badge core-surface--primary-subtle core-text--primary core-border core-border--primary-subtle core-space--margin-end-1">
+            <AppIcon name="building" className="core-space--margin-end-1" />
             {row.class_name}
           </span>
           {row.academic_year_name && (
-            <span className="small text-secondary">({row.academic_year_name})</span>
+            <span className="core-type--small core-text--secondary">({row.academic_year_name})</span>
           )}
         </div>
       ),
@@ -315,14 +316,14 @@ export const TeacherAssignmentsManager: React.FC = () => {
       id: 'reassigned_info',
       header: 'Assignment History',
       accessor: (row) => (
-        <div className="small">
+        <div className="core-type--small">
           {row.previous_teacher_name ? (
-            <span className="text-secondary" title={`Reassigned from ${row.previous_teacher_name}`}>
-              <i className="bi bi-arrow-repeat text-warning me-1" />
+            <span className="core-text--secondary" title={`Reassigned from ${row.previous_teacher_name}`}>
+              <AppIcon name="refresh" className="core-text--warning core-space--margin-end-1" />
               Reassigned from <strong>{row.previous_teacher_name}</strong>
             </span>
           ) : (
-            <span className="text-muted">Initial assignment</span>
+            <span className="core-text--muted">Initial assignment</span>
           )}
         </div>
       ),
@@ -332,7 +333,7 @@ export const TeacherAssignmentsManager: React.FC = () => {
       header: 'Status',
       align: 'center',
       accessor: (row) => (
-        <span className={`badge ${row.is_active ? 'bg-success' : 'bg-secondary'}`}>
+        <span className={`core-badge ${row.is_active ? 'core-surface--success' : 'core-surface--secondary'}`}>
           {row.is_active ? 'Active' : 'Inactive'}
         </span>
       ),
@@ -342,14 +343,14 @@ export const TeacherAssignmentsManager: React.FC = () => {
       header: 'Actions',
       align: 'right',
       accessor: (row) => (
-        <div className="d-flex justify-content-end gap-1">
+        <div className="core-display-flex core-layout--justify-end core-layout--gap-1">
           <Button
             variant="outline-primary"
             size="sm"
             onClick={() => openEditModal(row)}
             title="Reassign Teacher or Change Status"
           >
-            <i className="bi bi-pencil me-1" />
+            <AppIcon name="pencil" className="core-space--margin-end-1" />
             Reassign
           </Button>
           <Button
@@ -358,7 +359,7 @@ export const TeacherAssignmentsManager: React.FC = () => {
             onClick={() => setDeleteTarget(row)}
             title="Delete Assignment"
           >
-            <i className="bi bi-trash" />
+            <AppIcon name="trash" />
           </Button>
         </div>
       ),
@@ -366,28 +367,28 @@ export const TeacherAssignmentsManager: React.FC = () => {
   ];
 
   return (
-    <div className="container-fluid py-4">
+    <div className="core-container core-space--padding-y-4">
       {/* Header */}
-      <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+      <div className="core-display-flex core-layout--column core-layout--md-row core-layout--justify-between core-layout--align-md-center core-layout--gap-3 core-space--margin-bottom-4">
         <div>
-          <div className="d-flex align-items-center gap-2">
-            <h1 className="h3 fw-bold mb-0 text-dark">Teacher Subject Assignments</h1>
-            <span className="badge bg-primary-subtle text-primary border border-primary-subtle">
+          <div className="core-display-flex core-layout--align-center core-layout--gap-2">
+            <h1 className="core-type--heading-3 core-type--weight-bold core-space--margin-bottom-0 core-text--dark">Teacher Subject Assignments</h1>
+            <span className="core-badge core-surface--primary-subtle core-text--primary core-border core-border--primary-subtle">
               {assignments.length} Records
             </span>
           </div>
-          <p className="text-muted small mb-0 mt-1">
+          <p className="core-text--muted core-type--small core-space--margin-bottom-0 core-space--margin-top-1">
             Allocate teachers to subjects and class cohorts, manage workload distributions, and track reassignment history.
           </p>
         </div>
 
-        <div className="d-flex align-items-center gap-2">
+        <div className="core-display-flex core-layout--align-center core-layout--gap-2">
           <Button variant="primary" size="sm" onClick={openSingleModal}>
-            <i className="bi bi-plus-circle me-1" />
+            <AppIcon name="circlePlus" className="core-space--margin-end-1" />
             Assign Teacher
           </Button>
           <Button variant="outline-primary" size="sm" onClick={openBulkModal}>
-            <i className="bi bi-list-check me-1" />
+            <AppIcon name="listChecks" className="core-space--margin-end-1" />
             Bulk Assign
           </Button>
         </div>
@@ -399,7 +400,7 @@ export const TeacherAssignmentsManager: React.FC = () => {
           variant="success"
           dismissible
           onDismiss={() => setSuccessMessage(null)}
-          className="mb-4"
+          className="core-space--margin-bottom-4"
         >
           {successMessage}
         </Alert>
@@ -410,24 +411,24 @@ export const TeacherAssignmentsManager: React.FC = () => {
           variant="danger"
           dismissible
           onDismiss={() => setError(null)}
-          className="mb-4"
+          className="core-space--margin-bottom-4"
         >
           {error}
         </Alert>
       )}
 
       {/* Filter Toolbar */}
-      <div className="card shadow-sm border-0 mb-4">
-        <div className="card-body p-3 d-flex flex-wrap align-items-center justify-content-between gap-3">
-          <div className="d-flex align-items-center gap-3 flex-wrap">
+      <div className="core-card core-shadow--sm core-border--none core-space--margin-bottom-4">
+        <div className="core-card__body core-space--padding-3 core-display-flex core-layout--wrap core-layout--align-center core-layout--justify-between core-layout--gap-3">
+          <div className="core-display-flex core-layout--align-center core-layout--gap-3 core-layout--wrap">
             {/* Academic Year Filter */}
-            <div className="d-flex align-items-center gap-2">
-              <label htmlFor="filter-assign-year" className="small fw-semibold text-secondary mb-0">
+            <div className="core-display-flex core-layout--align-center core-layout--gap-2">
+              <label htmlFor="filter-assign-year" className="core-type--small core-type--weight-semibold core-text--secondary core-space--margin-bottom-0">
                 Year:
               </label>
               <select
                 id="filter-assign-year"
-                className="form-select form-select-sm"
+                className="core-field__select core-field__select--sm"
                 style={{ width: 'auto' }}
                 value={selectedYearId}
                 onChange={(e) =>
@@ -444,13 +445,13 @@ export const TeacherAssignmentsManager: React.FC = () => {
             </div>
 
             {/* Teacher Filter */}
-            <div className="d-flex align-items-center gap-2">
-              <label htmlFor="filter-assign-teacher" className="small fw-semibold text-secondary mb-0">
+            <div className="core-display-flex core-layout--align-center core-layout--gap-2">
+              <label htmlFor="filter-assign-teacher" className="core-type--small core-type--weight-semibold core-text--secondary core-space--margin-bottom-0">
                 Teacher:
               </label>
               <select
                 id="filter-assign-teacher"
-                className="form-select form-select-sm"
+                className="core-field__select core-field__select--sm"
                 style={{ width: 'auto' }}
                 value={selectedTeacherId}
                 onChange={(e) =>
@@ -467,13 +468,13 @@ export const TeacherAssignmentsManager: React.FC = () => {
             </div>
 
             {/* Class Filter */}
-            <div className="d-flex align-items-center gap-2">
-              <label htmlFor="filter-assign-class" className="small fw-semibold text-secondary mb-0">
+            <div className="core-display-flex core-layout--align-center core-layout--gap-2">
+              <label htmlFor="filter-assign-class" className="core-type--small core-type--weight-semibold core-text--secondary core-space--margin-bottom-0">
                 Class:
               </label>
               <select
                 id="filter-assign-class"
-                className="form-select form-select-sm"
+                className="core-field__select core-field__select--sm"
                 style={{ width: 'auto' }}
                 value={selectedClassId}
                 onChange={(e) =>
@@ -490,26 +491,26 @@ export const TeacherAssignmentsManager: React.FC = () => {
             </div>
 
             {/* Status Filter */}
-            <div className="d-flex align-items-center gap-2">
-              <span className="small fw-semibold text-secondary">Status:</span>
-              <div className="btn-group btn-group-sm" role="group">
+            <div className="core-display-flex core-layout--align-center core-layout--gap-2">
+              <span className="core-type--small core-type--weight-semibold core-text--secondary">Status:</span>
+              <div className="core-button-group core-button-group--sm" role="group">
                 <button
                   type="button"
-                  className={`btn ${activeFilter === 'true' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                  className={`core-button ${activeFilter === 'true' ? 'core-button--primary' : 'core-button--outline-secondary'}`}
                   onClick={() => setActiveFilter('true')}
                 >
                   Active Only
                 </button>
                 <button
                   type="button"
-                  className={`btn ${activeFilter === 'false' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                  className={`core-button ${activeFilter === 'false' ? 'core-button--primary' : 'core-button--outline-secondary'}`}
                   onClick={() => setActiveFilter('false')}
                 >
                   Inactive
                 </button>
                 <button
                   type="button"
-                  className={`btn ${activeFilter === 'all' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                  className={`core-button ${activeFilter === 'all' ? 'core-button--primary' : 'core-button--outline-secondary'}`}
                   onClick={() => setActiveFilter('all')}
                 >
                   All
@@ -524,15 +525,15 @@ export const TeacherAssignmentsManager: React.FC = () => {
             onClick={loadData}
             loading={loading}
           >
-            <i className="bi bi-arrow-repeat me-1" />
+            <AppIcon name="refresh" className="core-space--margin-end-1" />
             Refresh
           </Button>
         </div>
       </div>
 
       {/* Assignments Table */}
-      <div className="card shadow-sm border-0">
-        <div className="card-body p-0">
+      <div className="core-card core-shadow--sm core-border--none">
+        <div className="core-card__body core-space--padding-0">
           <DataTable
             data={assignments}
             columns={columns}
@@ -619,7 +620,7 @@ export const TeacherAssignmentsManager: React.FC = () => {
         onClose={() => setIsSingleModalOpen(false)}
         title="Assign Teacher to Subject & Class"
         footer={
-          <div className="d-flex justify-content-end gap-2 w-100">
+          <div className="core-display-flex core-layout--justify-end core-layout--gap-2 core-size--width-full">
             <Button
               variant="secondary"
               size="sm"
@@ -642,18 +643,18 @@ export const TeacherAssignmentsManager: React.FC = () => {
       >
         <form onSubmit={handleSingleSubmit}>
           {singleError && (
-            <Alert variant="danger" className="mb-3">
+            <Alert variant="danger" className="core-space--margin-bottom-3">
               {singleError}
             </Alert>
           )}
 
-          <div className="mb-3">
-            <label htmlFor="assign-teacher" className="form-label small fw-semibold">
-              Select Teacher <span className="text-danger">*</span>
+          <div className="core-space--margin-bottom-3">
+            <label htmlFor="assign-teacher" className="core-field__label core-type--small core-type--weight-semibold">
+              Select Teacher <span className="core-text--danger">*</span>
             </label>
             <select
               id="assign-teacher"
-              className="form-select"
+              className="core-field__select"
               value={singleTeacherId}
               onChange={(e) => setSingleTeacherId(Number(e.target.value))}
               required
@@ -667,14 +668,14 @@ export const TeacherAssignmentsManager: React.FC = () => {
             </select>
           </div>
 
-          <div className="row g-3 mb-3">
-            <div className="col-sm-6">
-              <label htmlFor="assign-year" className="form-label small fw-semibold">
-                Academic Session <span className="text-danger">*</span>
+          <div className="core-grid core-grid--gap-3 core-space--margin-bottom-3">
+            <div className="core-grid__span-sm-6">
+              <label htmlFor="assign-year" className="core-field__label core-type--small core-type--weight-semibold">
+                Academic Session <span className="core-text--danger">*</span>
               </label>
               <select
                 id="assign-year"
-                className="form-select"
+                className="core-field__select"
                 value={singleYearId}
                 onChange={(e) => setSingleYearId(Number(e.target.value))}
                 required
@@ -688,13 +689,13 @@ export const TeacherAssignmentsManager: React.FC = () => {
               </select>
             </div>
 
-            <div className="col-sm-6">
-              <label htmlFor="assign-class" className="form-label small fw-semibold">
-                Target Class <span className="text-danger">*</span>
+            <div className="core-grid__span-sm-6">
+              <label htmlFor="assign-class" className="core-field__label core-type--small core-type--weight-semibold">
+                Target Class <span className="core-text--danger">*</span>
               </label>
               <select
                 id="assign-class"
-                className="form-select"
+                className="core-field__select"
                 value={singleClassId}
                 onChange={(e) => setSingleClassId(Number(e.target.value))}
                 required
@@ -709,13 +710,13 @@ export const TeacherAssignmentsManager: React.FC = () => {
             </div>
           </div>
 
-          <div className="mb-3">
-            <label htmlFor="assign-subject" className="form-label small fw-semibold">
-              Subject to Teach in Class <span className="text-danger">*</span>
+          <div className="core-space--margin-bottom-3">
+            <label htmlFor="assign-subject" className="core-field__label core-type--small core-type--weight-semibold">
+              Subject to Teach in Class <span className="core-text--danger">*</span>
             </label>
             <select
               id="assign-subject"
-              className="form-select"
+              className="core-field__select"
               value={singleSubjectId}
               onChange={(e) => setSingleSubjectId(Number(e.target.value))}
               disabled={!singleClassId || subjectsLoading}
@@ -737,7 +738,7 @@ export const TeacherAssignmentsManager: React.FC = () => {
               ))}
             </select>
             {singleClassId && !subjectsLoading && availableSubjects.length === 0 && (
-              <div className="form-text text-warning">
+              <div className="core-field__helper core-text--warning">
                 This class does not have curriculum subjects mapped for this session yet. Go to Classes &rarr; Details & Subjects to add subjects.
               </div>
             )}
@@ -751,7 +752,7 @@ export const TeacherAssignmentsManager: React.FC = () => {
         onClose={() => setIsEditModalOpen(false)}
         title={`Reassign: ${editingAssignment?.subject_name} (${editingAssignment?.class_name})`}
         footer={
-          <div className="d-flex justify-content-end gap-2 w-100">
+          <div className="core-display-flex core-layout--justify-end core-layout--gap-2 core-size--width-full">
             <Button
               variant="secondary"
               size="sm"
@@ -773,18 +774,18 @@ export const TeacherAssignmentsManager: React.FC = () => {
       >
         <form onSubmit={handleEditSubmit}>
           {editError && (
-            <Alert variant="danger" className="mb-3">
+            <Alert variant="danger" className="core-space--margin-bottom-3">
               {editError}
             </Alert>
           )}
 
-          <div className="mb-3">
-            <label htmlFor="edit-teacher" className="form-label small fw-semibold">
-              Assigned Teacher <span className="text-danger">*</span>
+          <div className="core-space--margin-bottom-3">
+            <label htmlFor="edit-teacher" className="core-field__label core-type--small core-type--weight-semibold">
+              Assigned Teacher <span className="core-text--danger">*</span>
             </label>
             <select
               id="edit-teacher"
-              className="form-select"
+              className="core-field__select"
               value={editTeacherId}
               onChange={(e) => setEditTeacherId(Number(e.target.value))}
               required
@@ -795,21 +796,21 @@ export const TeacherAssignmentsManager: React.FC = () => {
                 </option>
               ))}
             </select>
-            <div className="form-text">
+            <div className="core-field__helper">
               Reassigning automatically tracks the previous teacher in historical audit logs.
             </div>
           </div>
 
-          <div className="form-check form-switch mb-2">
+          <div className="core-field__check core-field__switch core-space--margin-bottom-2">
             <input
               id="edit-active"
-              className="form-check-input"
+              className="core-field__check-input"
               type="checkbox"
               role="switch"
               checked={editActive}
               onChange={(e) => setEditActive(e.target.checked)}
             />
-            <label className="form-check-label small fw-semibold" htmlFor="edit-active">
+            <label className="core-field__check-label core-type--small core-type--weight-semibold" htmlFor="edit-active">
               Active Assignment Status
             </label>
           </div>
@@ -827,7 +828,7 @@ export const TeacherAssignmentsManager: React.FC = () => {
             Delete assignment of <strong>{deleteTarget?.teacher_name}</strong> for{' '}
             <strong>{deleteTarget?.subject_name}</strong> in{' '}
             <strong>{deleteTarget?.class_name}</strong>?
-            <p className="text-muted small mt-2 mb-0">
+            <p className="core-text--muted core-type--small core-space--margin-top-2 core-space--margin-bottom-0">
               The teacher will lose grading and assessment rights for this subject cohort.
             </p>
           </div>

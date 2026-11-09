@@ -1,3 +1,4 @@
+import { AppIcon } from '../../components/common/AppIcon';
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { academicApi } from '../../api/academic';
@@ -107,20 +108,20 @@ export const ClassDetailView: React.FC = () => {
       id: 'subject_code',
       header: 'Code',
       sortable: true,
-      accessor: (row) => <code className="fw-bold text-primary">{row.subject_code}</code>,
+      accessor: (row) => <code className="core-type--weight-bold core-text--primary">{row.subject_code}</code>,
     },
     {
       id: 'subject_name',
       header: 'Subject Name',
       sortable: true,
-      accessor: (row) => <span className="fw-semibold text-dark">{row.subject_name}</span>,
+      accessor: (row) => <span className="core-type--weight-semibold core-text--dark">{row.subject_name}</span>,
     },
     {
       id: 'department',
       header: 'Department',
       sortable: true,
       accessor: (row) => (
-        <span className="badge bg-light text-dark border">{row.department_name}</span>
+        <span className="core-badge core-surface--light core-text--dark core-border">{row.department_name}</span>
       ),
     },
     {
@@ -128,7 +129,7 @@ export const ClassDetailView: React.FC = () => {
       header: 'Learning Area',
       sortable: true,
       accessor: (row) => (
-        <span className="small text-secondary">{row.learning_area_name}</span>
+        <span className="core-type--small core-text--secondary">{row.learning_area_name}</span>
       ),
     },
     {
@@ -142,7 +143,7 @@ export const ClassDetailView: React.FC = () => {
           onClick={() => setRemoveTarget(row)}
           title="Unassign Subject from Class"
         >
-          <i className="bi bi-x-circle me-1" />
+          <AppIcon name="circleX" className="core-space--margin-end-1" />
           Remove
         </Button>
       ),
@@ -154,13 +155,13 @@ export const ClassDetailView: React.FC = () => {
       id: 'admission_number',
       header: 'Admission No',
       sortable: true,
-      accessor: (row) => <code className="fw-bold text-dark">{row.admission_number}</code>,
+      accessor: (row) => <code className="core-type--weight-bold core-text--dark">{row.admission_number}</code>,
     },
     {
       id: 'full_name',
       header: 'Student Name',
       sortable: true,
-      accessor: (row) => <span className="fw-semibold text-dark">{row.full_name}</span>,
+      accessor: (row) => <span className="core-type--weight-semibold core-text--dark">{row.full_name}</span>,
     },
     {
       id: 'gender',
@@ -168,7 +169,7 @@ export const ClassDetailView: React.FC = () => {
       sortable: true,
       align: 'center',
       accessor: (row) => (
-        <span className="badge bg-light text-dark border">
+        <span className="core-badge core-surface--light core-text--dark core-border">
           {row.gender === 'M' ? 'Male' : row.gender === 'F' ? 'Female' : row.gender || '—'}
         </span>
       ),
@@ -179,7 +180,7 @@ export const ClassDetailView: React.FC = () => {
       sortable: true,
       align: 'center',
       accessor: (row) => (
-        <span className={`badge ${row.is_active ? 'bg-success' : 'bg-secondary'}`}>
+        <span className={`core-badge ${row.is_active ? 'core-surface--success' : 'core-surface--secondary'}`}>
           {row.is_active ? 'Active' : 'Archived'}
         </span>
       ),
@@ -188,7 +189,7 @@ export const ClassDetailView: React.FC = () => {
 
   if (loading && !detail) {
     return (
-      <div className="container-fluid py-5 text-center">
+      <div className="core-container core-space--padding-y-5 core-text--center">
         <LoadingSpinner size="lg" message="Loading class details..." />
       </div>
     );
@@ -196,12 +197,12 @@ export const ClassDetailView: React.FC = () => {
 
   if (error && !detail) {
     return (
-      <div className="container-fluid py-5 text-center">
-        <Alert variant="danger" className="d-inline-block text-start">
+      <div className="core-container core-space--padding-y-5 core-text--center">
+        <Alert variant="danger" className="core-display-inline-block core-text--start">
           {error}
         </Alert>
-        <div className="mt-3">
-          <Link to="/admin/classes" className="btn btn-secondary btn-sm">
+        <div className="core-space--margin-top-3">
+          <Link to="/admin/classes" className="core-button core-button--secondary core-button--sm">
             &larr; Back to Classes
           </Link>
         </div>
@@ -212,41 +213,41 @@ export const ClassDetailView: React.FC = () => {
   const cls = detail?.class;
 
   return (
-    <div className="container-fluid py-4">
+    <div className="core-container core-space--padding-y-4">
       {/* Breadcrumb Navigation */}
-      <nav aria-label="breadcrumb" className="mb-3">
-        <ol className="breadcrumb small">
-          <li className="breadcrumb-item">
-            <Link to="/admin/classes" className="text-decoration-none">
+      <nav aria-label="breadcrumb" className="core-space--margin-bottom-3">
+        <ol className="core-breadcrumbs core-type--small">
+          <li className="core-breadcrumbs__item">
+            <Link to="/admin/classes" className="core-text--decoration-none">
               Classes
             </Link>
           </li>
-          <li className="breadcrumb-item active" aria-current="page">
+          <li className="core-breadcrumbs__item active" aria-current="page">
             {cls?.name}
           </li>
         </ol>
       </nav>
 
       {/* Header */}
-      <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+      <div className="core-display-flex core-layout--column core-layout--md-row core-layout--justify-between core-layout--align-md-center core-layout--gap-3 core-space--margin-bottom-4">
         <div>
-          <div className="d-flex align-items-center gap-2">
-            <h1 className="h3 fw-bold mb-0 text-dark">{cls?.name}</h1>
-            <code className="text-muted fw-bold">{cls?.class_id}</code>
-            <span className={`badge ${cls?.is_active ? 'bg-success' : 'bg-secondary'}`}>
+          <div className="core-display-flex core-layout--align-center core-layout--gap-2">
+            <h1 className="core-type--heading-3 core-type--weight-bold core-space--margin-bottom-0 core-text--dark">{cls?.name}</h1>
+            <code className="core-text--muted core-type--weight-bold">{cls?.class_id}</code>
+            <span className={`core-badge ${cls?.is_active ? 'core-surface--success' : 'core-surface--secondary'}`}>
               {cls?.is_active ? 'Active' : 'Archived'}
             </span>
           </div>
-          <p className="text-muted small mb-0 mt-1">
+          <p className="core-text--muted core-type--small core-space--margin-bottom-0 core-space--margin-top-1">
             Form: <strong>{cls?.form_name || 'None'}</strong> &bull; Program:{' '}
             <strong>{cls?.learning_area_name || 'General'}</strong> &bull; Session:{' '}
             <strong>{cls?.academic_year_name || 'None'}</strong>
           </p>
         </div>
 
-        <div className="d-flex align-items-center gap-2">
-          <Link to="/admin/classes" className="btn btn-outline-secondary btn-sm">
-            <i className="bi bi-arrow-left me-1" />
+        <div className="core-display-flex core-layout--align-center core-layout--gap-2">
+          <Link to="/admin/classes" className="core-button core-button--outline-secondary core-button--sm">
+            <AppIcon name="arrowLeft" className="core-space--margin-end-1" />
             Back to Classes
           </Link>
           <Button
@@ -258,7 +259,7 @@ export const ClassDetailView: React.FC = () => {
               setIsAssignModalOpen(true);
             }}
           >
-            <i className="bi bi-plus-circle me-1" />
+            <AppIcon name="circlePlus" className="core-space--margin-end-1" />
             Assign Subject
           </Button>
         </div>
@@ -270,7 +271,7 @@ export const ClassDetailView: React.FC = () => {
           variant="success"
           dismissible
           onDismiss={() => setSuccessMessage(null)}
-          className="mb-4"
+          className="core-space--margin-bottom-4"
         >
           {successMessage}
         </Alert>
@@ -281,53 +282,53 @@ export const ClassDetailView: React.FC = () => {
           variant="danger"
           dismissible
           onDismiss={() => setError(null)}
-          className="mb-4"
+          className="core-space--margin-bottom-4"
         >
           {error}
         </Alert>
       )}
 
       {/* Overview Metric Cards */}
-      <div className="row g-3 mb-4">
-        <div className="col-12 col-sm-6 col-lg-3">
-          <div className="card shadow-sm border-0 border-start border-primary border-4 h-100">
-            <div className="card-body">
-              <div className="text-muted small text-uppercase fw-bold">Enrollment</div>
-              <div className="h3 fw-bold text-dark mt-2 mb-0">
+      <div className="core-grid core-grid--gap-3 core-space--margin-bottom-4">
+        <div className="core-grid__span-12 core-grid__span-sm-6 core-grid__span-lg-3">
+          <div className="core-card core-shadow--sm core-border--none core-border--start core-border--primary core-border--width-4 core-size--height-full">
+            <div className="core-card__body">
+              <div className="core-text--muted core-type--small core-text--uppercase core-type--weight-bold">Enrollment</div>
+              <div className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-top-2 core-space--margin-bottom-0">
                 {detail?.students.length ?? 0}{' '}
-                <span className="small fs-6 fw-normal text-muted">/ {cls?.maximum_students} cap</span>
+                <span className="core-type--small core-type--size-6 core-type--weight-normal core-text--muted">/ {cls?.maximum_students} cap</span>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="col-12 col-sm-6 col-lg-3">
-          <div className="card shadow-sm border-0 border-start border-info border-4 h-100">
-            <div className="card-body">
-              <div className="text-muted small text-uppercase fw-bold">Assigned Subjects</div>
-              <div className="h3 fw-bold text-dark mt-2 mb-0">
+        <div className="core-grid__span-12 core-grid__span-sm-6 core-grid__span-lg-3">
+          <div className="core-card core-shadow--sm core-border--none core-border--start core-border--info core-border--width-4 core-size--height-full">
+            <div className="core-card__body">
+              <div className="core-text--muted core-type--small core-text--uppercase core-type--weight-bold">Assigned Subjects</div>
+              <div className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-top-2 core-space--margin-bottom-0">
                 {detail?.subjects.length ?? 0}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="col-12 col-sm-6 col-lg-3">
-          <div className="card shadow-sm border-0 border-start border-success border-4 h-100">
-            <div className="card-body">
-              <div className="text-muted small text-uppercase fw-bold">Academic Session</div>
-              <div className="h5 fw-bold text-dark mt-2 mb-0 text-truncate">
+        <div className="core-grid__span-12 core-grid__span-sm-6 core-grid__span-lg-3">
+          <div className="core-card core-shadow--sm core-border--none core-border--start core-border--success core-border--width-4 core-size--height-full">
+            <div className="core-card__body">
+              <div className="core-text--muted core-type--small core-text--uppercase core-type--weight-bold">Academic Session</div>
+              <div className="core-type--heading-5 core-type--weight-bold core-text--dark core-space--margin-top-2 core-space--margin-bottom-0 core-text--truncate">
                 {cls?.academic_year_name || 'Unassigned'}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="col-12 col-sm-6 col-lg-3">
-          <div className="card shadow-sm border-0 border-start border-warning border-4 h-100">
-            <div className="card-body">
-              <div className="text-muted small text-uppercase fw-bold">Learning Track</div>
-              <div className="h5 fw-bold text-dark mt-2 mb-0 text-truncate">
+        <div className="core-grid__span-12 core-grid__span-sm-6 core-grid__span-lg-3">
+          <div className="core-card core-shadow--sm core-border--none core-border--start core-border--warning core-border--width-4 core-size--height-full">
+            <div className="core-card__body">
+              <div className="core-text--muted core-type--small core-text--uppercase core-type--weight-bold">Learning Track</div>
+              <div className="core-type--heading-5 core-type--weight-bold core-text--dark core-space--margin-top-2 core-space--margin-bottom-0 core-text--truncate">
                 {cls?.learning_area_name || 'General Studies'}
               </div>
             </div>
@@ -336,33 +337,33 @@ export const ClassDetailView: React.FC = () => {
       </div>
 
       {/* Tabs */}
-      <div className="card shadow-sm border-0">
-        <div className="card-header bg-white border-bottom p-0">
-          <ul className="nav nav-tabs px-3 pt-2 border-0">
+      <div className="core-card core-shadow--sm core-border--none">
+        <div className="core-card__header core-surface--white core-border--bottom core-space--padding-0">
+          <ul className="nav nav-tabs core-space--padding-x-3 core-space--padding-top-2 core-border--none">
             <li className="nav-item">
               <button
                 type="button"
-                className={`nav-link fw-semibold ${activeTab === 'subjects' ? 'active' : ''}`}
+                className={`nav-link core-type--weight-semibold ${activeTab === 'subjects' ? 'active' : ''}`}
                 onClick={() => setActiveTab('subjects')}
               >
-                <i className="bi bi-journal-bookmark me-2" />
+                <AppIcon name="bookMarked" className="core-space--margin-end-2" />
                 Assigned Subjects ({detail?.subjects.length ?? 0})
               </button>
             </li>
             <li className="nav-item">
               <button
                 type="button"
-                className={`nav-link fw-semibold ${activeTab === 'students' ? 'active' : ''}`}
+                className={`nav-link core-type--weight-semibold ${activeTab === 'students' ? 'active' : ''}`}
                 onClick={() => setActiveTab('students')}
               >
-                <i className="bi bi-people me-2" />
+                <AppIcon name="users" className="core-space--margin-end-2" />
                 Enrolled Students ({detail?.students.length ?? 0})
               </button>
             </li>
           </ul>
         </div>
 
-        <div className="card-body p-0">
+        <div className="core-card__body core-space--padding-0">
           {activeTab === 'subjects' && (
             <DataTable
               data={detail?.subjects || []}
@@ -393,7 +394,7 @@ export const ClassDetailView: React.FC = () => {
         onClose={() => setIsAssignModalOpen(false)}
         title={`Assign Subject to ${cls?.name}`}
         footer={
-          <div className="d-flex justify-content-end gap-2 w-100">
+          <div className="core-display-flex core-layout--justify-end core-layout--gap-2 core-size--width-full">
             <Button
               variant="secondary"
               size="sm"
@@ -416,18 +417,18 @@ export const ClassDetailView: React.FC = () => {
       >
         <form onSubmit={handleAssignSubject}>
           {assignError && (
-            <Alert variant="danger" className="mb-3">
+            <Alert variant="danger" className="core-space--margin-bottom-3">
               {assignError}
             </Alert>
           )}
 
-          <div className="mb-3">
-            <label htmlFor="select-subject" className="form-label small fw-semibold">
-              Select Subject to Teach in this Class <span className="text-danger">*</span>
+          <div className="core-space--margin-bottom-3">
+            <label htmlFor="select-subject" className="core-field__label core-type--small core-type--weight-semibold">
+              Select Subject to Teach in this Class <span className="core-text--danger">*</span>
             </label>
             <select
               id="select-subject"
-              className="form-select"
+              className="core-field__select"
               value={selectedSubjectId}
               onChange={(e) => setSelectedSubjectId(Number(e.target.value))}
               required
@@ -440,7 +441,7 @@ export const ClassDetailView: React.FC = () => {
               ))}
             </select>
             {unassignedSubjects.length === 0 && (
-              <div className="form-text text-warning">
+              <div className="core-field__helper core-text--warning">
                 All existing subjects are already assigned to this class.
               </div>
             )}
@@ -458,7 +459,7 @@ export const ClassDetailView: React.FC = () => {
           <div>
             Unassign subject <strong>{removeTarget?.subject_name}</strong> ({removeTarget?.subject_code})
             from class <strong>{cls?.name}</strong>?
-            <p className="text-muted small mt-2 mb-0">
+            <p className="core-text--muted core-type--small core-space--margin-top-2 core-space--margin-bottom-0">
               Future quizzes assigned to this subject will no longer link to this class cohort.
             </p>
           </div>

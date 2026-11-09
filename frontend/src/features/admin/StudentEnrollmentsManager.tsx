@@ -1,3 +1,4 @@
+import { AppIcon } from '../../components/common/AppIcon';
 import React, { useEffect, useState, useCallback } from 'react';
 import { allocationsApi } from '../../api/allocations';
 import type { StudentEnrollment, EnrollmentLookups } from '../../types';
@@ -282,8 +283,8 @@ export const StudentEnrollmentsManager: React.FC = () => {
       sortable: true,
       accessor: (row) => (
         <div>
-          <div className="fw-bold text-dark">{row.student_name}</div>
-          <code className="small text-primary">{row.admission_number}</code>
+          <div className="core-type--weight-bold core-text--dark">{row.student_name}</div>
+          <code className="core-type--small core-text--primary">{row.admission_number}</code>
         </div>
       ),
     },
@@ -292,7 +293,7 @@ export const StudentEnrollmentsManager: React.FC = () => {
       header: 'Gender',
       align: 'center',
       accessor: (row) => (
-        <span className="badge bg-light text-dark border">
+        <span className="core-badge core-surface--light core-text--dark core-border">
           {row.gender === 'M' ? 'Male' : row.gender === 'F' ? 'Female' : row.gender || '—'}
         </span>
       ),
@@ -303,12 +304,12 @@ export const StudentEnrollmentsManager: React.FC = () => {
       sortable: true,
       accessor: (row) => (
         <div>
-          <span className="badge bg-primary-subtle text-primary border border-primary-subtle me-1">
-            <i className="bi bi-building me-1" />
+          <span className="core-badge core-surface--primary-subtle core-text--primary core-border core-border--primary-subtle core-space--margin-end-1">
+            <AppIcon name="building" className="core-space--margin-end-1" />
             {row.class_name}
           </span>
           {row.academic_year_name && (
-            <span className="small text-secondary">({row.academic_year_name})</span>
+            <span className="core-type--small core-text--secondary">({row.academic_year_name})</span>
           )}
         </div>
       ),
@@ -318,9 +319,9 @@ export const StudentEnrollmentsManager: React.FC = () => {
       header: 'Enrollment Details',
       sortable: true,
       accessor: (row) => (
-        <div className="small text-muted">
+        <div className="core-type--small core-text--muted">
           <div>
-            <i className="bi bi-calendar-event me-1" />
+            <AppIcon name="calendarDays" className="core-space--margin-end-1" />
             {row.date_assigned ? new Date(row.date_assigned).toLocaleDateString() : '—'}
           </div>
           {row.assigned_by_name && <div>By: {row.assigned_by_name}</div>}
@@ -341,7 +342,7 @@ export const StudentEnrollmentsManager: React.FC = () => {
       header: 'Status',
       align: 'center',
       accessor: (row) => (
-        <span className={`badge ${row.is_active ? 'bg-success' : 'bg-secondary'}`}>
+        <span className={`core-badge ${row.is_active ? 'core-surface--success' : 'core-surface--secondary'}`}>
           {row.is_active ? 'Active' : 'Archived / Transferred'}
         </span>
       ),
@@ -351,14 +352,14 @@ export const StudentEnrollmentsManager: React.FC = () => {
       header: 'Actions',
       align: 'right',
       accessor: (row) => (
-        <div className="d-flex justify-content-end gap-1">
+        <div className="core-display-flex core-layout--justify-end core-layout--gap-1">
           <Button
             variant="outline-primary"
             size="sm"
             onClick={() => openEditModal(row)}
             title="Transfer / Edit Enrollment"
           >
-            <i className="bi bi-arrow-left-right me-1" />
+            <AppIcon name="arrowLeftRight" className="core-space--margin-end-1" />
             Transfer
           </Button>
           <Button
@@ -367,7 +368,7 @@ export const StudentEnrollmentsManager: React.FC = () => {
             onClick={() => setDeleteTarget(row)}
             title="Remove Enrollment"
           >
-            <i className="bi bi-trash" />
+            <AppIcon name="trash" />
           </Button>
         </div>
       ),
@@ -380,7 +381,7 @@ export const StudentEnrollmentsManager: React.FC = () => {
       <header className="enrollment-admin__heading">
         <div>
           <p className="enrollment-admin__eyebrow">PEOPLE & ROSTERS</p>
-          <div className="d-flex align-items-center gap-2">
+          <div className="core-display-flex core-layout--align-center core-layout--gap-2">
             <h1>Student Class Enrollments</h1>
             <span className="enrollment-admin__record-count">
               {enrollments.length} Records
@@ -393,11 +394,11 @@ export const StudentEnrollmentsManager: React.FC = () => {
 
         <div className="enrollment-admin__actions">
           <Button variant="outline-primary" size="sm" onClick={openBulkModal}>
-            <i className="bi bi-people-fill me-1" />
+            <AppIcon name="usersRound" className="core-space--margin-end-1" />
             Bulk Enroll
           </Button>
           <Button variant="primary" size="sm" onClick={openSingleModal}>
-            <i className="bi bi-person-plus-fill me-1" />
+            <AppIcon name="userPlus" className="core-space--margin-end-1" />
             Enroll Student
           </Button>
           {selectedEnrollmentIds.length > 0 && (
@@ -414,7 +415,7 @@ export const StudentEnrollmentsManager: React.FC = () => {
           variant="success"
           dismissible
           onDismiss={() => setSuccessMessage(null)}
-          className="mb-4"
+          className="core-space--margin-bottom-4"
         >
           {successMessage}
         </Alert>
@@ -425,7 +426,7 @@ export const StudentEnrollmentsManager: React.FC = () => {
           variant="danger"
           dismissible
           onDismiss={() => setError(null)}
-          className="mb-4"
+          className="core-space--margin-bottom-4"
         >
           {error}
         </Alert>
@@ -439,7 +440,7 @@ export const StudentEnrollmentsManager: React.FC = () => {
                 School
                 <select
                   id="filter-school"
-                  className="form-select form-select-sm"
+                  className="core-field__select core-field__select--sm"
                   value={selectedSchoolId}
                   onChange={(event) => {
                     setSelectedSchoolId(event.target.value === 'all' ? 'all' : Number(event.target.value));
@@ -460,7 +461,7 @@ export const StudentEnrollmentsManager: React.FC = () => {
                 Class
               <select
                 id="filter-class"
-                className="form-select form-select-sm"
+                className="core-field__select core-field__select--sm"
                 value={selectedClassId}
                 onChange={(e) =>
                   setSelectedClassId(e.target.value === 'all' ? 'all' : Number(e.target.value))
@@ -479,7 +480,7 @@ export const StudentEnrollmentsManager: React.FC = () => {
               Student
               <select
                 id="filter-student"
-                className="form-select form-select-sm"
+                className="core-field__select core-field__select--sm"
                 value={selectedStudentId}
                 onChange={(event) => {
                   setSelectedStudentId(event.target.value === 'all' ? 'all' : Number(event.target.value));
@@ -497,25 +498,25 @@ export const StudentEnrollmentsManager: React.FC = () => {
 
             {/* Status Filter */}
             <div className="enrollment-admin__status-filter">
-              <span className="small fw-semibold text-secondary">Status:</span>
-              <div className="btn-group btn-group-sm" role="group">
+              <span className="core-type--small core-type--weight-semibold core-text--secondary">Status:</span>
+              <div className="core-button-group core-button-group--sm" role="group">
                 <button
                   type="button"
-                  className={`btn ${activeFilter === 'true' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                  className={`core-button ${activeFilter === 'true' ? 'core-button--primary' : 'core-button--outline-secondary'}`}
                   onClick={() => setActiveFilter('true')}
                 >
                   Active Only
                 </button>
                 <button
                   type="button"
-                  className={`btn ${activeFilter === 'false' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                  className={`core-button ${activeFilter === 'false' ? 'core-button--primary' : 'core-button--outline-secondary'}`}
                   onClick={() => setActiveFilter('false')}
                 >
                   Inactive / Past
                 </button>
                 <button
                   type="button"
-                  className={`btn ${activeFilter === 'all' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                  className={`core-button ${activeFilter === 'all' ? 'core-button--primary' : 'core-button--outline-secondary'}`}
                   onClick={() => setActiveFilter('all')}
                 >
                   All
@@ -530,14 +531,14 @@ export const StudentEnrollmentsManager: React.FC = () => {
             onClick={loadData}
             loading={loading}
           >
-            <i className="bi bi-arrow-repeat me-1" />
+            <AppIcon name="refresh" className="core-space--margin-end-1" />
             Refresh
           </Button>
       </section>
 
       {/* Enrollments Table */}
-      <div className="card shadow-sm border-0">
-        <div className="card-body p-0">
+      <div className="core-card core-shadow--sm core-border--none">
+        <div className="core-card__body core-space--padding-0">
           <DataTable
             data={enrollments}
             columns={columns}
@@ -555,7 +556,7 @@ export const StudentEnrollmentsManager: React.FC = () => {
         onClose={() => setIsSingleModalOpen(false)}
         title="Enroll Student in Class"
         footer={
-          <div className="d-flex justify-content-end gap-2 w-100">
+          <div className="core-display-flex core-layout--justify-end core-layout--gap-2 core-size--width-full">
             <Button
               variant="secondary"
               size="sm"
@@ -577,18 +578,18 @@ export const StudentEnrollmentsManager: React.FC = () => {
       >
         <form onSubmit={handleSingleSubmit}>
           {singleError && (
-            <Alert variant="danger" className="mb-3">
+            <Alert variant="danger" className="core-space--margin-bottom-3">
               {singleError}
             </Alert>
           )}
 
-          <div className="mb-3">
-            <label htmlFor="single-student" className="form-label small fw-semibold">
-              Select Student <span className="text-danger">*</span>
+          <div className="core-space--margin-bottom-3">
+            <label htmlFor="single-student" className="core-field__label core-type--small core-type--weight-semibold">
+              Select Student <span className="core-text--danger">*</span>
             </label>
             <select
               id="single-student"
-              className="form-select"
+              className="core-field__select"
               value={singleStudentId}
               onChange={(e) =>
                 setSingleStudentId(e.target.value ? Number(e.target.value) : '')
@@ -606,13 +607,13 @@ export const StudentEnrollmentsManager: React.FC = () => {
             </select>
           </div>
 
-          <div className="mb-3">
-            <label htmlFor="single-class" className="form-label small fw-semibold">
-              Target Class Cohort <span className="text-danger">*</span>
+          <div className="core-space--margin-bottom-3">
+            <label htmlFor="single-class" className="core-field__label core-type--small core-type--weight-semibold">
+              Target Class Cohort <span className="core-text--danger">*</span>
             </label>
             <select
               id="single-class"
-              className="form-select"
+              className="core-field__select"
               value={singleClassId}
               onChange={(e) => {
                 const nextClassId = e.target.value ? Number(e.target.value) : '';
@@ -633,7 +634,7 @@ export const StudentEnrollmentsManager: React.FC = () => {
                 </option>
               ))}
             </select>
-            <div className="form-text">
+            <div className="core-field__helper">
               Enrolling into a new class automatically deactivates previous cohort assignments.
             </div>
           </div>
@@ -647,11 +648,11 @@ export const StudentEnrollmentsManager: React.FC = () => {
         title="Bulk Enroll Students"
         size="lg"
         footer={
-          <div className="d-flex justify-content-between align-items-center w-100">
-            <span className="small text-muted">
+          <div className="core-display-flex core-layout--justify-between core-layout--align-center core-size--width-full">
+            <span className="core-type--small core-text--muted">
               {bulkStudentIds.length} student(s) selected
             </span>
-            <div className="d-flex gap-2">
+            <div className="core-display-flex core-layout--gap-2">
               <Button
                 variant="secondary"
                 size="sm"
@@ -675,18 +676,18 @@ export const StudentEnrollmentsManager: React.FC = () => {
       >
         <form onSubmit={handleBulkSubmit}>
           {bulkError && (
-            <Alert variant="danger" className="mb-3">
+            <Alert variant="danger" className="core-space--margin-bottom-3">
               {bulkError}
             </Alert>
           )}
 
-          <div className="mb-3">
-            <label htmlFor="bulk-class" className="form-label small fw-semibold">
-              Target Class Cohort <span className="text-danger">*</span>
+          <div className="core-space--margin-bottom-3">
+            <label htmlFor="bulk-class" className="core-field__label core-type--small core-type--weight-semibold">
+              Target Class Cohort <span className="core-text--danger">*</span>
             </label>
             <select
               id="bulk-class"
-              className="form-select"
+              className="core-field__select"
               value={bulkClassId}
               onChange={(e) => {
                 setBulkClassId(e.target.value ? Number(e.target.value) : '');
@@ -704,14 +705,14 @@ export const StudentEnrollmentsManager: React.FC = () => {
             </select>
           </div>
 
-          <div className="mb-2 d-flex justify-content-between align-items-center">
-            <label htmlFor="bulk-search-student" className="form-label small fw-semibold mb-0">
+          <div className="core-space--margin-bottom-2 core-display-flex core-layout--justify-between core-layout--align-center">
+            <label htmlFor="bulk-search-student" className="core-field__label core-type--small core-type--weight-semibold core-space--margin-bottom-0">
               Select Students to Enroll:
             </label>
             <input
               id="bulk-search-student"
               type="text"
-              className="form-control form-control-sm"
+              className="core-field__input core-field__input--sm"
               style={{ width: '220px' }}
               placeholder="Search students..."
               value={bulkSearch}
@@ -719,39 +720,39 @@ export const StudentEnrollmentsManager: React.FC = () => {
             />
           </div>
 
-          <div className="border rounded p-2 overflow-y-auto" style={{ maxHeight: '250px' }}>
+          <div className="enrollment-admin__bulk-student-list core-border core-radius core-space--padding-2">
             {filteredBulkStudents.map((s) => {
               const isChecked = bulkStudentIds.includes(s.id);
               return (
                 <div
                   key={s.id}
-                  className={`form-check py-1 px-3 d-flex align-items-center gap-2 rounded ${
-                    isChecked ? 'bg-primary-subtle' : ''
+                  className={`core-field__check core-space--padding-y-1 core-space--padding-x-3 core-display-flex core-layout--align-center core-layout--gap-2 core-radius ${
+                    isChecked ? 'core-surface--primary-subtle' : ''
                   }`}
                 >
                   <input
                     type="checkbox"
-                    className="form-check-input"
+                    className="core-field__check-input"
                     aria-label={`Select ${s.full_name}`}
                     checked={isChecked}
                     onChange={() => toggleStudentSelection(s.id)}
                   />
-                  <div className="flex-grow-1">
-                    <span className="fw-semibold text-dark">{s.full_name}</span>{' '}
-                    <code className="small text-muted">{s.admission_number}</code>
+                  <div className="core-layout--grow">
+                    <span className="core-type--weight-semibold core-text--dark">{s.full_name}</span>{' '}
+                    <code className="core-type--small core-text--muted">{s.admission_number}</code>
                   </div>
                   {s.current_class ? (
-                    <span className="badge bg-light text-dark border small">
+                    <span className="core-badge core-surface--light core-text--dark core-border core-type--small">
                       In {s.current_class}
                     </span>
                   ) : (
-                    <span className="badge bg-success-subtle text-success small">Unassigned</span>
+                    <span className="core-badge core-surface--success-subtle core-text--success core-type--small">Unassigned</span>
                   )}
                 </div>
               );
             })}
             {filteredBulkStudents.length === 0 && (
-              <div className="text-center py-3 text-muted small">No students found.</div>
+              <div className="core-text--center core-space--padding-y-3 core-text--muted core-type--small">No students found.</div>
             )}
           </div>
         </form>
@@ -763,7 +764,7 @@ export const StudentEnrollmentsManager: React.FC = () => {
         onClose={() => setIsEditModalOpen(false)}
         title={`Transfer ${editingEnrollment?.student_name}`}
         footer={
-          <div className="d-flex justify-content-end gap-2 w-100">
+          <div className="core-display-flex core-layout--justify-end core-layout--gap-2 core-size--width-full">
             <Button
               variant="secondary"
               size="sm"
@@ -785,18 +786,18 @@ export const StudentEnrollmentsManager: React.FC = () => {
       >
         <form onSubmit={handleEditSubmit}>
           {editError && (
-            <Alert variant="danger" className="mb-3">
+            <Alert variant="danger" className="core-space--margin-bottom-3">
               {editError}
             </Alert>
           )}
 
-          <div className="mb-3">
-            <label htmlFor="transfer-class" className="form-label small fw-semibold">
-              Transfer to Class <span className="text-danger">*</span>
+          <div className="core-space--margin-bottom-3">
+            <label htmlFor="transfer-class" className="core-field__label core-type--small core-type--weight-semibold">
+              Transfer to Class <span className="core-text--danger">*</span>
             </label>
             <select
               id="transfer-class"
-              className="form-select"
+              className="core-field__select"
               value={transferClassId}
               onChange={(e) =>
                 setTransferClassId(e.target.value ? Number(e.target.value) : '')
@@ -813,16 +814,16 @@ export const StudentEnrollmentsManager: React.FC = () => {
             </select>
           </div>
 
-          <div className="form-check form-switch mb-2">
+          <div className="core-field__check core-field__switch core-space--margin-bottom-2">
             <input
               id="transfer-active"
-              className="form-check-input"
+              className="core-field__check-input"
               type="checkbox"
               role="switch"
               checked={transferActive}
               onChange={(e) => setTransferActive(e.target.checked)}
             />
-            <label className="form-check-label small fw-semibold" htmlFor="transfer-active">
+            <label className="core-field__check-label core-type--small core-type--weight-semibold" htmlFor="transfer-active">
               Active Enrollment Status
             </label>
           </div>
@@ -839,7 +840,7 @@ export const StudentEnrollmentsManager: React.FC = () => {
           <div>
             Remove enrollment of <strong>{deleteTarget?.student_name}</strong> from class{' '}
             <strong>{deleteTarget?.class_name}</strong>?
-            <p className="text-muted small mt-2 mb-0">
+            <p className="core-text--muted core-type--small core-space--margin-top-2 core-space--margin-bottom-0">
               The student will no longer be listed in this cohort and will lose class-specific quiz access.
             </p>
           </div>

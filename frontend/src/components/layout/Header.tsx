@@ -1,3 +1,4 @@
+import { AppIcon } from '../common/AppIcon';
 import { useState, useRef, useEffect, type FC } from 'react';
 import { useAuth } from '../../auth/AuthContext';
 import { ThemeSelector } from './ThemeSelector';
@@ -59,11 +60,11 @@ export const Header: FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen }) => {
             aria-expanded={isSidebarOpen}
             onClick={onToggleSidebar}
           >
-            <i className="bi bi-list" aria-hidden="true" />
+            <AppIcon name="list" aria-hidden="true" />
           </button>
 
           <a href="/app/" className="core-header__link">
-            <i className="bi bi-house-door" aria-hidden="true" />
+            <AppIcon name="house" aria-hidden="true" />
             <span>Home</span>
           </a>
 
@@ -82,7 +83,7 @@ export const Header: FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen }) => {
             title="Toggle fullscreen"
             onClick={toggleFullscreen}
           >
-            <i className="bi bi-arrows-fullscreen" aria-hidden="true" />
+            <AppIcon name="maximize" aria-hidden="true" />
           </button>
 
           <SessionTimer />
@@ -115,7 +116,7 @@ export const Header: FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen }) => {
                 {role === 'student' && (
                   <>
                       <a href="/app/student/profile">
-                        <i className="bi bi-person-badge" aria-hidden="true" />{' '}
+                        <AppIcon name="contact" aria-hidden="true" />{' '}
                         My Profile
                       </a>
                   </>
@@ -123,7 +124,7 @@ export const Header: FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen }) => {
                 <a
                     href={role === 'superadmin' ? '/superadmin/logout/' : '/logout/'}
                   >
-                    <i className="bi bi-box-arrow-right" aria-hidden="true" />{' '}
+                    <AppIcon name="logOut" aria-hidden="true" />{' '}
                     Sign out
                 </a>
               </div>

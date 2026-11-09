@@ -1,3 +1,4 @@
+import { AppIcon } from '../../components/common/AppIcon';
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { studentApi } from '../../api/student';
@@ -56,7 +57,7 @@ export const StudentQuizDetail: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="d-flex justify-content-center py-5" data-testid="student-quiz-detail-loading">
+      <div className="core-display-flex core-layout--justify-center core-space--padding-y-5" data-testid="student-quiz-detail-loading">
         <LoadingSpinner size="lg" message="Loading quiz details..." />
       </div>
     );
@@ -67,8 +68,8 @@ export const StudentQuizDetail: React.FC = () => {
       <div data-testid="student-quiz-detail-error">
         <Alert variant="danger" dismissible={false}>
           <h5>Unable to load quiz</h5>
-          <p className="mb-2">{error || 'Quiz not found or not assigned to your class.'}</p>
-          <div className="d-flex gap-2">
+          <p className="core-space--margin-bottom-2">{error || 'Quiz not found or not assigned to your class.'}</p>
+          <div className="core-display-flex core-layout--gap-2">
             <button className="stu-btn-outline" onClick={loadDetail}>
               Retry
             </button>
@@ -84,7 +85,7 @@ export const StudentQuizDetail: React.FC = () => {
   return (
     <div data-testid="student-quiz-detail">
       {/* Back Link & Header */}
-      <div className="mb-3">
+      <div className="core-space--margin-bottom-3">
         <Link to="/student/quizzes" className="stu-section-head__link">
           ← Back to Available Quizzes
         </Link>
@@ -104,7 +105,7 @@ export const StudentQuizDetail: React.FC = () => {
       </div>
 
       {startError && (
-        <Alert variant="danger" dismissible onDismiss={() => setStartError(null)} className="mb-3">
+        <Alert variant="danger" dismissible onDismiss={() => setStartError(null)} className="core-space--margin-bottom-3">
           {startError}
         </Alert>
       )}
@@ -113,7 +114,7 @@ export const StudentQuizDetail: React.FC = () => {
       <div className="stu-cta-card">
         <div className="stu-cta-card__top">
           <div className="stu-cta-card__icon-box">
-            <i className="bi bi-pencil-square" aria-hidden="true" />
+            <AppIcon name="squarePen" aria-hidden="true" />
           </div>
           <div className="stu-cta-card__info">
             <div className="stu-cta-card__eyebrow">
@@ -130,14 +131,14 @@ export const StudentQuizDetail: React.FC = () => {
 
         {/* Password Prompt if required */}
         {quiz.require_password && !quiz.in_progress_attempt_id && (
-          <div className="mt-2">
-            <label htmlFor="quiz-password" className="form-label small fw-bold" style={{ color: 'var(--stu-navy)' }}>
+          <div className="core-space--margin-top-2">
+            <label htmlFor="quiz-password" className="core-field__label core-type--small core-type--weight-bold" style={{ color: 'var(--stu-navy)' }}>
               Quiz Access Password:
             </label>
             <input
               id="quiz-password"
               type="password"
-              className="form-control"
+              className="core-field__input"
               placeholder="Enter quiz password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -149,7 +150,7 @@ export const StudentQuizDetail: React.FC = () => {
         {/* Start / Resume Button */}
         {quiz.in_progress_attempt_id ? (
           <div>
-            <div className="stu-banner stu-banner--warning mb-2">
+            <div className="stu-banner stu-banner--warning core-space--margin-bottom-2">
               <div className="stu-banner__content">
                 <span className="stu-banner__dot" aria-hidden="true" />
                 <span>You have an attempt currently in progress!</span>
@@ -157,7 +158,7 @@ export const StudentQuizDetail: React.FC = () => {
             </div>
             <Button
               variant="primary"
-              className="w-100 py-3 fw-bold"
+              className="core-size--width-full core-space--padding-y-3 core-type--weight-bold"
               style={{ backgroundColor: 'var(--stu-navy)', borderColor: 'var(--stu-navy)' }}
               onClick={handleStartOrResume}
               loading={starting}
@@ -169,7 +170,7 @@ export const StudentQuizDetail: React.FC = () => {
           <div>
             <Button
               variant="primary"
-              className="w-100 py-3 fw-bold"
+              className="core-size--width-full core-space--padding-y-3 core-type--weight-bold"
               style={{ backgroundColor: 'var(--stu-navy)', borderColor: 'var(--stu-navy)' }}
               onClick={handleStartOrResume}
               loading={starting}
@@ -177,7 +178,7 @@ export const StudentQuizDetail: React.FC = () => {
             >
               Start Assessment Now
             </Button>
-            <p className="small text-muted text-center mt-2 mb-0">
+            <p className="core-type--small core-text--muted core-text--center core-space--margin-top-2 core-space--margin-bottom-0">
               Timer starts immediately once clicked. Ensure a stable internet connection.
             </p>
           </div>
@@ -198,7 +199,7 @@ export const StudentQuizDetail: React.FC = () => {
         </div>
       </div>
 
-      <div className="stu-stats-grid mb-4">
+      <div className="stu-stats-grid core-space--margin-bottom-4">
         <div className="stu-stat-box">
           <div className="stu-stat-box__val" style={{ color: 'var(--stu-navy)' }}>
             {quiz.duration_minutes > 0 ? `${quiz.duration_minutes}m` : 'Untimed'}
@@ -222,27 +223,27 @@ export const StudentQuizDetail: React.FC = () => {
       </div>
 
       {/* Overview & Instructions Card */}
-      <div className="stu-card mb-4">
-        <h3 className="fw-bold mb-2" style={{ fontSize: '1rem', color: 'var(--stu-navy)' }}>
+      <div className="stu-card core-space--margin-bottom-4">
+        <h3 className="core-type--weight-bold core-space--margin-bottom-2" style={{ fontSize: '1rem', color: 'var(--stu-navy)' }}>
           Instructions
         </h3>
         {quiz.instructions ? (
           <div
-            className="p-3 rounded mb-3"
+            className="core-space--padding-3 core-radius core-space--margin-bottom-3"
             style={{ backgroundColor: 'var(--stu-surface-alt)', border: '1px solid var(--stu-border-light)' }}
           >
-            <p className="mb-0 text-dark" style={{ whiteSpace: 'pre-line', fontSize: '0.9rem', lineHeight: '1.5' }}>
+            <p className="core-space--margin-bottom-0 core-text--dark" style={{ whiteSpace: 'pre-line', fontSize: '0.9rem', lineHeight: '1.5' }}>
               {quiz.instructions}
             </p>
           </div>
         ) : (
-          <p className="text-muted small fst-italic mb-3">No specific instructions provided.</p>
+          <p className="core-text--muted core-type--small fst-italic core-space--margin-bottom-3">No specific instructions provided.</p>
         )}
 
-        <div className="d-flex justify-content-between text-muted small pt-2 border-top">
-          <span>Total Marks: <strong className="text-dark">{quiz.total_marks}</strong></span>
-          <span>Max Attempts: <strong className="text-dark">{quiz.max_attempts}</strong></span>
-          <span>Remaining: <strong className="text-primary">{quiz.remaining_attempts}</strong></span>
+        <div className="core-display-flex core-layout--justify-between core-text--muted core-type--small core-space--padding-top-2 core-border--top">
+          <span>Total Marks: <strong className="core-text--dark">{quiz.total_marks}</strong></span>
+          <span>Max Attempts: <strong className="core-text--dark">{quiz.max_attempts}</strong></span>
+          <span>Remaining: <strong className="core-text--primary">{quiz.remaining_attempts}</strong></span>
         </div>
       </div>
 
@@ -255,9 +256,9 @@ export const StudentQuizDetail: React.FC = () => {
       </div>
 
       {quiz.past_attempts.length === 0 ? (
-        <div className="stu-card text-center py-4">
-          <i className="bi bi-clock-history text-muted" style={{ fontSize: '1.75rem' }} aria-hidden="true" />
-          <p className="text-muted small mb-0 mt-2">You haven't attempted this quiz yet.</p>
+        <div className="stu-card core-text--center core-space--padding-y-4">
+          <AppIcon name="history" className="core-text--muted" style={{ fontSize: '1.75rem' }} aria-hidden="true" />
+          <p className="core-text--muted core-type--small core-space--margin-bottom-0 core-space--margin-top-2">You haven't attempted this quiz yet.</p>
         </div>
       ) : (
         <div className="stu-card-list">
@@ -286,7 +287,7 @@ export const StudentQuizDetail: React.FC = () => {
                 ) : (
                   <Link
                     to={`/student/take/${att.id}`}
-                    className="stu-section-head__link text-warning"
+                    className="stu-section-head__link core-text--warning"
                     style={{ fontSize: '0.75rem' }}
                   >
                     Resume →

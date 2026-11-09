@@ -223,7 +223,7 @@ export const TeacherAppLayout: FC<TeacherAppLayoutProps> = ({ children }) => {
         <div className="portal-header__inner">
           <div className="portal-header__left">
             <Link to="/teacher/dashboard" className="portal-header__brand-mobile">
-              <GraduationCap size={20} className="text-primary" />
+              <GraduationCap size={20} className="core-text--primary" />
               <span>QuizApp</span>
             </Link>
             <span className="portal-role-badge">
@@ -348,7 +348,7 @@ export const TeacherAppLayout: FC<TeacherAppLayoutProps> = ({ children }) => {
               <p className="portal-more-sheet__group-label">Session</p>
               <a
                 href="/logout/"
-                className="portal-more-sheet__item text-danger"
+                className="portal-more-sheet__item core-text--danger"
                 onClick={() => setIsMoreOpen(false)}
               >
                 <LogOut size={18} />

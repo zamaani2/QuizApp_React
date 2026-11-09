@@ -66,42 +66,42 @@ export const QuizAssignments: React.FC = () => {
 
   if (loading && !data) return <LoadingSpinner size="lg" message="Loading class assignments..." />;
   return (
-    <div className="assessment-page container-fluid py-4">
-      <div className="mb-3"><Link to={`/teacher/quizzes/${quizId}`}>&larr; Back to quiz</Link></div>
-      <h1 className="h3 mb-4">Class Assignments {data && <small className="text-muted">· {data.quiz_title}</small>}</h1>
+    <div className="assessment-page core-container core-space--padding-y-4">
+      <div className="core-space--margin-bottom-3"><Link to={`/teacher/quizzes/${quizId}`}>&larr; Back to quiz</Link></div>
+      <h1 className="core-type--heading-3 core-space--margin-bottom-4">Class Assignments {data && <small className="core-text--muted">· {data.quiz_title}</small>}</h1>
       {error && <Alert variant="danger" dismissible onDismiss={() => setError(null)}>{error}</Alert>}
       {message && <Alert variant="success" dismissible onDismiss={() => setMessage(null)}>{message}</Alert>}
       {data && (
-        <div className="row g-4">
-          <div className="col-lg-6">
-            <section className="card shadow-sm border-0 h-100">
-              <div className="card-header bg-white"><h2 className="h5 mb-0">Assigned classes ({data.assigned_classes.length})</h2></div>
-              <div className="list-group list-group-flush">
+        <div className="core-grid core-grid--gap-4">
+          <div className="core-grid__span-lg-6">
+            <section className="core-card core-shadow--sm core-border--none core-size--height-full">
+              <div className="core-card__header core-surface--white"><h2 className="core-type--heading-5 core-space--margin-bottom-0">Assigned classes ({data.assigned_classes.length})</h2></div>
+              <div className="core-list core-list--flush">
                 {data.assigned_classes.length ? data.assigned_classes.map((item) => (
-                  <div className="list-group-item d-flex justify-content-between align-items-center" key={item.id}>
+                  <div className="core-list__item core-display-flex core-layout--justify-between core-layout--align-center" key={item.id}>
                     <span>{item.name}</span>
                     <Button variant="outline-danger" size="sm" disabled={saving || unassignLoading} onClick={() => setUnassignClassId(item.id)}>Unassign</Button>
                   </div>
-                )) : <div className="list-group-item text-muted">No classes are assigned.</div>}
+                )) : <div className="core-list__item core-text--muted">No classes are assigned.</div>}
               </div>
             </section>
           </div>
-          <div className="col-lg-6">
-            <section className="card shadow-sm border-0 h-100">
-              <div className="card-header bg-white"><h2 className="h5 mb-0">Available classes</h2></div>
-              <div className="card-body">
+          <div className="core-grid__span-lg-6">
+            <section className="core-card core-shadow--sm core-border--none core-size--height-full">
+              <div className="core-card__header core-surface--white"><h2 className="core-type--heading-5 core-space--margin-bottom-0">Available classes</h2></div>
+              <div className="core-card__body">
                 {data.available_classes.length ? (
                   <>
-                    <div className="d-flex flex-column gap-2 mb-3">
+                    <div className="core-display-flex core-layout--column core-layout--gap-2 core-space--margin-bottom-3">
                       {data.available_classes.map((item) => (
-                        <label key={item.id} className="form-check">
+                        <label key={item.id} className="core-field__check">
                           <input
                             type="checkbox"
-                            className="form-check-input"
+                            className="core-field__check-input"
                             checked={selected.includes(item.id)}
                             onChange={(e) => setSelected(e.target.checked ? [...selected, item.id] : selected.filter((x) => x !== item.id))}
                           />
-                          <span className="form-check-label">{item.name}</span>
+                          <span className="core-field__check-label">{item.name}</span>
                         </label>
                       ))}
                     </div>
@@ -109,7 +109,7 @@ export const QuizAssignments: React.FC = () => {
                       Assign selected classes
                     </Button>
                   </>
-                ) : <p className="text-muted mb-0">All available classes are already assigned.</p>}
+                ) : <p className="core-text--muted core-space--margin-bottom-0">All available classes are already assigned.</p>}
               </div>
             </section>
           </div>

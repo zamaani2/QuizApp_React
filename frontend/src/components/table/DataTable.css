@@ -19,7 +19,7 @@
 .data-table__table [data-align='right'] { text-align: right; }
 .data-table__sort { display: flex; width: 100%; min-height: 44px; align-items: center; justify-content: inherit; gap: 7px; border: 0; padding: 0 15px; background: transparent; color: inherit; cursor: pointer; font: inherit; text-align: inherit; text-transform: inherit; }
 .data-table__sort:hover { color: var(--qa-sky, #0284c7); }
-.data-table__sort i { font-size: 12px; }
+.data-table__sort .app-icon { font-size: 12px; }
 .data-table__state { height: 130px; text-align: center; }
 .data-table__pagination-bar { margin-top: 14px; }
 .data-table__range { color: var(--qa-text-muted, #64748b); font-size: 12px; }

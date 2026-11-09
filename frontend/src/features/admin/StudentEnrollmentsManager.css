@@ -69,6 +69,11 @@
   gap: 12px;
 }
 
+.enrollment-admin__bulk-student-list {
+  max-height: 250px;
+  overflow-y: auto;
+}
+
 .enrollment-admin__filter {
   display: grid;
   gap: 5px;
@@ -97,18 +102,18 @@
   font-weight: 700;
 }
 
-.enrollment-admin__status-filter .btn-group {
+.enrollment-admin__status-filter .core-button-group {
   display: flex;
   flex-wrap: wrap;
   gap: 3px;
 }
 
-.enrollment-admin__status-filter .btn {
+.enrollment-admin__status-filter .core-button {
   border-radius: 3px !important;
   font-size: 11px;
 }
 
-.enrollment-admin .card {
+.enrollment-admin .core-card {
   overflow: hidden;
   border: 1px solid var(--core-line) !important;
   border-radius: 5px;
@@ -116,33 +121,33 @@
   box-shadow: none !important;
 }
 
-.enrollment-admin .card-body {
+.enrollment-admin .core-card__body {
   color: var(--core-ink);
 }
 
-.enrollment-admin .badge {
+.enrollment-admin .core-badge {
   font-size: 10px;
   font-weight: 600;
 }
 
-.enrollment-admin .form-select,
-.enrollment-admin .form-control {
+.enrollment-admin .core-field__select,
+.enrollment-admin .core-field__input {
   border-color: var(--core-line);
   border-radius: 4px;
   font-size: 12px;
 }
 
-.enrollment-admin .form-select:focus,
-.enrollment-admin .form-control:focus {
+.enrollment-admin .core-field__select:focus,
+.enrollment-admin .core-field__input:focus {
   border-color: var(--core-accent);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--core-accent) 20%, transparent);
 }
 
-.enrollment-admin .form-check {
+.enrollment-admin .core-field__check {
   margin: 0;
 }
 
-.enrollment-admin .form-check-input {
+.enrollment-admin .core-field__check-input {
   accent-color: var(--core-accent);
 }
 

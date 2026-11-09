@@ -1,3 +1,4 @@
+import { AppIcon } from '../../components/common/AppIcon';
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
@@ -84,38 +85,38 @@ export const QuizDetail: React.FC = () => {
   };
 
   return (
-    <div className="assessment-page container-fluid py-4" data-testid="teacher-quiz-detail">
-      <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div className="assessment-page core-container core-space--padding-y-4" data-testid="teacher-quiz-detail">
+      <div className="core-display-flex core-layout--wrap core-layout--justify-between core-layout--align-center core-space--margin-bottom-4 core-layout--gap-3">
         <div>
-          <div className="mb-2">
-            <Link to="/teacher/quizzes" className="text-decoration-none small text-muted">
+          <div className="core-space--margin-bottom-2">
+            <Link to="/teacher/quizzes" className="core-text--decoration-none core-type--small core-text--muted">
               &larr; Back to Quiz Catalog
             </Link>
           </div>
-          <h2 className="h3 fw-bold text-dark mb-1">{quiz?.title || 'Quiz Details'}</h2>
-          <div className="d-flex flex-wrap align-items-center gap-2 mt-2">
+          <h2 className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-bottom-1">{quiz?.title || 'Quiz Details'}</h2>
+          <div className="core-display-flex core-layout--wrap core-layout--align-center core-layout--gap-2 core-space--margin-top-2">
             {quiz && (
               <>
                 <span
-                  className={`badge ${
+                  className={`core-badge ${
                     quiz.status === 'published'
-                      ? 'bg-success'
+                      ? 'core-surface--success'
                       : quiz.status === 'draft'
-                      ? 'bg-warning text-dark'
-                      : 'bg-secondary'
+                      ? 'core-surface--warning core-text--dark'
+                      : 'core-surface--secondary'
                   }`}
                 >
                   {quiz.status.toUpperCase()}
                 </span>
-                <span className="badge bg-primary-subtle text-primary border">
+                <span className="core-badge core-surface--primary-subtle core-text--primary core-border">
                   {quiz.subject_name || 'Subject'}
                 </span>
                 {quiz.academic_year && (
-                  <span className="badge bg-light text-dark border">
+                  <span className="core-badge core-surface--light core-text--dark core-border">
                     {quiz.academic_year} {quiz.term && `· ${quiz.term}`}
                   </span>
                 )}
-                <span className="badge bg-info-subtle text-info border">
+                <span className="core-badge core-surface--info-subtle core-text--info core-border">
                   {quiz.duration_minutes ? `${quiz.duration_minutes} Minutes` : 'Untimed'}
                 </span>
               </>
@@ -123,19 +124,19 @@ export const QuizDetail: React.FC = () => {
           </div>
         </div>
 
-        <div className="d-flex gap-2">
+        <div className="core-display-flex core-layout--gap-2">
           <Button variant="secondary" size="sm" onClick={loadDetail} disabled={loading}>
             Refresh
           </Button>
           {quiz && (
             <>
-              <Link to={`/teacher/results?quiz_id=${quiz.id}`} className="btn btn-sm btn-outline-success">
+              <Link to={`/teacher/results?quiz_id=${quiz.id}`} className="core-button core-button--sm core-button--outline-success">
                 View Results ({quiz.total_attempts})
               </Link>
-              <Link to={`/teacher/quizzes/${quiz.id}/assignments`} className="btn btn-sm btn-outline-primary">
+              <Link to={`/teacher/quizzes/${quiz.id}/assignments`} className="core-button core-button--sm core-button--outline-primary">
                 Class Assignments
               </Link>
-              <Link to={`/teacher/quizzes/${quiz.id}/edit`} className="btn btn-sm btn-primary">
+              <Link to={`/teacher/quizzes/${quiz.id}/edit`} className="core-button core-button--sm core-button--primary">
                 Edit Quiz
               </Link>
               <Button variant="outline-danger" size="sm" onClick={() => void handleDeleteQuiz()}>Delete</Button>
@@ -152,37 +153,37 @@ export const QuizDetail: React.FC = () => {
       {message && <Alert variant="success" dismissible onDismiss={() => setMessage(null)}>{message}</Alert>}
 
       {loading && !quiz ? (
-        <div className="d-flex justify-content-center py-5">
+        <div className="core-display-flex core-layout--justify-center core-space--padding-y-5">
           <LoadingSpinner size="lg" message="Loading quiz details..." />
         </div>
       ) : quiz ? (
         <>
           {/* Metadata Card */}
-          <div className="card shadow-sm border-0 mb-4">
-            <div className="card-body">
+          <div className="core-card core-shadow--sm core-border--none core-space--margin-bottom-4">
+            <div className="core-card__body">
               {quiz.description && (
-                <p className="text-secondary mb-3">{quiz.description}</p>
+                <p className="core-text--secondary core-space--margin-bottom-3">{quiz.description}</p>
               )}
-              {quiz.instructions && <div className="alert alert-light border"><strong>Instructions:</strong><br />{quiz.instructions}</div>}
-              <div className="row g-3">
-                <div className="col-6 col-md-3">
-                  <div className="text-muted small">Total Questions</div>
-                  <div className="h5 fw-bold mb-0">{quiz.total_questions}</div>
+              {quiz.instructions && <div className="core-alert core-alert--light core-border"><strong>Instructions:</strong><br />{quiz.instructions}</div>}
+              <div className="core-grid core-grid--gap-3">
+                <div className="core-grid__span-6 core-grid__span-md-3">
+                  <div className="core-text--muted core-type--small">Total Questions</div>
+                  <div className="core-type--heading-5 core-type--weight-bold core-space--margin-bottom-0">{quiz.total_questions}</div>
                 </div>
-                <div className="col-6 col-md-3">
-                  <div className="text-muted small">Total Marks</div>
-                  <div className="h5 fw-bold mb-0">{quiz.total_marks}</div>
+                <div className="core-grid__span-6 core-grid__span-md-3">
+                  <div className="core-text--muted core-type--small">Total Marks</div>
+                  <div className="core-type--heading-5 core-type--weight-bold core-space--margin-bottom-0">{quiz.total_marks}</div>
                 </div>
-                <div className="col-6 col-md-3">
-                  <div className="text-muted small">Pass Threshold</div>
-                  <div className="h5 fw-bold mb-0">{quiz.pass_percentage}%</div>
+                <div className="core-grid__span-6 core-grid__span-md-3">
+                  <div className="core-text--muted core-type--small">Pass Threshold</div>
+                  <div className="core-type--heading-5 core-type--weight-bold core-space--margin-bottom-0">{quiz.pass_percentage}%</div>
                 </div>
-                <div className="col-6 col-md-3">
-                  <div className="text-muted small">Max Attempts</div>
-                  <div className="h5 fw-bold mb-0">{quiz.max_attempts}</div>
+                <div className="core-grid__span-6 core-grid__span-md-3">
+                  <div className="core-text--muted core-type--small">Max Attempts</div>
+                  <div className="core-type--heading-5 core-type--weight-bold core-space--margin-bottom-0">{quiz.max_attempts}</div>
                 </div>
               </div>
-              <div className="d-flex flex-wrap gap-2 mt-3">
+              <div className="core-display-flex core-layout--wrap core-layout--gap-2 core-space--margin-top-3">
                 <Button
                   size="sm"
                   variant={quiz.status === 'published' ? 'warning' : 'success'}
@@ -193,16 +194,16 @@ export const QuizDetail: React.FC = () => {
                 >
                   {quiz.status === 'published' ? 'Unpublish' : 'Publish'}
                 </Button>
-                <Link to={`/teacher/quizzes/${quiz.id}/questions/import`} className="btn btn-sm btn-outline-secondary">Import Questions</Link>
-                <Link to={`/teacher/quizzes/${quiz.id}/questions/new`} className="btn btn-sm btn-primary">Add Question</Link>
+                <Link to={`/teacher/quizzes/${quiz.id}/questions/import`} className="core-button core-button--sm core-button--outline-secondary">Import Questions</Link>
+                <Link to={`/teacher/quizzes/${quiz.id}/questions/new`} className="core-button core-button--sm core-button--primary">Add Question</Link>
               </div>
 
               {quiz.assigned_classes && quiz.assigned_classes.length > 0 && (
-                <div className="mt-3 pt-3 border-top">
-                  <div className="small text-muted mb-2">Assigned Classes:</div>
-                  <div className="d-flex flex-wrap gap-2">
+                <div className="core-space--margin-top-3 core-space--padding-top-3 core-border--top">
+                  <div className="core-type--small core-text--muted core-space--margin-bottom-2">Assigned Classes:</div>
+                  <div className="core-display-flex core-layout--wrap core-layout--gap-2">
                     {quiz.assigned_classes.map((c) => (
-                      <span key={c.id} className="badge bg-secondary-subtle text-secondary border">
+                      <span key={c.id} className="core-badge core-surface--secondary-subtle core-text--secondary core-border">
                         {c.name}
                       </span>
                     ))}
@@ -213,55 +214,55 @@ export const QuizDetail: React.FC = () => {
           </div>
 
           {/* Questions Breakdown */}
-          <h4 className="h5 fw-bold text-dark mb-3">Questions & Answer Keys ({quiz.questions.length})</h4>
-          <div className="d-flex flex-column gap-3 mb-4">
+          <h4 className="core-type--heading-5 core-type--weight-bold core-text--dark core-space--margin-bottom-3">Questions & Answer Keys ({quiz.questions.length})</h4>
+          <div className="core-display-flex core-layout--column core-layout--gap-3 core-space--margin-bottom-4">
             {quiz.questions.map((q, idx) => (
-              <div key={q.id} className="card shadow-sm border-0">
-                <div className="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                  <span className="fw-bold">
+              <div key={q.id} className="core-card core-shadow--sm core-border--none">
+                <div className="core-card__header core-surface--white core-space--padding-y-3 core-display-flex core-layout--justify-between core-layout--align-center">
+                  <span className="core-type--weight-bold">
                     Question {idx + 1}
-                    <span className="badge bg-light text-secondary border ms-2 text-capitalize">
+                    <span className="core-badge core-surface--light core-text--secondary core-border core-space--margin-start-2 core-text--capitalize">
                       {q.question_type.replace('_', ' ')}
                     </span>
                   </span>
-                  <div className="d-flex align-items-center gap-2">
-                    <span className="badge bg-primary-subtle text-primary border">{q.marks} {q.marks === 1 ? 'Mark' : 'Marks'}</span>
+                  <div className="core-display-flex core-layout--align-center core-layout--gap-2">
+                    <span className="core-badge core-surface--primary-subtle core-text--primary core-border">{q.marks} {q.marks === 1 ? 'Mark' : 'Marks'}</span>
                     <Button size="sm" variant="outline-secondary" disabled={idx === 0} onClick={() => void moveQuestion(idx, -1)} aria-label="Move question up">↑</Button>
                     <Button size="sm" variant="outline-secondary" disabled={idx === quiz.questions.length - 1} onClick={() => void moveQuestion(idx, 1)} aria-label="Move question down">↓</Button>
-                    <Link to={`/teacher/quizzes/${quiz.id}/questions/${q.id}/edit`} className="btn btn-sm btn-outline-primary">Edit</Link>
+                    <Link to={`/teacher/quizzes/${quiz.id}/questions/${q.id}/edit`} className="core-button core-button--sm core-button--outline-primary">Edit</Link>
                     <Button size="sm" variant="outline-secondary" onClick={() => void performAction(() => duplicateQuestion(quiz.id, q.id), 'Question duplicated.')}>Duplicate</Button>
                     <Button size="sm" variant="outline-danger" onClick={() => setDeleteQuestionId(q.id)}>Delete</Button>
                   </div>
                 </div>
-                <div className="card-body">
-                  <p className="fw-semibold text-dark mb-3">{q.question_text}</p>
+                <div className="core-card__body">
+                  <p className="core-type--weight-semibold core-text--dark core-space--margin-bottom-3">{q.question_text}</p>
                   {q.choices && q.choices.length > 0 && (
-                    <div className="list-group list-group-flush border rounded">
+                    <div className="core-list core-list--flush core-border core-radius">
                       {q.choices.map((ch) => (
                         <div
                           key={ch.id}
-                          className={`list-group-item d-flex align-items-center justify-content-between p-2 ${
-                            ch.is_correct ? 'bg-success-subtle' : ''
+                          className={`core-list__item core-display-flex core-layout--align-center core-layout--justify-between core-space--padding-2 ${
+                            ch.is_correct ? 'core-surface--success-subtle' : ''
                           }`}
                         >
-                          <span className={ch.is_correct ? 'fw-bold text-success' : 'text-dark'}>
+                          <span className={ch.is_correct ? 'core-type--weight-bold core-text--success' : 'core-text--dark'}>
                             {ch.choice_text}
                           </span>
                           {ch.is_correct && (
-                            <span className="badge bg-success">
-                              <i className="bi bi-check-lg me-1"></i> Correct Answer
+                            <span className="core-badge core-surface--success">
+                              <AppIcon name="check" className="core-space--margin-end-1" /> Correct Answer
                             </span>
                           )}
                         </div>
                       ))}
                     </div>
                   )}
-                  {q.correct_answer_text && <p className="small mb-1"><strong>Answer:</strong> {q.correct_answer_text}</p>}
-                  {q.explanation && <p className="small text-muted mb-0"><strong>Explanation:</strong> {q.explanation}</p>}
+                  {q.correct_answer_text && <p className="core-type--small core-space--margin-bottom-1"><strong>Answer:</strong> {q.correct_answer_text}</p>}
+                  {q.explanation && <p className="core-type--small core-text--muted core-space--margin-bottom-0"><strong>Explanation:</strong> {q.explanation}</p>}
                 </div>
               </div>
             ))}
-            {!quiz.questions.length && <div className="alert alert-info">No questions yet. Add a question or import a question file to get started.</div>}
+            {!quiz.questions.length && <div className="core-alert core-alert--info">No questions yet. Add a question or import a question file to get started.</div>}
           </div>
         </>
       ) : null}

@@ -361,7 +361,7 @@ export const AdminAppLayout: FC<AdminAppLayoutProps> = ({ children }) => {
               to={isSuperadmin ? '/superadmin/dashboard' : '/admin/dashboard'}
               className="portal-header__brand-mobile"
             >
-              <GraduationCap size={20} className="text-primary" />
+              <GraduationCap size={20} className="core-text--primary" />
               <span>QuizApp</span>
             </Link>
             <span className="portal-role-badge">
@@ -488,7 +488,7 @@ export const AdminAppLayout: FC<AdminAppLayoutProps> = ({ children }) => {
               <p className="portal-more-sheet__group-label">Session</p>
               <a
                 href="/logout/"
-                className="portal-more-sheet__item text-danger"
+                className="portal-more-sheet__item core-text--danger"
                 onClick={() => setIsMoreOpen(false)}
               >
                 <LogOut size={18} />

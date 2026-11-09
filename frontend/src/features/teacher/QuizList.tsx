@@ -38,10 +38,10 @@ export const QuizList: React.FC = () => {
       sortable: true,
       accessor: (row) => (
         <div>
-          <Link to={`/teacher/quizzes/${row.id}`} className="fw-bold text-dark text-decoration-none">
+          <Link to={`/teacher/quizzes/${row.id}`} className="core-type--weight-bold core-text--dark core-text--decoration-none">
             {row.title}
           </Link>
-          <div className="small text-muted">{row.subject_name || 'General Subject'}</div>
+          <div className="core-type--small core-text--muted">{row.subject_name || 'General Subject'}</div>
         </div>
       ),
     },
@@ -50,9 +50,9 @@ export const QuizList: React.FC = () => {
       header: 'Academic Term',
       sortable: true,
       accessor: (row) => (
-        <div className="small">
+        <div className="core-type--small">
           <div>{row.academic_year || '—'}</div>
-          {row.term && <span className="text-muted">{row.term}</span>}
+          {row.term && <span className="core-text--muted">{row.term}</span>}
         </div>
       ),
     },
@@ -61,9 +61,9 @@ export const QuizList: React.FC = () => {
       header: 'Timing & Marks',
       sortable: true,
       accessor: (row) => (
-        <div className="small">
+        <div className="core-type--small">
           <div>{row.duration_minutes ? `${row.duration_minutes} mins` : 'No limit'}</div>
-          <span className="text-muted">{row.total_questions} Qs · {row.total_marks} Marks</span>
+          <span className="core-text--muted">{row.total_questions} Qs · {row.total_marks} Marks</span>
         </div>
       ),
     },
@@ -74,11 +74,11 @@ export const QuizList: React.FC = () => {
       align: 'center',
       accessor: (row) => (
         <div>
-          <span className="badge bg-primary-subtle text-primary border">
+          <span className="core-badge core-surface--primary-subtle core-text--primary core-border">
             {row.total_attempts} attempts
           </span>
           {row.total_attempts > 0 && (
-            <div className="small text-muted mt-1">Avg: {row.avg_score}%</div>
+            <div className="core-type--small core-text--muted core-space--margin-top-1">Avg: {row.avg_score}%</div>
           )}
         </div>
       ),
@@ -90,12 +90,12 @@ export const QuizList: React.FC = () => {
       align: 'center',
       accessor: (row) => (
         <span
-          className={`badge ${
+          className={`core-badge ${
             row.status === 'published'
-              ? 'bg-success'
+              ? 'core-surface--success'
               : row.status === 'draft'
-              ? 'bg-warning text-dark'
-              : 'bg-secondary'
+              ? 'core-surface--warning core-text--dark'
+              : 'core-surface--secondary'
           }`}
         >
           {row.status}
@@ -107,11 +107,11 @@ export const QuizList: React.FC = () => {
       header: 'Actions',
       align: 'center',
       accessor: (row) => (
-        <div className="d-flex justify-content-center gap-1">
-          <Link to={`/teacher/quizzes/${row.id}`} className="btn btn-sm btn-outline-primary py-0 px-2">
+        <div className="core-display-flex core-layout--justify-center core-layout--gap-1">
+          <Link to={`/teacher/quizzes/${row.id}`} className="core-button core-button--sm core-button--outline-primary core-space--padding-y-0 core-space--padding-x-2">
             Details
           </Link>
-          <Link to={`/teacher/quizzes/${row.id}/edit`} className="btn btn-sm btn-outline-secondary py-0 px-2">
+          <Link to={`/teacher/quizzes/${row.id}/edit`} className="core-button core-button--sm core-button--outline-secondary core-space--padding-y-0 core-space--padding-x-2">
             Edit
           </Link>
         </div>
@@ -120,19 +120,19 @@ export const QuizList: React.FC = () => {
   ];
 
   return (
-    <div className="assessment-page container-fluid py-4" data-testid="teacher-quiz-list">
-      <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div className="assessment-page core-container core-space--padding-y-4" data-testid="teacher-quiz-list">
+      <div className="core-display-flex core-layout--wrap core-layout--justify-between core-layout--align-center core-space--margin-bottom-4 core-layout--gap-3">
         <div>
-          <h2 className="h3 fw-bold text-dark mb-1">Quiz Catalog</h2>
-          <p className="text-muted mb-0">
+          <h2 className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-bottom-1">Quiz Catalog</h2>
+          <p className="core-text--muted core-space--margin-bottom-0">
             View, search, and inspect your quizzes and assessments
           </p>
         </div>
-        <div className="d-flex gap-2">
+        <div className="core-display-flex core-layout--gap-2">
           <Button variant="secondary" size="sm" onClick={loadQuizzes} disabled={loading}>
             Refresh
           </Button>
-          <Link to="/teacher/quizzes/new" className="btn btn-sm btn-primary">Create Quiz</Link>
+          <Link to="/teacher/quizzes/new" className="core-button core-button--sm core-button--primary">Create Quiz</Link>
         </div>
       </div>
 
@@ -143,14 +143,14 @@ export const QuizList: React.FC = () => {
       )}
 
       {/* Filter Tabs */}
-      <div className="btn-group mb-4" role="group" aria-label="Status filters">
+      <div className="core-button-group core-space--margin-bottom-4" role="group" aria-label="Status filters">
         {['all', 'published', 'draft', 'archived'].map((status) => (
           <button
             key={status}
             type="button"
-            className={`btn btn-sm ${
-              statusFilter === status ? 'btn-primary' : 'btn-outline-secondary'
-            } text-capitalize`}
+            className={`core-button core-button--sm ${
+              statusFilter === status ? 'core-button--primary' : 'core-button--outline-secondary'
+            } core-text--capitalize`}
             onClick={() => setStatusFilter(status)}
           >
             {status}
@@ -158,8 +158,8 @@ export const QuizList: React.FC = () => {
         ))}
       </div>
 
-      <div className="card shadow-sm border-0">
-        <div className="card-body p-0">
+      <div className="core-card core-shadow--sm core-border--none">
+        <div className="core-card__body core-space--padding-0">
           <DataTable<QuizListItem>
             columns={columns}
             data={quizzes}

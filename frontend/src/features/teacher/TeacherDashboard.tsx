@@ -1,3 +1,4 @@
+import { AppIcon } from '../../components/common/AppIcon';
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchTeacherDashboard } from '../../api/teacher';
@@ -29,17 +30,17 @@ export const TeacherDashboard: React.FC = () => {
   }, [loadDashboard]);
 
   return (
-    <div className="container-fluid py-4" data-testid="teacher-dashboard">
-      <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div className="core-container core-space--padding-y-4" data-testid="teacher-dashboard">
+      <div className="core-display-flex core-layout--wrap core-layout--justify-between core-layout--align-center core-space--margin-bottom-4 core-layout--gap-3">
         <div>
-          <h2 className="h3 fw-bold text-dark mb-1">
+          <h2 className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-bottom-1">
             {data?.teacher_name ? `${data.teacher_name} — Teaching Workspace` : 'Teaching Workspace'}
           </h2>
-          <p className="text-muted mb-0">
+          <p className="core-text--muted core-space--margin-bottom-0">
             Assessment management, grading queue, and student performance metrics
           </p>
         </div>
-        <div className="d-flex gap-2">
+        <div className="core-display-flex core-layout--gap-2">
           <Button variant="secondary" size="sm" onClick={loadDashboard} disabled={loading}>
             Refresh
           </Button>
@@ -53,42 +54,42 @@ export const TeacherDashboard: React.FC = () => {
       )}
 
       {loading && !data ? (
-        <div className="d-flex justify-content-center py-5">
+        <div className="core-display-flex core-layout--justify-center core-space--padding-y-5">
           <LoadingSpinner size="lg" message="Loading teaching workspace..." />
         </div>
       ) : (
         <>
           {/* Quick Shortcuts Row */}
-          <div className="d-flex flex-wrap gap-2 mb-4" aria-label="Quick teaching shortcuts">
-            <Link to="/teacher/quizzes" className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 rounded-pill px-3">
-              <i className="bi bi-patch-question" aria-hidden="true" /> Quiz Catalog
+          <div className="core-display-flex core-layout--wrap core-layout--gap-2 core-space--margin-bottom-4" aria-label="Quick teaching shortcuts">
+            <Link to="/teacher/quizzes" className="core-button core-button--sm core-button--outline-primary core-display-inline-flex core-layout--align-center core-layout--gap-1 core-radius--pill core-space--padding-x-3">
+              <AppIcon name="badgeHelp" aria-hidden="true" /> Quiz Catalog
             </Link>
-            <Link to="/teacher/quizzes/new" className="btn btn-sm btn-primary d-inline-flex align-items-center gap-1 rounded-pill px-3">
-              <i className="bi bi-plus-circle" aria-hidden="true" /> Create Quiz
+            <Link to="/teacher/quizzes/new" className="core-button core-button--sm core-button--primary core-display-inline-flex core-layout--align-center core-layout--gap-1 core-radius--pill core-space--padding-x-3">
+              <AppIcon name="circlePlus" aria-hidden="true" /> Create Quiz
             </Link>
-            <Link to="/teacher/grading" className="btn btn-sm btn-outline-warning text-dark d-inline-flex align-items-center gap-1 rounded-pill px-3">
-              <i className="bi bi-pencil-square" aria-hidden="true" /> Grading Queue
+            <Link to="/teacher/grading" className="core-button core-button--sm core-button--outline-warning core-text--dark core-display-inline-flex core-layout--align-center core-layout--gap-1 core-radius--pill core-space--padding-x-3">
+              <AppIcon name="squarePen" aria-hidden="true" /> Grading Queue
             </Link>
-            <Link to="/teacher/results" className="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1 rounded-pill px-3">
-              <i className="bi bi-bar-chart" aria-hidden="true" /> Results & Reports
+            <Link to="/teacher/results" className="core-button core-button--sm core-button--outline-success core-display-inline-flex core-layout--align-center core-layout--gap-1 core-radius--pill core-space--padding-x-3">
+              <AppIcon name="chartColumn" aria-hidden="true" /> Results & Reports
             </Link>
           </div>
 
           {/* Primary Action Card */}
-          <div className="card shadow-sm border-0 mb-4 p-4" style={{ background: 'linear-gradient(135deg, #0f2942 0%, #1e3a5f 100%)', color: '#ffffff', borderRadius: '12px' }}>
-            <div className="d-flex flex-wrap justify-content-between align-items-center gap-3">
+          <div className="core-card core-shadow--sm core-border--none core-space--margin-bottom-4 core-space--padding-4" style={{ background: 'linear-gradient(135deg, #0f2942 0%, #1e3a5f 100%)', color: '#ffffff', borderRadius: '12px' }}>
+            <div className="core-display-flex core-layout--wrap core-layout--justify-between core-layout--align-center core-layout--gap-3">
               <div>
-                <span className="badge bg-info text-dark rounded-pill px-3 py-1 mb-2 fw-semibold">Teaching Workspace</span>
-                <h3 className="h4 fw-bold text-white mb-1">Assessment Builder & Evaluation</h3>
-                <p className="mb-0 text-white-50" style={{ maxWidth: '650px' }}>
+                <span className="core-badge core-surface--info core-text--dark core-radius--pill core-space--padding-x-3 core-space--padding-y-1 core-space--margin-bottom-2 core-type--weight-semibold">Teaching Workspace</span>
+                <h3 className="core-type--heading-4 core-type--weight-bold core-text--white core-space--margin-bottom-1">Assessment Builder & Evaluation</h3>
+                <p className="core-space--margin-bottom-0 core-text--white-50" style={{ maxWidth: '650px' }}>
                   Create customized quizzes, build questions with multiple answer formats, and evaluate student submissions in real time.
                 </p>
               </div>
-              <div className="d-flex flex-wrap gap-2">
-                <Link to="/teacher/quizzes/new" className="btn btn-light fw-bold px-3 py-2 text-dark">
+              <div className="core-display-flex core-layout--wrap core-layout--gap-2">
+                <Link to="/teacher/quizzes/new" className="core-button core-button--light core-type--weight-bold core-space--padding-x-3 core-space--padding-y-2 core-text--dark">
                   New Quiz &rarr;
                 </Link>
-                <Link to="/teacher/grading" className="btn btn-outline-light fw-bold px-3 py-2">
+                <Link to="/teacher/grading" className="core-button core-button--outline-light core-type--weight-bold core-space--padding-x-3 core-space--padding-y-2">
                   Open Grading
                 </Link>
               </div>
@@ -96,26 +97,26 @@ export const TeacherDashboard: React.FC = () => {
           </div>
 
           {/* Key Metric Cards */}
-          <div className="row g-4 mb-4">
-            <div className="col-12 col-sm-6 col-xl-3">
-              <div className="card shadow-sm border-0 border-start border-primary border-4 h-100">
-                <div className="card-body">
-                  <div className="d-flex justify-content-between align-items-start">
+          <div className="core-grid core-grid--gap-4 core-space--margin-bottom-4">
+            <div className="core-grid__span-12 core-grid__span-sm-6 core-grid__span-xl-3">
+              <div className="core-card core-shadow--sm core-border--none core-border--start core-border--primary core-border--width-4 core-size--height-full">
+                <div className="core-card__body">
+                  <div className="core-display-flex core-layout--justify-between core-layout--align-start">
                     <div>
-                      <div className="text-muted small text-uppercase fw-bold">My Quizzes</div>
-                      <div className="h2 fw-bold text-dark mt-2 mb-0">
+                      <div className="core-text--muted core-type--small core-text--uppercase core-type--weight-bold">My Quizzes</div>
+                      <div className="core-type--heading-2 core-type--weight-bold core-text--dark core-space--margin-top-2 core-space--margin-bottom-0">
                         {data?.total_quizzes ?? 0}
                       </div>
-                      <small className="text-muted">
+                      <small className="core-text--muted">
                         {data?.published_quizzes ?? 0} published · {data?.draft_quizzes ?? 0} draft
                       </small>
                     </div>
-                    <span className="badge bg-primary-subtle text-primary p-2">
-                      <i className="bi bi-patch-question fs-4"></i>
+                    <span className="core-badge core-surface--primary-subtle core-text--primary core-space--padding-2">
+                      <AppIcon name="badgeHelp" className="core-type--size-4" />
                     </span>
                   </div>
-                  <div className="mt-3">
-                    <Link to="/teacher/quizzes" className="small text-decoration-none fw-semibold">
+                  <div className="core-space--margin-top-3">
+                    <Link to="/teacher/quizzes" className="core-type--small core-text--decoration-none core-type--weight-semibold">
                       View All Quizzes &rarr;
                     </Link>
                   </div>
@@ -123,25 +124,25 @@ export const TeacherDashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="col-12 col-sm-6 col-xl-3">
-              <div className="card shadow-sm border-0 border-start border-success border-4 h-100">
-                <div className="card-body">
-                  <div className="d-flex justify-content-between align-items-start">
+            <div className="core-grid__span-12 core-grid__span-sm-6 core-grid__span-xl-3">
+              <div className="core-card core-shadow--sm core-border--none core-border--start core-border--success core-border--width-4 core-size--height-full">
+                <div className="core-card__body">
+                  <div className="core-display-flex core-layout--justify-between core-layout--align-start">
                     <div>
-                      <div className="text-muted small text-uppercase fw-bold">Student Attempts</div>
-                      <div className="h2 fw-bold text-dark mt-2 mb-0">
+                      <div className="core-text--muted core-type--small core-text--uppercase core-type--weight-bold">Student Attempts</div>
+                      <div className="core-type--heading-2 core-type--weight-bold core-text--dark core-space--margin-top-2 core-space--margin-bottom-0">
                         {data?.completed_attempts_count ?? 0}
                       </div>
-                      <small className="text-muted">
+                      <small className="core-text--muted">
                         {data?.total_attempts ?? 0} total submissions
                       </small>
                     </div>
-                    <span className="badge bg-success-subtle text-success p-2">
-                      <i className="bi bi-journal-check fs-4"></i>
+                    <span className="core-badge core-surface--success-subtle core-text--success core-space--padding-2">
+                      <AppIcon name="clipboardCheck" className="core-type--size-4" />
                     </span>
                   </div>
-                  <div className="mt-3">
-                    <Link to="/teacher/results" className="small text-decoration-none fw-semibold text-success">
+                  <div className="core-space--margin-top-3">
+                    <Link to="/teacher/results" className="core-type--small core-text--decoration-none core-type--weight-semibold core-text--success">
                       View Results &rarr;
                     </Link>
                   </div>
@@ -149,25 +150,25 @@ export const TeacherDashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="col-12 col-sm-6 col-xl-3">
-              <div className="card shadow-sm border-0 border-start border-warning border-4 h-100">
-                <div className="card-body">
-                  <div className="d-flex justify-content-between align-items-start">
+            <div className="core-grid__span-12 core-grid__span-sm-6 core-grid__span-xl-3">
+              <div className="core-card core-shadow--sm core-border--none core-border--start core-border--warning core-border--width-4 core-size--height-full">
+                <div className="core-card__body">
+                  <div className="core-display-flex core-layout--justify-between core-layout--align-start">
                     <div>
-                      <div className="text-muted small text-uppercase fw-bold">Needs Grading</div>
-                      <div className="h2 fw-bold text-dark mt-2 mb-0">
+                      <div className="core-text--muted core-type--small core-text--uppercase core-type--weight-bold">Needs Grading</div>
+                      <div className="core-type--heading-2 core-type--weight-bold core-text--dark core-space--margin-top-2 core-space--margin-bottom-0">
                         {data?.quizzes_needing_grading_count ?? 0}
                       </div>
-                      <small className="text-muted">
+                      <small className="core-text--muted">
                         Quizzes waiting for manual essay grading
                       </small>
                     </div>
-                    <span className="badge bg-warning-subtle text-warning p-2">
-                      <i className="bi bi-pencil-square fs-4"></i>
+                    <span className="core-badge core-surface--warning-subtle core-text--warning core-space--padding-2">
+                      <AppIcon name="squarePen" className="core-type--size-4" />
                     </span>
                   </div>
-                  <div className="mt-3">
-                    <Link to="/teacher/grading" className="small text-decoration-none fw-semibold text-warning">
+                  <div className="core-space--margin-top-3">
+                    <Link to="/teacher/grading" className="core-type--small core-text--decoration-none core-type--weight-semibold core-text--warning">
                       Open Grading Queue &rarr;
                     </Link>
                   </div>
@@ -175,25 +176,25 @@ export const TeacherDashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="col-12 col-sm-6 col-xl-3">
-              <div className="card shadow-sm border-0 border-start border-info border-4 h-100">
-                <div className="card-body">
-                  <div className="d-flex justify-content-between align-items-start">
+            <div className="core-grid__span-12 core-grid__span-sm-6 core-grid__span-xl-3">
+              <div className="core-card core-shadow--sm core-border--none core-border--start core-border--info core-border--width-4 core-size--height-full">
+                <div className="core-card__body">
+                  <div className="core-display-flex core-layout--justify-between core-layout--align-start">
                     <div>
-                      <div className="text-muted small text-uppercase fw-bold">Average Score</div>
-                      <div className="h2 fw-bold text-dark mt-2 mb-0">
+                      <div className="core-text--muted core-type--small core-text--uppercase core-type--weight-bold">Average Score</div>
+                      <div className="core-type--heading-2 core-type--weight-bold core-text--dark core-space--margin-top-2 core-space--margin-bottom-0">
                         {data?.avg_score ? `${data.avg_score}%` : '0%'}
                       </div>
-                      <small className="text-muted">
+                      <small className="core-text--muted">
                         Across all completed student attempts
                       </small>
                     </div>
-                    <span className="badge bg-info-subtle text-info p-2">
-                      <i className="bi bi-graph-up fs-4"></i>
+                    <span className="core-badge core-surface--info-subtle core-text--info core-space--padding-2">
+                      <AppIcon name="chartUp" className="core-type--size-4" />
                     </span>
                   </div>
-                  <div className="mt-3">
-                    <Link to="/teacher/results" className="small text-decoration-none fw-semibold text-info">
+                  <div className="core-space--margin-top-3">
+                    <Link to="/teacher/results" className="core-type--small core-text--decoration-none core-type--weight-semibold core-text--info">
                       Analytics Breakdown &rarr;
                     </Link>
                   </div>
@@ -203,47 +204,47 @@ export const TeacherDashboard: React.FC = () => {
           </div>
 
           {/* Quick Action Navigation */}
-          <div className="card shadow-sm border-0 mb-4">
-            <div className="card-header bg-white border-bottom py-3">
-              <h5 className="mb-0 fw-bold text-dark">Teacher Assessment Tools</h5>
+          <div className="core-card core-shadow--sm core-border--none core-space--margin-bottom-4">
+            <div className="core-card__header core-surface--white core-border--bottom core-space--padding-y-3">
+              <h5 className="core-space--margin-bottom-0 core-type--weight-bold core-text--dark">Teacher Assessment Tools</h5>
             </div>
-            <div className="card-body">
-              <div className="row g-3">
-                <div className="col-12 col-md-4">
-                  <div className="p-3 border rounded bg-light h-100 d-flex flex-column justify-content-between">
+            <div className="core-card__body">
+              <div className="core-grid core-grid--gap-3">
+                <div className="core-grid__span-12 core-grid__span-md-4">
+                  <div className="core-space--padding-3 core-border core-radius core-surface--light core-size--height-full core-display-flex core-layout--column core-layout--justify-between">
                     <div>
-                      <h6 className="fw-bold mb-1">Quiz Catalog</h6>
-                      <p className="small text-muted mb-3">
+                      <h6 className="core-type--weight-bold core-space--margin-bottom-1">Quiz Catalog</h6>
+                      <p className="core-type--small core-text--muted core-space--margin-bottom-3">
                         Review published and draft assessments, manage questions, and preview layouts.
                       </p>
                     </div>
-                    <Link to="/teacher/quizzes" className="btn btn-sm btn-primary align-self-start">
+                    <Link to="/teacher/quizzes" className="core-button core-button--sm core-button--primary core-layout--self-start">
                       Open Quiz Catalog
                     </Link>
                   </div>
                 </div>
-                <div className="col-12 col-md-4">
-                  <div className="p-3 border rounded bg-light h-100 d-flex flex-column justify-content-between">
+                <div className="core-grid__span-12 core-grid__span-md-4">
+                  <div className="core-space--padding-3 core-border core-radius core-surface--light core-size--height-full core-display-flex core-layout--column core-layout--justify-between">
                     <div>
-                      <h6 className="fw-bold mb-1">Manual Grading Queue</h6>
-                      <p className="small text-muted mb-3">
+                      <h6 className="core-type--weight-bold core-space--margin-bottom-1">Manual Grading Queue</h6>
+                      <p className="core-type--small core-text--muted core-space--margin-bottom-3">
                         Evaluate student essay responses, assign marks, and provide constructive feedback.
                       </p>
                     </div>
-                    <Link to="/teacher/grading" className="btn btn-sm btn-warning align-self-start">
+                    <Link to="/teacher/grading" className="core-button core-button--sm core-button--warning core-layout--self-start">
                       Open Grading Queue
                     </Link>
                   </div>
                 </div>
-                <div className="col-12 col-md-4">
-                  <div className="p-3 border rounded bg-light h-100 d-flex flex-column justify-content-between">
+                <div className="core-grid__span-12 core-grid__span-md-4">
+                  <div className="core-space--padding-3 core-border core-radius core-surface--light core-size--height-full core-display-flex core-layout--column core-layout--justify-between">
                     <div>
-                      <h6 className="fw-bold mb-1">Results & Performance</h6>
-                      <p className="small text-muted mb-3">
+                      <h6 className="core-type--weight-bold core-space--margin-bottom-1">Results & Performance</h6>
+                      <p className="core-type--small core-text--muted core-space--margin-bottom-3">
                         Analyze class pass rates, individual scores, and submission history.
                       </p>
                     </div>
-                    <Link to="/teacher/results" className="btn btn-sm btn-success align-self-start">
+                    <Link to="/teacher/results" className="core-button core-button--sm core-button--success core-layout--self-start">
                       View Results
                     </Link>
                   </div>
@@ -253,35 +254,35 @@ export const TeacherDashboard: React.FC = () => {
           </div>
 
           {/* Recent Quizzes & Recent Attempts Grid */}
-          <div className="row g-4 mb-4">
-            <div className="col-12 col-lg-6">
-              <div className="card shadow-sm border-0 h-100">
-                <div className="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
-                  <h6 className="mb-0 fw-bold text-dark">Recent Quizzes</h6>
-                  <Link to="/teacher/quizzes" className="small text-decoration-none">
+          <div className="core-grid core-grid--gap-4 core-space--margin-bottom-4">
+            <div className="core-grid__span-12 core-grid__span-lg-6">
+              <div className="core-card core-shadow--sm core-border--none core-size--height-full">
+                <div className="core-card__header core-surface--white core-border--bottom core-space--padding-y-3 core-display-flex core-layout--justify-between core-layout--align-center">
+                  <h6 className="core-space--margin-bottom-0 core-type--weight-bold core-text--dark">Recent Quizzes</h6>
+                  <Link to="/teacher/quizzes" className="core-type--small core-text--decoration-none">
                     View all &rarr;
                   </Link>
                 </div>
-                <div className="card-body p-0">
+                <div className="core-card__body core-space--padding-0">
                   {data?.recent_quizzes && data.recent_quizzes.length > 0 ? (
-                    <div className="list-group list-group-flush">
+                    <div className="core-list core-list--flush">
                       {data.recent_quizzes.map((quiz) => (
-                        <div key={quiz.id} className="list-group-item d-flex justify-content-between align-items-center p-3">
+                        <div key={quiz.id} className="core-list__item core-display-flex core-layout--justify-between core-layout--align-center core-space--padding-3">
                           <div>
-                            <Link to={`/teacher/quizzes/${quiz.id}`} className="fw-bold text-dark text-decoration-none">
+                            <Link to={`/teacher/quizzes/${quiz.id}`} className="core-type--weight-bold core-text--dark core-text--decoration-none">
                               {quiz.title}
                             </Link>
-                            <div className="small text-muted mt-1">
+                            <div className="core-type--small core-text--muted core-space--margin-top-1">
                               {quiz.subject_name} · {quiz.total_questions} questions · {quiz.total_marks} marks
                             </div>
                           </div>
                           <span
-                            className={`badge ${
+                            className={`core-badge ${
                               quiz.status === 'published'
-                                ? 'bg-success'
+                                ? 'core-surface--success'
                                 : quiz.status === 'draft'
-                                ? 'bg-warning text-dark'
-                                : 'bg-secondary'
+                                ? 'core-surface--warning core-text--dark'
+                                : 'core-surface--secondary'
                             }`}
                           >
                             {quiz.status}
@@ -290,37 +291,37 @@ export const TeacherDashboard: React.FC = () => {
                       ))}
                     </div>
                   ) : (
-                    <div className="p-4 text-center text-muted small">No quizzes created yet.</div>
+                    <div className="core-space--padding-4 core-text--center core-text--muted core-type--small">No quizzes created yet.</div>
                   )}
                 </div>
               </div>
             </div>
 
-            <div className="col-12 col-lg-6">
-              <div className="card shadow-sm border-0 h-100">
-                <div className="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
-                  <h6 className="mb-0 fw-bold text-dark">Recent Submissions</h6>
-                  <Link to="/teacher/results" className="small text-decoration-none">
+            <div className="core-grid__span-12 core-grid__span-lg-6">
+              <div className="core-card core-shadow--sm core-border--none core-size--height-full">
+                <div className="core-card__header core-surface--white core-border--bottom core-space--padding-y-3 core-display-flex core-layout--justify-between core-layout--align-center">
+                  <h6 className="core-space--margin-bottom-0 core-type--weight-bold core-text--dark">Recent Submissions</h6>
+                  <Link to="/teacher/results" className="core-type--small core-text--decoration-none">
                     View all &rarr;
                   </Link>
                 </div>
-                <div className="card-body p-0">
+                <div className="core-card__body core-space--padding-0">
                   {data?.recent_attempts && data.recent_attempts.length > 0 ? (
-                    <div className="list-group list-group-flush">
+                    <div className="core-list core-list--flush">
                       {data.recent_attempts.map((att) => (
-                        <div key={att.id} className="list-group-item d-flex justify-content-between align-items-center p-3">
+                        <div key={att.id} className="core-list__item core-display-flex core-layout--justify-between core-layout--align-center core-space--padding-3">
                           <div>
-                            <div className="fw-semibold text-dark">{att.student_name}</div>
-                            <div className="small text-muted mt-1">
+                            <div className="core-type--weight-semibold core-text--dark">{att.student_name}</div>
+                            <div className="core-type--small core-text--muted core-space--margin-top-1">
                               {att.quiz_title} · {att.admission_number}
                             </div>
                           </div>
-                          <div className="text-end">
-                            <span className="badge bg-primary-subtle text-primary border fw-bold">
+                          <div className="core-text--end">
+                            <span className="core-badge core-surface--primary-subtle core-text--primary core-border core-type--weight-bold">
                               {att.score}/{att.total_marks} ({att.percentage}%)
                             </span>
                             <div>
-                              <small className="text-muted">
+                              <small className="core-text--muted">
                                 {att.is_graded ? 'Graded' : 'Needs Review'}
                               </small>
                             </div>
@@ -329,7 +330,7 @@ export const TeacherDashboard: React.FC = () => {
                       ))}
                     </div>
                   ) : (
-                    <div className="p-4 text-center text-muted small">No student attempts recorded yet.</div>
+                    <div className="core-space--padding-4 core-text--center core-text--muted core-type--small">No student attempts recorded yet.</div>
                   )}
                 </div>
               </div>

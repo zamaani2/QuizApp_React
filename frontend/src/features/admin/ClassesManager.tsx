@@ -1,3 +1,4 @@
+import { AppIcon } from '../../components/common/AppIcon';
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { academicApi } from '../../api/academic';
@@ -186,7 +187,7 @@ export const ClassesManager: React.FC = () => {
       sortable: true,
       accessor: (row) => (
         <span className="academic-admin__date-range">
-          <i className="bi bi-calendar3" aria-hidden="true" />{' '}
+          <AppIcon name="calendarDays" aria-hidden="true" />{' '}
           {row.academic_year_name || '—'}
         </span>
       ),
@@ -214,7 +215,7 @@ export const ClassesManager: React.FC = () => {
       sortable: true,
       accessor: (row) => (
         <span className="academic-admin__status academic-admin__status--info">
-          <i className="bi bi-journal-bookmark" aria-hidden="true" />{' '}
+          <AppIcon name="bookMarked" aria-hidden="true" />{' '}
           {row.subject_count} Assigned
         </span>
       ),
@@ -230,7 +231,7 @@ export const ClassesManager: React.FC = () => {
             className="core-button core-button--outline-primary core-button--sm"
             title="View Class Details & Assign Subjects"
           >
-            <i className="bi bi-eye" aria-hidden="true" />{' '}
+            <AppIcon name="eye" aria-hidden="true" />{' '}
             Details
           </Link>
           <Button
@@ -239,7 +240,7 @@ export const ClassesManager: React.FC = () => {
             onClick={() => openEditModal(row)}
             title="Edit Class"
           >
-            <i className="bi bi-pencil" />
+            <AppIcon name="pencil" />
           </Button>
           {row.is_active ? (
             <Button
@@ -248,7 +249,7 @@ export const ClassesManager: React.FC = () => {
               onClick={() => setArchiveTarget(row)}
               title="Archive Class"
             >
-              <i className="bi bi-archive" />
+              <AppIcon name="archive" />
             </Button>
           ) : (
             <Button
@@ -257,7 +258,7 @@ export const ClassesManager: React.FC = () => {
               onClick={() => setRestoreTarget(row)}
               title="Restore Class"
             >
-              <i className="bi bi-arrow-counterclockwise" />
+              <AppIcon name="rotateCounterclockwise" />
             </Button>
           )}
         </div>
@@ -278,7 +279,7 @@ export const ClassesManager: React.FC = () => {
 
         <div className="academic-admin__heading-actions">
           <Button variant="primary" size="sm" onClick={openCreateModal}>
-            <i className="bi bi-plus-lg me-1" />
+            <AppIcon name="plus" className="core-space--margin-end-1" />
             Add Class
           </Button>
         </div>
@@ -380,7 +381,7 @@ export const ClassesManager: React.FC = () => {
             onClick={loadData}
             loading={loading}
           >
-            <i className="bi bi-arrow-repeat me-1" />
+            <AppIcon name="refresh" className="core-space--margin-end-1" />
             Refresh
           </Button>
       </section>

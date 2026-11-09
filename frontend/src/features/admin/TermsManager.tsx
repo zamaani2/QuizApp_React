@@ -1,3 +1,4 @@
+import { AppIcon } from '../../components/common/AppIcon';
 import React, { useEffect, useState, useCallback } from 'react';
 import { academicApi } from '../../api/academic';
 import type { Term, TermInput, StructureLookups } from '../../types';
@@ -165,7 +166,7 @@ export const TermsManager: React.FC = () => {
           <span>{row.term_display || `Term ${row.term_number}`}</span>
           {row.is_current && (
             <span className="academic-admin__status academic-admin__status--current">
-              <i className="bi bi-check-circle-fill" aria-hidden="true" />
+              <AppIcon name="circleCheck" aria-hidden="true" />
               Active Term
             </span>
           )}
@@ -178,7 +179,7 @@ export const TermsManager: React.FC = () => {
       sortable: true,
       accessor: (row) => (
         <span className="academic-admin__status academic-admin__status--year">
-          <i className="bi bi-calendar3" aria-hidden="true" />{' '}
+          <AppIcon name="calendarDays" aria-hidden="true" />{' '}
           {row.academic_year_name}
         </span>
       ),
@@ -189,7 +190,7 @@ export const TermsManager: React.FC = () => {
       sortable: true,
       accessor: (row) => (
         <span className="academic-admin__date-range">
-          <i className="bi bi-clock" aria-hidden="true" />{' '}
+          <AppIcon name="clock" aria-hidden="true" />{' '}
           {row.start_date} &rarr; {row.end_date}
         </span>
       ),
@@ -207,7 +208,7 @@ export const TermsManager: React.FC = () => {
               onClick={() => setSetCurrentTarget(row)}
               title="Set as Current Active Term"
             >
-              <i className="bi bi-check2-circle me-1" />
+              <AppIcon name="circleCheck" className="core-space--margin-end-1" />
               Set Current
             </Button>
           )}
@@ -217,7 +218,7 @@ export const TermsManager: React.FC = () => {
             onClick={() => openEditModal(row)}
             title="Edit Term"
           >
-            <i className="bi bi-pencil" />
+            <AppIcon name="pencil" />
           </Button>
           <Button
             variant="outline-danger"
@@ -225,7 +226,7 @@ export const TermsManager: React.FC = () => {
             onClick={() => setDeleteTarget(row)}
             title="Delete Term"
           >
-            <i className="bi bi-trash" />
+            <AppIcon name="trash" />
           </Button>
         </div>
       ),
@@ -245,7 +246,7 @@ export const TermsManager: React.FC = () => {
 
         <div className="academic-admin__heading-actions">
           <Button variant="primary" size="sm" onClick={openCreateModal}>
-            <i className="bi bi-plus-lg me-1" />
+            <AppIcon name="plus" className="core-space--margin-end-1" />
             New Term
           </Button>
         </div>
@@ -303,7 +304,7 @@ export const TermsManager: React.FC = () => {
             onClick={loadData}
             loading={loading}
           >
-            <i className="bi bi-arrow-repeat" aria-hidden="true" />{' '}
+            <AppIcon name="refresh" aria-hidden="true" />{' '}
             Refresh
           </Button>
       </section>

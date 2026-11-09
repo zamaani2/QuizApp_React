@@ -37,8 +37,8 @@ export const GradingQueue: React.FC = () => {
       sortable: true,
       accessor: (row) => (
         <div>
-          <span className="fw-semibold text-dark">{row.student_name}</span>
-          <div className="small text-muted">{row.admission_number} · {row.class_name}</div>
+          <span className="core-type--weight-semibold core-text--dark">{row.student_name}</span>
+          <div className="core-type--small core-text--muted">{row.admission_number} · {row.class_name}</div>
         </div>
       ),
     },
@@ -46,7 +46,7 @@ export const GradingQueue: React.FC = () => {
       id: 'quiz',
       header: 'Quiz',
       sortable: true,
-      accessor: (row) => <span className="fw-medium text-dark">{row.quiz_title}</span>,
+      accessor: (row) => <span className="core-type--weight-medium core-text--dark">{row.quiz_title}</span>,
     },
     {
       id: 'ungraded',
@@ -54,7 +54,7 @@ export const GradingQueue: React.FC = () => {
       sortable: true,
       align: 'center',
       accessor: (row) => (
-        <span className="badge bg-warning-subtle text-warning-emphasis border">
+        <span className="core-badge core-surface--warning-subtle core-text--warning-emphasis core-border">
           {row.ungraded_responses_count} essay {row.ungraded_responses_count === 1 ? 'question' : 'questions'}
         </span>
       ),
@@ -65,7 +65,7 @@ export const GradingQueue: React.FC = () => {
       sortable: true,
       accessor: (row) => {
         if (!row.submitted_at) return '—';
-        return <small className="text-muted">{row.submitted_at.split('T')[0]}</small>;
+        return <small className="core-text--muted">{row.submitted_at.split('T')[0]}</small>;
       },
     },
     {
@@ -73,7 +73,7 @@ export const GradingQueue: React.FC = () => {
       header: 'Actions',
       align: 'center',
       accessor: (row) => (
-        <Link to={`/teacher/grading/${row.id}`} className="btn btn-sm btn-primary py-0 px-2">
+        <Link to={`/teacher/grading/${row.id}`} className="core-button core-button--sm core-button--primary core-space--padding-y-0 core-space--padding-x-2">
           Grade &rarr;
         </Link>
       ),
@@ -81,15 +81,15 @@ export const GradingQueue: React.FC = () => {
   ];
 
   return (
-    <div className="assessment-page container-fluid py-4" data-testid="teacher-grading-queue">
-      <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div className="assessment-page core-container core-space--padding-y-4" data-testid="teacher-grading-queue">
+      <div className="core-display-flex core-layout--wrap core-layout--justify-between core-layout--align-center core-space--margin-bottom-4 core-layout--gap-3">
         <div>
-          <h2 className="h3 fw-bold text-dark mb-1">Manual Grading Queue</h2>
-          <p className="text-muted mb-0">
+          <h2 className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-bottom-1">Manual Grading Queue</h2>
+          <p className="core-text--muted core-space--margin-bottom-0">
             Student submissions with essay questions awaiting instructor evaluation
           </p>
         </div>
-        <div className="d-flex gap-2">
+        <div className="core-display-flex core-layout--gap-2">
           <Button variant="secondary" size="sm" onClick={loadQueue} disabled={loading}>
             Refresh
           </Button>
@@ -103,27 +103,27 @@ export const GradingQueue: React.FC = () => {
       )}
 
       {/* Metrics */}
-      <div className="row g-3 mb-4">
-        <div className="col-12 col-sm-6">
-          <div className="card shadow-sm border-0 border-start border-warning border-4">
-            <div className="card-body">
-              <div className="text-muted small text-uppercase fw-bold">Attempts to Grade</div>
-              <div className="h3 fw-bold text-dark mt-2 mb-0">{items.length}</div>
+      <div className="core-grid core-grid--gap-3 core-space--margin-bottom-4">
+        <div className="core-grid__span-12 core-grid__span-sm-6">
+          <div className="core-card core-shadow--sm core-border--none core-border--start core-border--warning core-border--width-4">
+            <div className="core-card__body">
+              <div className="core-text--muted core-type--small core-text--uppercase core-type--weight-bold">Attempts to Grade</div>
+              <div className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-top-2 core-space--margin-bottom-0">{items.length}</div>
             </div>
           </div>
         </div>
-        <div className="col-12 col-sm-6">
-          <div className="card shadow-sm border-0 border-start border-primary border-4">
-            <div className="card-body">
-              <div className="text-muted small text-uppercase fw-bold">Affected Quizzes</div>
-              <div className="h3 fw-bold text-dark mt-2 mb-0">{uniqueQuizzesCount}</div>
+        <div className="core-grid__span-12 core-grid__span-sm-6">
+          <div className="core-card core-shadow--sm core-border--none core-border--start core-border--primary core-border--width-4">
+            <div className="core-card__body">
+              <div className="core-text--muted core-type--small core-text--uppercase core-type--weight-bold">Affected Quizzes</div>
+              <div className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-top-2 core-space--margin-bottom-0">{uniqueQuizzesCount}</div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="card shadow-sm border-0">
-        <div className="card-body p-0">
+      <div className="core-card core-shadow--sm core-border--none">
+        <div className="core-card__body core-space--padding-0">
           <DataTable<GradingQueueItem>
             columns={columns}
             data={items}

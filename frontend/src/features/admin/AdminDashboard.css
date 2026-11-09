@@ -73,7 +73,7 @@
   font-weight: 600;
 }
 
-.admin-dashboard__period-chip i {
+.admin-dashboard__period-chip .app-icon {
   color: var(--qa-sky, #0284c7);
 }
 
@@ -322,7 +322,7 @@
   transition: all 140ms ease;
 }
 
-.admin-workflow__links a > i {
+.admin-workflow__links a > .app-icon {
   color: var(--qa-sky, #0284c7);
   font-size: 13px;
 }

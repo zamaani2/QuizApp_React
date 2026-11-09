@@ -59,11 +59,11 @@ export const SchoolList: React.FC = () => {
       sortable: true,
       accessor: (row) => (
         <div>
-          <Link to={`/superadmin/schools/${row.id}`} className="fw-bold text-dark">
+          <Link to={`/superadmin/schools/${row.id}`} className="core-type--weight-bold core-text--dark">
             {row.name}
           </Link>
           {row.short_name && (
-            <span className="badge bg-light text-secondary ms-2 border">{row.short_name}</span>
+            <span className="core-badge core-surface--light core-text--secondary core-space--margin-start-2 core-border">{row.short_name}</span>
           )}
         </div>
       ),
@@ -72,7 +72,7 @@ export const SchoolList: React.FC = () => {
       id: 'school_code',
       header: 'School Code',
       sortable: true,
-      accessor: (row) => <code className="text-primary">{row.school_code || '—'}</code>,
+      accessor: (row) => <code className="core-text--primary">{row.school_code || '—'}</code>,
     },
     {
       id: 'address',
@@ -94,9 +94,9 @@ export const SchoolList: React.FC = () => {
       id: 'contact',
       header: 'Contact Info',
       accessor: (row) => (
-        <div className="small">
+        <div className="core-type--small">
           {row.email && <div>{row.email}</div>}
-          {row.phone_number && <div className="text-muted">{row.phone_number}</div>}
+          {row.phone_number && <div className="core-text--muted">{row.phone_number}</div>}
         </div>
       ),
     },
@@ -105,14 +105,14 @@ export const SchoolList: React.FC = () => {
       header: 'Enrollment',
       align: 'center',
       accessor: (row) => (
-        <div className="d-flex justify-content-center gap-2 small">
-          <span className="badge bg-primary-subtle text-primary border" title="Students">
+        <div className="core-display-flex core-layout--justify-center core-layout--gap-2 core-type--small">
+          <span className="core-badge core-surface--primary-subtle core-text--primary core-border" title="Students">
             {row.total_students} Students
           </span>
-          <span className="badge bg-success-subtle text-success border" title="Teachers">
+          <span className="core-badge core-surface--success-subtle core-text--success core-border" title="Teachers">
             {row.total_teachers} Teachers
           </span>
-          <span className="badge bg-info-subtle text-info border" title="Classes">
+          <span className="core-badge core-surface--info-subtle core-text--info core-border" title="Classes">
             {row.total_classes} Classes
           </span>
         </div>
@@ -124,7 +124,7 @@ export const SchoolList: React.FC = () => {
       sortable: true,
       align: 'center',
       accessor: (row) => (
-        <span className={`badge ${row.is_active ? 'bg-success' : 'bg-secondary'}`}>
+        <span className={`core-badge ${row.is_active ? 'core-surface--success' : 'core-surface--secondary'}`}>
           {row.is_active ? 'Active' : 'Inactive'}
         </span>
       ),
@@ -133,11 +133,11 @@ export const SchoolList: React.FC = () => {
       id: 'actions',
       header: 'Actions',
       accessor: (row) => (
-        <div className="d-flex flex-wrap gap-2">
-          <Link className="btn btn-sm btn-outline-primary" to={`/superadmin/schools/${row.id}`}>
+        <div className="core-display-flex core-layout--wrap core-layout--gap-2">
+          <Link className="core-button core-button--sm core-button--outline-primary" to={`/superadmin/schools/${row.id}`}>
             View
           </Link>
-          <Link className="btn btn-sm btn-outline-secondary" to={`/superadmin/schools/${row.id}/edit`}>
+          <Link className="core-button core-button--sm core-button--outline-secondary" to={`/superadmin/schools/${row.id}/edit`}>
             Edit
           </Link>
           <Button
@@ -154,19 +154,19 @@ export const SchoolList: React.FC = () => {
   ];
 
   return (
-    <div className="container-fluid py-4" data-testid="superadmin-school-list">
-      <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div className="core-container core-space--padding-y-4" data-testid="superadmin-school-list">
+      <div className="core-display-flex core-layout--wrap core-layout--justify-between core-layout--align-center core-space--margin-bottom-4 core-layout--gap-3">
         <div>
-          <h2 className="h3 fw-bold text-dark mb-1">Schools Registry</h2>
-          <p className="text-muted mb-0">
+          <h2 className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-bottom-1">Schools Registry</h2>
+          <p className="core-text--muted core-space--margin-bottom-0">
             System-wide multi-tenant school overview and statistics
           </p>
         </div>
-        <div className="d-flex gap-2">
+        <div className="core-display-flex core-layout--gap-2">
           <Button variant="secondary" size="sm" onClick={loadSchools} disabled={loading}>
             Refresh
           </Button>
-          <Link to="/superadmin/schools/new" className="btn btn-sm btn-primary">
+          <Link to="/superadmin/schools/new" className="core-button core-button--sm core-button--primary">
             Add School
           </Link>
         </div>
@@ -179,30 +179,30 @@ export const SchoolList: React.FC = () => {
       )}
 
       {/* Overview Cards */}
-      <div className="row g-3 mb-4">
-        <div className="col-12 col-sm-6 col-md-3">
-          <div className="card shadow-sm border-0 border-start border-primary border-4">
-            <div className="card-body">
-              <div className="text-muted small text-uppercase fw-bold">Total Schools</div>
-              <div className="h3 fw-bold text-dark mt-2 mb-0">{schools.length}</div>
+      <div className="core-grid core-grid--gap-3 core-space--margin-bottom-4">
+        <div className="core-grid__span-12 core-grid__span-sm-6 core-grid__span-md-3">
+          <div className="core-card core-shadow--sm core-border--none core-border--start core-border--primary core-border--width-4">
+            <div className="core-card__body">
+              <div className="core-text--muted core-type--small core-text--uppercase core-type--weight-bold">Total Schools</div>
+              <div className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-top-2 core-space--margin-bottom-0">{schools.length}</div>
             </div>
           </div>
         </div>
-        <div className="col-12 col-sm-6 col-md-3">
-          <div className="card shadow-sm border-0 border-start border-success border-4">
-            <div className="card-body">
-              <div className="text-muted small text-uppercase fw-bold">Active Schools</div>
-              <div className="h3 fw-bold text-dark mt-2 mb-0">{activeCount}</div>
+        <div className="core-grid__span-12 core-grid__span-sm-6 core-grid__span-md-3">
+          <div className="core-card core-shadow--sm core-border--none core-border--start core-border--success core-border--width-4">
+            <div className="core-card__body">
+              <div className="core-text--muted core-type--small core-text--uppercase core-type--weight-bold">Active Schools</div>
+              <div className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-top-2 core-space--margin-bottom-0">{activeCount}</div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="d-flex flex-wrap align-items-center gap-2 mb-3">
-        <label htmlFor="school-status-filter" className="fw-semibold">Filter by status</label>
+      <div className="core-display-flex core-layout--wrap core-layout--align-center core-layout--gap-2 core-space--margin-bottom-3">
+        <label htmlFor="school-status-filter" className="core-type--weight-semibold">Filter by status</label>
         <select
           id="school-status-filter"
-          className="form-select w-auto"
+          className="core-field__select core-size--width-auto"
           value={statusFilter}
           onChange={(event) => {
             const value = event.currentTarget.value;
@@ -226,8 +226,8 @@ export const SchoolList: React.FC = () => {
         </Button>
       </div>
 
-      <div className="card shadow-sm border-0">
-        <div className="card-body p-0">
+      <div className="core-card core-shadow--sm core-border--none">
+        <div className="core-card__body core-space--padding-0">
           <DataTable<SuperadminSchool>
             columns={columns}
             data={visibleSchools}

@@ -1,3 +1,4 @@
+import { AppIcon } from '../../components/common/AppIcon';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { studentApi } from '../../api/student';
@@ -31,7 +32,7 @@ export const StudentProfileView: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="d-flex justify-content-center py-5" data-testid="student-profile-loading">
+      <div className="core-display-flex core-layout--justify-center core-space--padding-y-5" data-testid="student-profile-loading">
         <LoadingSpinner size="lg" message="Loading student profile..." />
       </div>
     );
@@ -42,7 +43,7 @@ export const StudentProfileView: React.FC = () => {
       <div data-testid="student-profile-error">
         <Alert variant="danger" dismissible={false}>
           <h5>Unable to load student profile</h5>
-          <p className="mb-2">{error || 'Profile could not be retrieved.'}</p>
+          <p className="core-space--margin-bottom-2">{error || 'Profile could not be retrieved.'}</p>
           <button className="stu-btn-outline" onClick={loadProfile}>
             Retry
           </button>
@@ -60,7 +61,7 @@ export const StudentProfileView: React.FC = () => {
         <div className="stu-welcome__heading-row">
           <h1 className="stu-welcome__name">Student Profile</h1>
           <span className="stu-welcome__role-badge">
-            <i className="bi bi-mortarboard-fill" aria-hidden="true" />
+            <AppIcon name="graduationCap" aria-hidden="true" />
             <span>{academic.school_name || 'Academic Record'}</span>
           </span>
         </div>
@@ -71,13 +72,13 @@ export const StudentProfileView: React.FC = () => {
         {/* Action pills */}
         <div className="stu-shortcuts">
           <Link to="/student/quizzes" className="stu-shortcut-btn">
-            <i className="bi bi-journal-text text-primary" aria-hidden="true" /> Available Quizzes
+            <AppIcon name="bookText" className="core-text--primary" aria-hidden="true" /> Available Quizzes
           </Link>
           <Link to="/student/attempts" className="stu-shortcut-btn">
-            <i className="bi bi-award text-success" aria-hidden="true" /> My Attempts
+            <AppIcon name="award" className="core-text--success" aria-hidden="true" /> My Attempts
           </Link>
           <a href="/auth-app/?next=%2Fapp%2F" className="stu-shortcut-btn">
-            <i className="bi bi-box-arrow-right text-muted" aria-hidden="true" /> Switch Session
+            <AppIcon name="logOut" className="core-text--muted" aria-hidden="true" /> Switch Session
           </a>
         </div>
       </div>
@@ -112,14 +113,14 @@ export const StudentProfileView: React.FC = () => {
           </div>
         </div>
 
-        <div className="d-flex align-items-center gap-2 flex-wrap pt-2 border-top">
+        <div className="core-display-flex core-layout--align-center core-layout--gap-2 core-layout--wrap core-space--padding-top-2 core-border--top">
           <span className="stu-badge stu-badge--sky">{personal.gender_display}</span>
           <span className={`stu-badge ${personal.is_active ? 'stu-badge--success' : 'stu-badge--muted'}`}>
             {personal.is_active ? 'Active' : 'Archived'}
           </span>
           {personal.email && (
-            <span className="small text-muted">
-              <i className="bi bi-envelope me-1" />
+            <span className="core-type--small core-text--muted">
+              <AppIcon name="mail" className="core-space--margin-end-1" />
               {personal.email}
             </span>
           )}
@@ -127,7 +128,7 @@ export const StudentProfileView: React.FC = () => {
       </div>
 
       {/* Stats Summary Bar */}
-      <div className="stu-stats-grid mb-4">
+      <div className="stu-stats-grid core-space--margin-bottom-4">
         <div className="stu-stat-box">
           <div className="stu-stat-box__val" style={{ color: 'var(--stu-sky)' }}>
             {stats.total_completed}
@@ -166,7 +167,7 @@ export const StudentProfileView: React.FC = () => {
           className={`stu-filter-pill ${activeTab === 'academic' ? 'stu-filter-pill--active' : ''}`}
           onClick={() => setActiveTab('academic')}
         >
-          <i className="bi bi-mortarboard me-1" aria-hidden="true" />
+          <AppIcon name="graduationCap" className="core-space--margin-end-1" aria-hidden="true" />
           Academic & Cohort Roster
         </button>
         <button
@@ -174,76 +175,76 @@ export const StudentProfileView: React.FC = () => {
           className={`stu-filter-pill ${activeTab === 'performance' ? 'stu-filter-pill--active' : ''}`}
           onClick={() => setActiveTab('performance')}
         >
-          <i className="bi bi-graph-up me-1" aria-hidden="true" />
+          <AppIcon name="chartUp" className="core-space--margin-end-1" aria-hidden="true" />
           Performance & Assessment Records
         </button>
       </div>
 
       {/* Tab 1: Academic & Cohort Roster */}
       {activeTab === 'academic' && (
-        <div className="d-flex flex-column gap-3">
+        <div className="core-display-flex core-layout--column core-layout--gap-3">
           {/* Personal Information Card */}
           <div className="stu-card">
-            <h3 className="fw-bold mb-3" style={{ fontSize: '1rem', color: 'var(--stu-navy)' }}>
-              <i className="bi bi-person-lines-fill text-primary me-2" />
+            <h3 className="core-type--weight-bold core-space--margin-bottom-3" style={{ fontSize: '1rem', color: 'var(--stu-navy)' }}>
+              <AppIcon name="contact" className="core-text--primary core-space--margin-end-2" />
               Personal Information
             </h3>
-            <div className="d-flex flex-column gap-2 small">
-              <div className="d-flex justify-content-between pb-2 border-bottom">
-                <span className="text-muted">Admission Number:</span>
-                <strong className="text-dark">{personal.admission_number}</strong>
+            <div className="core-display-flex core-layout--column core-layout--gap-2 core-type--small">
+              <div className="core-display-flex core-layout--justify-between core-space--padding-bottom-2 core-border--bottom">
+                <span className="core-text--muted">Admission Number:</span>
+                <strong className="core-text--dark">{personal.admission_number}</strong>
               </div>
-              <div className="d-flex justify-content-between pb-2 border-bottom">
-                <span className="text-muted">Gender:</span>
-                <strong className="text-dark">{personal.gender_display}</strong>
+              <div className="core-display-flex core-layout--justify-between core-space--padding-bottom-2 core-border--bottom">
+                <span className="core-text--muted">Gender:</span>
+                <strong className="core-text--dark">{personal.gender_display}</strong>
               </div>
-              <div className="d-flex justify-content-between pb-2 border-bottom">
-                <span className="text-muted">Date of Birth:</span>
-                <strong className="text-dark">
+              <div className="core-display-flex core-layout--justify-between core-space--padding-bottom-2 core-border--bottom">
+                <span className="core-text--muted">Date of Birth:</span>
+                <strong className="core-text--dark">
                   {personal.date_of_birth ? new Date(personal.date_of_birth).toLocaleDateString() : '—'}
                 </strong>
               </div>
-              <div className="d-flex justify-content-between pb-2 border-bottom">
-                <span className="text-muted">Parent / Guardian Contact:</span>
-                <strong className="text-dark">{personal.parent_contact || '—'}</strong>
+              <div className="core-display-flex core-layout--justify-between core-space--padding-bottom-2 core-border--bottom">
+                <span className="core-text--muted">Parent / Guardian Contact:</span>
+                <strong className="core-text--dark">{personal.parent_contact || '—'}</strong>
               </div>
-              <div className="d-flex justify-content-between">
-                <span className="text-muted">Email:</span>
-                <strong className="text-dark">{personal.email || '—'}</strong>
+              <div className="core-display-flex core-layout--justify-between">
+                <span className="core-text--muted">Email:</span>
+                <strong className="core-text--dark">{personal.email || '—'}</strong>
               </div>
             </div>
           </div>
 
           {/* Class Enrollment History Card */}
           <div className="stu-card">
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <h3 className="fw-bold mb-0" style={{ fontSize: '1rem', color: 'var(--stu-navy)' }}>
-                <i className="bi bi-clock-history text-primary me-2" />
+            <div className="core-display-flex core-layout--justify-between core-layout--align-center core-space--margin-bottom-3">
+              <h3 className="core-type--weight-bold core-space--margin-bottom-0" style={{ fontSize: '1rem', color: 'var(--stu-navy)' }}>
+                <AppIcon name="history" className="core-text--primary core-space--margin-end-2" />
                 Class Enrollment History
               </h3>
               <span className="stu-badge stu-badge--sky">{enrollments.length} Records</span>
             </div>
 
             {enrollments.length === 0 ? (
-              <p className="text-muted small mb-0">No class enrollment records found.</p>
+              <p className="core-text--muted core-type--small core-space--margin-bottom-0">No class enrollment records found.</p>
             ) : (
-              <div className="d-flex flex-column gap-2">
+              <div className="core-display-flex core-layout--column core-layout--gap-2">
                 {enrollments.map((enr) => (
                   <div
                     key={enr.id}
-                    className="p-3 rounded"
+                    className="core-space--padding-3 core-radius"
                     style={{ backgroundColor: 'var(--stu-surface-alt)', border: '1px solid var(--stu-border-light)' }}
                   >
-                    <div className="d-flex justify-content-between align-items-start gap-2 mb-1">
+                    <div className="core-display-flex core-layout--justify-between core-layout--align-start core-layout--gap-2 core-space--margin-bottom-1">
                       <div>
-                        <strong className="text-dark">{enr.class_name}</strong>
-                        {enr.class_code && <span className="text-muted small ms-2">({enr.class_code})</span>}
+                        <strong className="core-text--dark">{enr.class_name}</strong>
+                        {enr.class_code && <span className="core-text--muted core-type--small core-space--margin-start-2">({enr.class_code})</span>}
                       </div>
                       <span className={`stu-badge ${enr.is_active ? 'stu-badge--success' : 'stu-badge--muted'}`}>
                         {enr.is_active ? 'Active' : 'Past'}
                       </span>
                     </div>
-                    <div className="small text-muted d-flex flex-wrap gap-2">
+                    <div className="core-type--small core-text--muted core-display-flex core-layout--wrap core-layout--gap-2">
                       <span>Year: {enr.academic_year || '—'}</span>
                       <span>•</span>
                       <span>Assigned by: <span>{enr.assigned_by_name || 'System'}</span></span>
@@ -264,22 +265,22 @@ export const StudentProfileView: React.FC = () => {
 
       {/* Tab 2: Performance & Assessment Records */}
       {activeTab === 'performance' && (
-        <div className="d-flex flex-column gap-3">
+        <div className="core-display-flex core-layout--column core-layout--gap-3">
           <div className="stu-card">
-            <h3 className="fw-bold mb-3" style={{ fontSize: '1rem', color: 'var(--stu-navy)' }}>
+            <h3 className="core-type--weight-bold core-space--margin-bottom-3" style={{ fontSize: '1rem', color: 'var(--stu-navy)' }}>
               Recent Assessment Activity
             </h3>
 
             {stats.recent_activity.length === 0 ? (
-              <p className="text-muted small mb-0">No recent assessments on record.</p>
+              <p className="core-text--muted core-type--small core-space--margin-bottom-0">No recent assessments on record.</p>
             ) : (
-              <div className="stu-card-list mb-0">
+              <div className="stu-card-list core-space--margin-bottom-0">
                 {stats.recent_activity.map((item) => (
                   <div key={item.id} className="stu-result-card">
                     <div className="stu-result-card__info">
                       <h4 className="stu-result-card__title">{item.quiz_title}</h4>
                       <div className="stu-result-card__sub">
-                        <span className="stu-badge stu-badge--sky me-2">{item.subject_name}</span>
+                        <span className="stu-badge stu-badge--sky core-space--margin-end-2">{item.subject_name}</span>
                         {item.submitted_at && (
                           <span>{new Date(item.submitted_at).toLocaleDateString()}</span>
                         )}

@@ -114,27 +114,27 @@ export const AdminForm: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="container-fluid py-5 text-center" role="status">Loading administrator form...</div>;
+    return <div className="core-container core-space--padding-y-5 core-text--center" role="status">Loading administrator form...</div>;
   }
 
   if (isEditing && !admin && !error) {
-    return <div className="container-fluid py-4"><Alert variant="danger">Administrator not found.</Alert></div>;
+    return <div className="core-container core-space--padding-y-4"><Alert variant="danger">Administrator not found.</Alert></div>;
   }
 
   return (
-    <div className="container-fluid py-4" data-testid="superadmin-admin-form">
-      <div className="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div className="core-container core-space--padding-y-4" data-testid="superadmin-admin-form">
+      <div className="core-display-flex core-layout--wrap core-layout--justify-between core-layout--align-start core-layout--gap-3 core-space--margin-bottom-4">
         <div>
-          <h2 className="h3 fw-bold text-dark mb-1">
+          <h2 className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-bottom-1">
             {isEditing ? 'Edit Administrator' : 'Add Administrator'}
           </h2>
-          <p className="text-muted mb-0">
+          <p className="core-text--muted core-space--margin-bottom-0">
             {isEditing
               ? 'Update account access, contact details, and school assignment.'
               : 'Create a school administrator account and send a secure password setup link.'}
           </p>
         </div>
-        <Link to={adminId ? `/superadmin/admins/${adminId}` : '/superadmin/admins'} className="btn btn-outline-secondary">
+        <Link to={adminId ? `/superadmin/admins/${adminId}` : '/superadmin/admins'} className="core-button core-button--outline-secondary">
           Cancel
         </Link>
       </div>
@@ -145,50 +145,50 @@ export const AdminForm: React.FC = () => {
         </Alert>
       )}
 
-      <form className="card shadow-sm border-0" onSubmit={(event) => void handleSubmit(event)}>
-        <div className="card-body p-4">
-          <div className="row g-3">
-            <div className="col-12 col-md-6">
-              <label htmlFor="admin-username" className="form-label">Username</label>
+      <form className="core-card core-shadow--sm core-border--none" onSubmit={(event) => void handleSubmit(event)}>
+        <div className="core-card__body core-space--padding-4">
+          <div className="core-grid core-grid--gap-3">
+            <div className="core-grid__span-12 core-grid__span-md-6">
+              <label htmlFor="admin-username" className="core-field__label">Username</label>
               <input
                 id="admin-username"
-                className="form-control"
+                className="core-field__input"
                 value={values.username}
                 onChange={(event) => updateValue('username', event.target.value)}
                 required
                 disabled={isEditing}
                 autoComplete="username"
               />
-              {isEditing && <div className="form-text">The username cannot be changed.</div>}
+              {isEditing && <div className="core-field__helper">The username cannot be changed.</div>}
             </div>
-            <div className="col-12 col-md-6">
-              <label htmlFor="admin-full-name" className="form-label">Full name</label>
+            <div className="core-grid__span-12 core-grid__span-md-6">
+              <label htmlFor="admin-full-name" className="core-field__label">Full name</label>
               <input
                 id="admin-full-name"
-                className="form-control"
+                className="core-field__input"
                 value={values.fullName}
                 onChange={(event) => updateValue('fullName', event.target.value)}
                 required
                 autoComplete="name"
               />
             </div>
-            <div className="col-12 col-md-6">
-              <label htmlFor="admin-email" className="form-label">Email</label>
+            <div className="core-grid__span-12 core-grid__span-md-6">
+              <label htmlFor="admin-email" className="core-field__label">Email</label>
               <input
                 id="admin-email"
                 type="email"
-                className="form-control"
+                className="core-field__input"
                 value={values.email}
                 onChange={(event) => updateValue('email', event.target.value)}
                 required
                 autoComplete="email"
               />
             </div>
-            <div className="col-12 col-md-6">
-              <label htmlFor="admin-school" className="form-label">School</label>
+            <div className="core-grid__span-12 core-grid__span-md-6">
+              <label htmlFor="admin-school" className="core-field__label">School</label>
               <select
                 id="admin-school"
-                className="form-select"
+                className="core-field__select"
                 value={values.schoolId}
                 onChange={(event) => updateValue('schoolId', event.target.value)}
                 required
@@ -208,38 +208,38 @@ export const AdminForm: React.FC = () => {
             </div>
             {isEditing && (
               <>
-                <div className="col-12">
-                  <div className="form-check">
+                <div className="core-grid__span-12">
+                  <div className="core-field__check">
                     <input
                       id="admin-is-active"
                       type="checkbox"
-                      className="form-check-input"
+                      className="core-field__check-input"
                       checked={values.isActive}
                       onChange={(event) => updateValue('isActive', event.target.checked)}
                     />
-                    <label className="form-check-label" htmlFor="admin-is-active">
+                    <label className="core-field__check-label" htmlFor="admin-is-active">
                       Account is active
                     </label>
                   </div>
                 </div>
-                <div className="col-12">
-                  <label htmlFor="admin-password" className="form-label">New password (optional)</label>
+                <div className="core-grid__span-12">
+                  <label htmlFor="admin-password" className="core-field__label">New password (optional)</label>
                   <input
                     id="admin-password"
                     type="password"
-                    className="form-control"
+                    className="core-field__input"
                     value={values.password}
                     onChange={(event) => updateValue('password', event.target.value)}
                     autoComplete="new-password"
                   />
-                  <div className="form-text">Leave blank to keep the current password.</div>
+                  <div className="core-field__helper">Leave blank to keep the current password.</div>
                 </div>
               </>
             )}
           </div>
         </div>
-        <div className="card-footer bg-white d-flex justify-content-end gap-2 p-3">
-          <Link to={adminId ? `/superadmin/admins/${adminId}` : '/superadmin/admins'} className="btn btn-outline-secondary">
+        <div className="core-card__footer core-surface--white core-display-flex core-layout--justify-end core-layout--gap-2 core-space--padding-3">
+          <Link to={adminId ? `/superadmin/admins/${adminId}` : '/superadmin/admins'} className="core-button core-button--outline-secondary">
             Cancel
           </Link>
           <Button type="submit" variant="primary" disabled={saving}>

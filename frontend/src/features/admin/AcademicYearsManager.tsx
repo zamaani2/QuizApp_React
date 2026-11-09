@@ -1,3 +1,4 @@
+import { AppIcon } from '../../components/common/AppIcon';
 import React, { useEffect, useState, useCallback } from 'react';
 import { academicApi } from '../../api/academic';
 import type { AcademicYear, AcademicYearInput } from '../../types';
@@ -152,7 +153,7 @@ export const AcademicYearsManager: React.FC = () => {
           <span>{row.name}</span>
           {row.is_current && (
             <span className="academic-admin__status academic-admin__status--current">
-              <i className="bi bi-check-circle-fill" aria-hidden="true" />
+              <AppIcon name="circleCheck" aria-hidden="true" />
               Current Active
             </span>
           )}
@@ -165,7 +166,7 @@ export const AcademicYearsManager: React.FC = () => {
       sortable: true,
       accessor: (row) => (
         <span className="academic-admin__date-range">
-          <i className="bi bi-calendar3" aria-hidden="true" />{' '}
+          <AppIcon name="calendarDays" aria-hidden="true" />{' '}
           {row.start_date} &rarr; {row.end_date}
         </span>
       ),
@@ -176,15 +177,15 @@ export const AcademicYearsManager: React.FC = () => {
       accessor: (row) => (
         <div className="academic-admin__linked-records">
           <span title="Terms count">
-            <i className="bi bi-calendar-range" aria-hidden="true" />{' '}
+            <AppIcon name="calendarDays" aria-hidden="true" />{' '}
             {row.terms_count ?? 0} Terms
           </span>
           <span title="Classes count">
-            <i className="bi bi-building" aria-hidden="true" />{' '}
+            <AppIcon name="building" aria-hidden="true" />{' '}
             {row.classes_count ?? 0} Classes
           </span>
           <span title="Quizzes count">
-            <i className="bi bi-patch-question" aria-hidden="true" />{' '}
+            <AppIcon name="badgeHelp" aria-hidden="true" />{' '}
             {row.quizzes_count ?? 0} Quizzes
           </span>
         </div>
@@ -203,7 +204,7 @@ export const AcademicYearsManager: React.FC = () => {
               onClick={() => setSetCurrentTarget(row)}
               title="Set as Current School Year"
             >
-              <i className="bi bi-check2-circle me-1" />
+              <AppIcon name="circleCheck" className="core-space--margin-end-1" />
               Set Current
             </Button>
           )}
@@ -213,7 +214,7 @@ export const AcademicYearsManager: React.FC = () => {
             onClick={() => openEditModal(row)}
             title="Edit Academic Year"
           >
-            <i className="bi bi-pencil" />
+            <AppIcon name="pencil" />
           </Button>
           <Button
             variant="outline-danger"
@@ -226,7 +227,7 @@ export const AcademicYearsManager: React.FC = () => {
                 : 'Delete Academic Year'
             }
           >
-            <i className="bi bi-trash" />
+            <AppIcon name="trash" />
           </Button>
         </div>
       ),
@@ -246,7 +247,7 @@ export const AcademicYearsManager: React.FC = () => {
 
         <div className="academic-admin__heading-actions">
           <Button variant="primary" size="sm" onClick={openCreateModal}>
-            <i className="bi bi-plus-lg me-1" />
+            <AppIcon name="plus" className="core-space--margin-end-1" />
             New Academic Year
           </Button>
         </div>
@@ -313,7 +314,7 @@ export const AcademicYearsManager: React.FC = () => {
             onClick={loadAcademicYears}
             loading={loading}
           >
-            <i className="bi bi-arrow-repeat" aria-hidden="true" />{' '}
+            <AppIcon name="refresh" aria-hidden="true" />{' '}
             Refresh
           </Button>
       </section>

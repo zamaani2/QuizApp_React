@@ -34,23 +34,23 @@ export const QuestionImport: React.FC = () => {
   }
 
   return (
-    <div className="assessment-page container-fluid py-4">
-      <div className="mb-3"><Link to={`/teacher/quizzes/${quizId}`}>&larr; Back to quiz</Link></div>
-      <h1 className="h3 mb-3">Import questions</h1>
-      <p className="text-muted">Upload a CSV or XLSX file. Files larger than 5 MB are rejected.</p>
+    <div className="assessment-page core-container core-space--padding-y-4">
+      <div className="core-space--margin-bottom-3"><Link to={`/teacher/quizzes/${quizId}`}>&larr; Back to quiz</Link></div>
+      <h1 className="core-type--heading-3 core-space--margin-bottom-3">Import questions</h1>
+      <p className="core-text--muted">Upload a CSV or XLSX file. Files larger than 5 MB are rejected.</p>
       {error && <Alert variant="danger">{error}</Alert>}
       {message && <Alert variant="success">{message}</Alert>}
-      <div className="card shadow-sm border-0">
+      <div className="core-card core-shadow--sm core-border--none">
         <form onSubmit={handleSubmit}>
-          <div className="card-body">
-            <label className="form-label" htmlFor="question-import-file">Question file</label>
-            <input id="question-import-file" className="form-control" type="file" accept=".csv,.xlsx" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
-            <div className="d-flex gap-3 mt-3">
+          <div className="core-card__body">
+            <label className="core-field__label" htmlFor="question-import-file">Question file</label>
+            <input id="question-import-file" className="core-field__input" type="file" accept=".csv,.xlsx" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
+            <div className="core-display-flex core-layout--gap-3 core-space--margin-top-3">
               <a href={`/quizzes/${quizId}/questions/import-template/csv/`} className="link-primary">Download CSV template</a>
               <a href={`/quizzes/${quizId}/questions/import-template/xlsx/`} className="link-primary">Download XLSX template</a>
             </div>
           </div>
-          <div className="card-footer bg-white d-flex justify-content-end">
+          <div className="core-card__footer core-surface--white core-display-flex core-layout--justify-end">
             <Button type="submit" loading={busy} disabled={!file}>Import questions</Button>
           </div>
         </form>

@@ -1,3 +1,4 @@
+import { AppIcon } from '../../components/common/AppIcon';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { studentApi } from '../../api/student';
@@ -47,7 +48,7 @@ export const StudentAttemptsList: React.FC = () => {
           <h1 className="stu-welcome__name">My Quiz Attempts</h1>
           {data && (
             <span className="stu-welcome__role-badge">
-              <i className="bi bi-award-fill" aria-hidden="true" /> {data.completed_attempts_count} Completed
+              <AppIcon name="award" aria-hidden="true" /> {data.completed_attempts_count} Completed
             </span>
           )}
         </div>
@@ -97,9 +98,9 @@ export const StudentAttemptsList: React.FC = () => {
       </div>
 
       {error && (
-        <Alert variant="danger" dismissible={false} className="mb-3">
+        <Alert variant="danger" dismissible={false} className="core-space--margin-bottom-3">
           <h5>Error loading attempts</h5>
-          <p className="mb-2">{error}</p>
+          <p className="core-space--margin-bottom-2">{error}</p>
           <button className="stu-btn-outline" onClick={() => loadAttempts(statusFilter)}>
             Retry
           </button>
@@ -107,14 +108,14 @@ export const StudentAttemptsList: React.FC = () => {
       )}
 
       {loading ? (
-        <div className="d-flex justify-content-center py-5">
+        <div className="core-display-flex core-layout--justify-center core-space--padding-y-5">
           <LoadingSpinner size="lg" message="Loading your attempts..." />
         </div>
       ) : !data || data.attempts.length === 0 ? (
-        <div className="stu-card text-center py-5">
-          <i className="bi bi-journal-x text-muted" style={{ fontSize: '2.5rem' }} aria-hidden="true" />
-          <h2 className="stu-card__title mt-3 mb-1" style={{ fontSize: '1.1rem' }}>No attempt records found</h2>
-          <p className="text-muted mb-3" style={{ fontSize: '0.875rem' }}>
+        <div className="stu-card core-text--center core-space--padding-y-5">
+          <AppIcon name="bookX" className="core-text--muted" style={{ fontSize: '2.5rem' }} aria-hidden="true" />
+          <h2 className="stu-card__title core-space--margin-top-3 core-space--margin-bottom-1" style={{ fontSize: '1.1rem' }}>No attempt records found</h2>
+          <p className="core-text--muted core-space--margin-bottom-3" style={{ fontSize: '0.875rem' }}>
             You haven't attempted any quizzes in this category yet.
           </p>
           <Link to="/student/quizzes" className="stu-btn-primary">
@@ -129,13 +130,13 @@ export const StudentAttemptsList: React.FC = () => {
               <div className="stu-quiz-card__header">
                 <div className="stu-quiz-card__icon-title">
                   <div className="stu-quiz-card__icon">
-                    <i className="bi bi-award" aria-hidden="true" />
+                    <AppIcon name="award" aria-hidden="true" />
                   </div>
                   <div>
                     <h2 className="stu-quiz-card__title">{att.quiz_title}</h2>
-                    <div className="d-flex align-items-center gap-2 flex-wrap">
+                    <div className="core-display-flex core-layout--align-center core-layout--gap-2 core-layout--wrap">
                       <span className="stu-badge stu-badge--sky">{att.subject_name}</span>
-                      <span className="small text-muted fw-semibold">
+                      <span className="core-type--small core-text--muted core-type--weight-semibold">
                         Attempt #{att.attempt_number}
                       </span>
                     </div>
@@ -154,12 +155,12 @@ export const StudentAttemptsList: React.FC = () => {
               <div className="stu-quiz-card__meta">
                 {att.is_submitted ? (
                   <span className="stu-quiz-card__meta-item">
-                    <i className="bi bi-star" aria-hidden="true" />
+                    <AppIcon name="star" aria-hidden="true" />
                     <strong>{att.score}</strong> / {att.total_marks} marks
                   </span>
                 ) : (
-                  <span className="stu-quiz-card__meta-item text-warning">
-                    <i className="bi bi-clock-history" aria-hidden="true" /> Not submitted yet
+                  <span className="stu-quiz-card__meta-item core-text--warning">
+                    <AppIcon name="history" aria-hidden="true" /> Not submitted yet
                   </span>
                 )}
 
@@ -167,7 +168,7 @@ export const StudentAttemptsList: React.FC = () => {
                   <>
                     <span>•</span>
                     <span className="stu-quiz-card__meta-item">
-                      <i className="bi bi-calendar3" aria-hidden="true" />
+                      <AppIcon name="calendarDays" aria-hidden="true" />
                       {new Date(att.submitted_at).toLocaleDateString()}
                     </span>
                   </>

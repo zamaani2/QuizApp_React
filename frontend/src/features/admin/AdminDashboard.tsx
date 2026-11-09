@@ -1,3 +1,4 @@
+import { AppIcon } from '../../components/common/AppIcon';
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchAdminDashboard } from '../../api/admin';
@@ -29,11 +30,11 @@ export const AdminDashboard: React.FC = () => {
   }, [loadDashboard]);
 
   const metrics = [
-    { label: 'Students', detail: 'Student records', value: data?.total_students ?? 0, icon: 'bi-people', tone: 'students' },
-    { label: 'Teachers', detail: 'Teaching staff', value: data?.total_teachers ?? 0, icon: 'bi-person-badge', tone: 'teachers' },
-    { label: 'Active classes', detail: 'School classes', value: data?.total_classes ?? 0, icon: 'bi-building', tone: 'classes' },
-    { label: 'Quizzes', detail: 'Assessments', value: data?.total_quizzes ?? 0, icon: 'bi-patch-question', tone: 'quizzes' },
-  ];
+    { label: 'Students', detail: 'Student records', value: data?.total_students ?? 0, icon: 'users', tone: 'students' },
+    { label: 'Teachers', detail: 'Teaching staff', value: data?.total_teachers ?? 0, icon: 'contact', tone: 'teachers' },
+    { label: 'Active classes', detail: 'School classes', value: data?.total_classes ?? 0, icon: 'building', tone: 'classes' },
+    { label: 'Quizzes', detail: 'Assessments', value: data?.total_quizzes ?? 0, icon: 'badgeHelp', tone: 'quizzes' },
+  ] as const;
 
   return (
     <div className="admin-dashboard" data-testid="admin-dashboard">
@@ -47,13 +48,13 @@ export const AdminDashboard: React.FC = () => {
           <div className="admin-dashboard__period" aria-label="Current academic period">
             {(data?.active_academic_year || data?.current_academic_year) && (
               <span className="admin-dashboard__period-chip">
-                <i className="bi bi-calendar3" aria-hidden="true" />
+                <AppIcon name="calendarDays" aria-hidden="true" />
                 Academic Year: {data?.active_academic_year || data?.current_academic_year}
               </span>
             )}
             {(data?.active_term || data?.current_term) && (
               <span className="admin-dashboard__period-chip">
-                <i className="bi bi-calendar-range" aria-hidden="true" />
+                <AppIcon name="calendarDays" aria-hidden="true" />
                 Term: {data?.active_term || data?.current_term}
               </span>
             )}
@@ -61,7 +62,10 @@ export const AdminDashboard: React.FC = () => {
         </div>
         <div className="admin-dashboard__heading-actions">
           <button className="admin-dashboard__refresh" type="button" onClick={loadDashboard} disabled={loading}>
-            <i className={`bi ${loading ? 'bi-arrow-repeat admin-dashboard__refresh-icon--loading' : 'bi-arrow-clockwise'}`} aria-hidden="true" />
+            <AppIcon
+              name={loading ? 'refresh' : 'rotateClockwise'}
+              className={loading ? 'admin-dashboard__refresh-icon--loading' : undefined}
+            />
             <span>Refresh</span>
           </button>
         </div>
@@ -80,39 +84,39 @@ export const AdminDashboard: React.FC = () => {
       ) : (
         <>
           {/* Quick Shortcuts Row */}
-          <div className="d-flex flex-wrap gap-2 mb-4" aria-label="Quick management shortcuts">
-            <Link to="/admin/students" className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 rounded-pill px-3">
-              <i className="bi bi-people" aria-hidden="true" /> Students Directory
+          <div className="core-display-flex core-layout--wrap core-layout--gap-2 core-space--margin-bottom-4" aria-label="Quick management shortcuts">
+            <Link to="/admin/students" className="core-button core-button--sm core-button--outline-primary core-display-inline-flex core-layout--align-center core-layout--gap-1 core-radius--pill core-space--padding-x-3">
+              <AppIcon name="users" aria-hidden="true" /> Students Directory
             </Link>
-            <Link to="/admin/teachers" className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 rounded-pill px-3">
-              <i className="bi bi-person-badge" aria-hidden="true" /> Teachers Directory
+            <Link to="/admin/teachers" className="core-button core-button--sm core-button--outline-primary core-display-inline-flex core-layout--align-center core-layout--gap-1 core-radius--pill core-space--padding-x-3">
+              <AppIcon name="contact" aria-hidden="true" /> Teachers Directory
             </Link>
-            <Link to="/admin/classes" className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 rounded-pill px-3">
-              <i className="bi bi-building" aria-hidden="true" /> Classes
+            <Link to="/admin/classes" className="core-button core-button--sm core-button--outline-primary core-display-inline-flex core-layout--align-center core-layout--gap-1 core-radius--pill core-space--padding-x-3">
+              <AppIcon name="building" aria-hidden="true" /> Classes
             </Link>
-            <Link to="/admin/enrollments" className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 rounded-pill px-3">
-              <i className="bi bi-person-plus" aria-hidden="true" /> Enrollments
+            <Link to="/admin/enrollments" className="core-button core-button--sm core-button--outline-primary core-display-inline-flex core-layout--align-center core-layout--gap-1 core-radius--pill core-space--padding-x-3">
+              <AppIcon name="userRoundPlus" aria-hidden="true" /> Enrollments
             </Link>
-            <Link to="/admin/school" className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 rounded-pill px-3">
-              <i className="bi bi-gear" aria-hidden="true" /> School Profile
+            <Link to="/admin/school" className="core-button core-button--sm core-button--outline-secondary core-display-inline-flex core-layout--align-center core-layout--gap-1 core-radius--pill core-space--padding-x-3">
+              <AppIcon name="settings" aria-hidden="true" /> School Profile
             </Link>
           </div>
 
           {/* Primary Action Card */}
-          <div className="card shadow-sm border-0 mb-4 p-4" style={{ background: 'linear-gradient(135deg, #0f2942 0%, #1e3a5f 100%)', color: '#ffffff', borderRadius: '12px' }}>
-            <div className="d-flex flex-wrap justify-content-between align-items-center gap-3">
+          <div className="core-card core-shadow--sm core-border--none core-space--margin-bottom-4 core-space--padding-4" style={{ background: 'linear-gradient(135deg, #0f2942 0%, #1e3a5f 100%)', color: '#ffffff', borderRadius: '12px' }}>
+            <div className="core-display-flex core-layout--wrap core-layout--justify-between core-layout--align-center core-layout--gap-3">
               <div>
-                <span className="badge bg-info text-dark rounded-pill px-3 py-1 mb-2 fw-semibold">Academic Workspace</span>
-                <h3 className="h4 fw-bold text-white mb-1">Manage School Allocations & Cohorts</h3>
-                <p className="mb-0 text-white-50" style={{ maxWidth: '650px' }}>
+                <span className="core-badge core-surface--info core-text--dark core-radius--pill core-space--padding-x-3 core-space--padding-y-1 core-space--margin-bottom-2 core-type--weight-semibold">Academic Workspace</span>
+                <h3 className="core-type--heading-4 core-type--weight-bold core-text--white core-space--margin-bottom-1">Manage School Allocations & Cohorts</h3>
+                <p className="core-space--margin-bottom-0 core-text--white-50" style={{ maxWidth: '650px' }}>
                   Assign subject teachers to classes, verify student enrollments, and configure the active academic term.
                 </p>
               </div>
-              <div className="d-flex flex-wrap gap-2">
-                <Link to="/admin/enrollments" className="btn btn-light fw-bold px-3 py-2 text-dark">
+              <div className="core-display-flex core-layout--wrap core-layout--gap-2">
+                <Link to="/admin/enrollments" className="core-button core-button--light core-type--weight-bold core-space--padding-x-3 core-space--padding-y-2 core-text--dark">
                   Manage Enrollments &rarr;
                 </Link>
-                <Link to="/admin/assignments" className="btn btn-outline-light fw-bold px-3 py-2">
+                <Link to="/admin/assignments" className="core-button core-button--outline-light core-type--weight-bold core-space--padding-x-3 core-space--padding-y-2">
                   Assign Teachers
                 </Link>
               </div>
@@ -123,7 +127,7 @@ export const AdminDashboard: React.FC = () => {
             {metrics.map((metric) => (
               <article className={`admin-metric admin-metric--${metric.tone}`} key={metric.label}>
                 <div className="admin-metric__label">
-                  <span className="admin-metric__icon"><i className={`bi ${metric.icon}`} aria-hidden="true" /></span>
+                  <span className="admin-metric__icon"><AppIcon name={metric.icon} /></span>
                   <h3>{metric.label}</h3>
                 </div>
                 <p className="admin-metric__value">{new Intl.NumberFormat().format(metric.value)}</p>
@@ -143,27 +147,27 @@ export const AdminDashboard: React.FC = () => {
             <div className="admin-workflow-list">
               <article className="admin-workflow">
                 <div className="admin-workflow__category">
-                  <span className="admin-workflow__icon"><i className="bi bi-people" aria-hidden="true" /></span>
+                  <span className="admin-workflow__icon"><AppIcon name="users" aria-hidden="true" /></span>
                   <div><span className="admin-workflow__number">01 / PEOPLE</span><h4>People and enrollment</h4></div>
                 </div>
                 <p>Maintain student records, staff profiles, and class enrollments.</p>
                 <div className="admin-workflow__links">
-                  <Link to="/admin/students"><i className="bi bi-person-lines-fill" aria-hidden="true" /> Student directory <span aria-hidden="true">↗</span></Link>
-                  <Link to="/admin/teachers"><i className="bi bi-person-badge" aria-hidden="true" /> Teacher directory <span aria-hidden="true">↗</span></Link>
-                  <Link to="/admin/enrollments"><i className="bi bi-person-plus" aria-hidden="true" /> Class enrollments <span aria-hidden="true">↗</span></Link>
+                  <Link to="/admin/students"><AppIcon name="contact" aria-hidden="true" /> Student directory <span aria-hidden="true">↗</span></Link>
+                  <Link to="/admin/teachers"><AppIcon name="contact" aria-hidden="true" /> Teacher directory <span aria-hidden="true">↗</span></Link>
+                  <Link to="/admin/enrollments"><AppIcon name="userRoundPlus" aria-hidden="true" /> Class enrollments <span aria-hidden="true">↗</span></Link>
                 </div>
               </article>
               <article className="admin-workflow">
                 <div className="admin-workflow__category">
-                  <span className="admin-workflow__icon"><i className="bi bi-journal-richtext" aria-hidden="true" /></span>
+                  <span className="admin-workflow__icon"><AppIcon name="bookOpenText" aria-hidden="true" /></span>
                   <div><span className="admin-workflow__number">02 / ACADEMICS</span><h4>Academic structure</h4></div>
                 </div>
                 <p>Set up the year, terms, classes, and subjects for your school.</p>
                 <div className="admin-workflow__links">
-                  <Link to="/admin/academic-years"><i className="bi bi-calendar3" aria-hidden="true" /> Academic years <span aria-hidden="true">↗</span></Link>
-                  <Link to="/admin/terms"><i className="bi bi-calendar-range" aria-hidden="true" /> Terms <span aria-hidden="true">↗</span></Link>
-                  <Link to="/admin/classes"><i className="bi bi-building" aria-hidden="true" /> Classes <span aria-hidden="true">↗</span></Link>
-                  <Link to="/admin/subjects"><i className="bi bi-journal-bookmark" aria-hidden="true" /> Subjects <span aria-hidden="true">↗</span></Link>
+                  <Link to="/admin/academic-years"><AppIcon name="calendarDays" aria-hidden="true" /> Academic years <span aria-hidden="true">↗</span></Link>
+                  <Link to="/admin/terms"><AppIcon name="calendarDays" aria-hidden="true" /> Terms <span aria-hidden="true">↗</span></Link>
+                  <Link to="/admin/classes"><AppIcon name="building" aria-hidden="true" /> Classes <span aria-hidden="true">↗</span></Link>
+                  <Link to="/admin/subjects"><AppIcon name="bookMarked" aria-hidden="true" /> Subjects <span aria-hidden="true">↗</span></Link>
                 </div>
               </article>
             </div>

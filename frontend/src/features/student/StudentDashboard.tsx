@@ -1,3 +1,4 @@
+import { AppIcon } from '../../components/common/AppIcon';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { studentApi } from '../../api/student';
@@ -30,7 +31,7 @@ export const StudentDashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="d-flex justify-content-center py-5" data-testid="student-dashboard-loading">
+      <div className="core-display-flex core-layout--justify-center core-space--padding-y-5" data-testid="student-dashboard-loading">
         <LoadingSpinner size="lg" message="Loading your dashboard..." />
       </div>
     );
@@ -41,7 +42,7 @@ export const StudentDashboard: React.FC = () => {
       <div data-testid="student-dashboard-error">
         <Alert variant="danger" dismissible={false}>
           <h5>Unable to load student dashboard</h5>
-          <p className="mb-2">{error || 'An unexpected error occurred.'}</p>
+          <p className="core-space--margin-bottom-2">{error || 'An unexpected error occurred.'}</p>
           <button className="stu-btn-outline" onClick={loadDashboard}>
             Retry
           </button>
@@ -60,25 +61,25 @@ export const StudentDashboard: React.FC = () => {
         <div className="stu-welcome__heading-row">
           <h1 className="stu-welcome__name">Welcome back, {data.student_name}!</h1>
           <span className="stu-welcome__role-badge">
-            <i className="bi bi-mortarboard-fill" aria-hidden="true" />
+            <AppIcon name="graduationCap" aria-hidden="true" />
             <span>Student</span>
           </span>
         </div>
 
         <div className="stu-welcome__subtitle">
           <span>{data.class_name || 'Not Assigned'}</span>
-          <span className="mx-2">•</span>
+          <span className="core-space--margin-x-2">•</span>
           <span>Admission: </span>
           <span>{data.admission_number}</span>
           {data.academic_year && (
             <>
-              <span className="mx-2">•</span>
+              <span className="core-space--margin-x-2">•</span>
               <span>{data.academic_year}</span>
             </>
           )}
           {data.term && (
             <>
-              <span className="mx-2">•</span>
+              <span className="core-space--margin-x-2">•</span>
               <span>{data.term}</span>
             </>
           )}
@@ -87,13 +88,13 @@ export const StudentDashboard: React.FC = () => {
         {/* Clean Shortcut Buttons */}
         <div className="stu-shortcuts">
           <Link to="/student/quizzes" className="stu-shortcut-btn">
-            <i className="bi bi-journal-text text-primary" aria-hidden="true" /> Quizzes
+            <AppIcon name="bookText" className="core-text--primary" aria-hidden="true" /> Quizzes
           </Link>
           <Link to="/student/attempts" className="stu-shortcut-btn">
-            <i className="bi bi-award text-success" aria-hidden="true" /> Results
+            <AppIcon name="award" className="core-text--success" aria-hidden="true" /> Results
           </Link>
           <Link to="/student/profile" className="stu-shortcut-btn">
-            <i className="bi bi-person text-info" aria-hidden="true" /> Account
+            <AppIcon name="user" className="core-text--info" aria-hidden="true" /> Account
           </Link>
         </div>
       </div>
@@ -107,7 +108,7 @@ export const StudentDashboard: React.FC = () => {
               You have {data.in_progress_attempts.length} quiz attempt(s) in progress!
             </span>
           </div>
-          <div className="d-flex align-items-center gap-2">
+          <div className="core-display-flex core-layout--align-center core-layout--gap-2">
             {data.in_progress_attempts.map((att) => (
               <Link
                 key={att.id}
@@ -139,7 +140,7 @@ export const StudentDashboard: React.FC = () => {
       <div className="stu-cta-card">
         <div className="stu-cta-card__top">
           <div className="stu-cta-card__icon-box">
-            <i className="bi bi-mortarboard" aria-hidden="true" />
+            <AppIcon name="graduationCap" aria-hidden="true" />
           </div>
           <div className="stu-cta-card__info">
             <div className="stu-cta-card__eyebrow">
@@ -219,9 +220,9 @@ export const StudentDashboard: React.FC = () => {
       </div>
 
       {data.available_quizzes.length === 0 ? (
-        <div className="stu-card text-center py-4 mb-4">
-          <i className="bi bi-journal-x text-muted" style={{ fontSize: '2rem' }} aria-hidden="true" />
-          <p className="text-muted mt-2 mb-0" style={{ fontSize: '0.875rem' }}>
+        <div className="stu-card core-text--center core-space--padding-y-4 core-space--margin-bottom-4">
+          <AppIcon name="bookX" className="core-text--muted" style={{ fontSize: '2rem' }} aria-hidden="true" />
+          <p className="core-text--muted core-space--margin-top-2 core-space--margin-bottom-0" style={{ fontSize: '0.875rem' }}>
             No quizzes are currently active for your class.
           </p>
         </div>
@@ -232,7 +233,7 @@ export const StudentDashboard: React.FC = () => {
               <div className="stu-quiz-card__header">
                 <div className="stu-quiz-card__icon-title">
                   <div className="stu-quiz-card__icon">
-                    <i className="bi bi-check2-circle" aria-hidden="true" />
+                    <AppIcon name="circleCheck" aria-hidden="true" />
                   </div>
                   <div>
                     <h3 className="stu-quiz-card__title">{quiz.title}</h3>
@@ -246,10 +247,10 @@ export const StudentDashboard: React.FC = () => {
 
               <div className="stu-quiz-card__meta">
                 <span className="stu-quiz-card__meta-item">
-                  <i className="bi bi-question-circle" aria-hidden="true" /> {quiz.total_questions} questions
+                  <AppIcon name="circleHelp" aria-hidden="true" /> {quiz.total_questions} questions
                 </span>
                 <span className="stu-quiz-card__meta-item">
-                  <i className="bi bi-star" aria-hidden="true" /> {quiz.total_marks} marks
+                  <AppIcon name="star" aria-hidden="true" /> {quiz.total_marks} marks
                 </span>
               </div>
 
@@ -279,9 +280,9 @@ export const StudentDashboard: React.FC = () => {
       </div>
 
       {data.recent_attempts.length === 0 ? (
-        <div className="stu-card text-center py-4">
-          <i className="bi bi-clock-history text-muted" style={{ fontSize: '2rem' }} aria-hidden="true" />
-          <p className="text-muted mt-2 mb-0" style={{ fontSize: '0.875rem' }}>
+        <div className="stu-card core-text--center core-space--padding-y-4">
+          <AppIcon name="history" className="core-text--muted" style={{ fontSize: '2rem' }} aria-hidden="true" />
+          <p className="core-text--muted core-space--margin-top-2 core-space--margin-bottom-0" style={{ fontSize: '0.875rem' }}>
             You have not completed any quizzes yet.
           </p>
         </div>
@@ -292,7 +293,7 @@ export const StudentDashboard: React.FC = () => {
               <div className="stu-result-card__info">
                 <h3 className="stu-result-card__title">{att.quiz_title}</h3>
                 <div className="stu-result-card__sub">
-                  <span className="stu-badge stu-badge--sky me-2">{att.subject_name}</span>
+                  <span className="stu-badge stu-badge--sky core-space--margin-end-2">{att.subject_name}</span>
                   {att.submitted_at && (
                     <span>{new Date(att.submitted_at).toLocaleDateString()}</span>
                   )}

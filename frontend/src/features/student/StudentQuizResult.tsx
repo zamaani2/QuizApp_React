@@ -1,3 +1,4 @@
+import { AppIcon } from '../../components/common/AppIcon';
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { studentApi } from '../../api/student';
@@ -32,7 +33,7 @@ export const StudentQuizResult: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="d-flex justify-content-center py-5" data-testid="student-quiz-result-loading">
+      <div className="core-display-flex core-layout--justify-center core-space--padding-y-5" data-testid="student-quiz-result-loading">
         <LoadingSpinner size="lg" message="Loading your assessment results..." />
       </div>
     );
@@ -43,8 +44,8 @@ export const StudentQuizResult: React.FC = () => {
       <div data-testid="student-quiz-result-error">
         <Alert variant="danger" dismissible={false}>
           <h5>Unable to load results</h5>
-          <p className="mb-2">{error || 'Result details could not be retrieved.'}</p>
-          <div className="d-flex gap-2">
+          <p className="core-space--margin-bottom-2">{error || 'Result details could not be retrieved.'}</p>
+          <div className="core-display-flex core-layout--gap-2">
             <button className="stu-btn-outline" onClick={loadResult}>
               Retry
             </button>
@@ -60,7 +61,7 @@ export const StudentQuizResult: React.FC = () => {
   return (
     <div data-testid="student-quiz-result">
       {/* Top Back Navigation & Title */}
-      <div className="mb-2">
+      <div className="core-space--margin-bottom-2">
         <Link to="/student/attempts" className="stu-section-head__link">
           ← Back to My Attempts
         </Link>
@@ -75,7 +76,7 @@ export const StudentQuizResult: React.FC = () => {
           <span>Student: {result.student_name}</span>
           {result.submitted_at && (
             <>
-              <span className="mx-2">•</span>
+              <span className="core-space--margin-x-2">•</span>
               <span>{new Date(result.submitted_at).toLocaleDateString()}</span>
             </>
           )}
@@ -92,10 +93,7 @@ export const StudentQuizResult: React.FC = () => {
               color: result.is_passed ? 'var(--stu-success)' : 'var(--stu-danger)',
             }}
           >
-            <i
-              className={`bi ${result.is_passed ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}`}
-              aria-hidden="true"
-            />
+            <AppIcon name={result.is_passed ? 'circleCheck' : 'circleX'} />
           </div>
           <div className="stu-cta-card__info">
             <div className="stu-cta-card__eyebrow">
@@ -111,7 +109,7 @@ export const StudentQuizResult: React.FC = () => {
           </div>
         </div>
 
-        <div className="d-flex align-items-center gap-2 flex-wrap">
+        <div className="core-display-flex core-layout--align-center core-layout--gap-2 core-layout--wrap">
           <a
             href={`/app/student/attempts/${result.attempt_id}/result/print`}
             target="_blank"
@@ -119,7 +117,7 @@ export const StudentQuizResult: React.FC = () => {
             className="stu-btn-outline"
             style={{ flex: 1, minWidth: '140px' }}
           >
-            <i className="bi bi-printer me-1" aria-hidden="true" /> Print Result
+            <AppIcon name="printer" className="core-space--margin-end-1" aria-hidden="true" /> Print Result
           </a>
           <Link
             to="/student/quizzes"
@@ -132,7 +130,7 @@ export const StudentQuizResult: React.FC = () => {
       </div>
 
       {/* Metrics Row */}
-      <div className="stu-stats-grid mb-4">
+      <div className="stu-stats-grid core-space--margin-bottom-4">
         <div className="stu-stat-box">
           <div className="stu-stat-box__val" style={{ color: 'var(--stu-navy)' }}>
             {result.score}
@@ -169,15 +167,15 @@ export const StudentQuizResult: React.FC = () => {
       </div>
 
       {!result.allow_review ? (
-        <div className="stu-card text-center py-4">
-          <i className="bi bi-info-circle text-muted" style={{ fontSize: '1.75rem' }} aria-hidden="true" />
-          <p className="text-muted small mb-0 mt-2">
+        <div className="stu-card core-text--center core-space--padding-y-4">
+          <AppIcon name="info" className="core-text--muted" style={{ fontSize: '1.75rem' }} aria-hidden="true" />
+          <p className="core-text--muted core-type--small core-space--margin-bottom-0 core-space--margin-top-2">
             Detailed question review is disabled by your instructor for this quiz.
           </p>
         </div>
       ) : result.questions.length === 0 ? (
-        <div className="stu-card text-center py-4">
-          <p className="text-muted small mb-0">No questions available for review.</p>
+        <div className="stu-card core-text--center core-space--padding-y-4">
+          <p className="core-text--muted core-type--small core-space--margin-bottom-0">No questions available for review.</p>
         </div>
       ) : (
         <div className="stu-card-list">
@@ -189,8 +187,8 @@ export const StudentQuizResult: React.FC = () => {
                 borderLeft: `4px solid ${q.is_correct ? 'var(--stu-success)' : 'var(--stu-danger)'}`,
               }}
             >
-              <div className="d-flex justify-content-between align-items-start gap-2 mb-2">
-                <h3 className="fw-bold mb-0 text-dark" style={{ fontSize: '0.95rem', lineHeight: '1.4' }}>
+              <div className="core-display-flex core-layout--justify-between core-layout--align-start core-layout--gap-2 core-space--margin-bottom-2">
+                <h3 className="core-type--weight-bold core-space--margin-bottom-0 core-text--dark" style={{ fontSize: '0.95rem', lineHeight: '1.4' }}>
                   Question {idx + 1}: {q.question_text}
                 </h3>
                 <span
@@ -202,7 +200,7 @@ export const StudentQuizResult: React.FC = () => {
 
               {/* Multiple Choice / True-False Choices */}
               {q.choices.length > 0 && (
-                <div className="mt-3 d-flex flex-column gap-2">
+                <div className="core-space--margin-top-3 core-display-flex core-layout--column core-layout--gap-2">
                   {q.choices.map((c) => {
                     let borderCol = 'var(--stu-border)';
                     let bgCol = 'var(--stu-surface)';
@@ -220,15 +218,15 @@ export const StudentQuizResult: React.FC = () => {
                     return (
                       <div
                         key={c.id}
-                        className="p-2 rounded d-flex justify-content-between align-items-center"
+                        className="core-space--padding-2 core-radius core-display-flex core-layout--justify-between core-layout--align-center"
                         style={{
                           backgroundColor: bgCol,
                           border: `1px solid ${borderCol}`,
                           fontSize: '0.875rem',
                         }}
                       >
-                        <span className="text-dark">{c.choice_text}</span>
-                        <div className="d-flex gap-1 align-items-center flex-shrink-0">
+                        <span className="core-text--dark">{c.choice_text}</span>
+                        <div className="core-display-flex core-layout--gap-1 core-layout--align-center core-layout--shrink-none">
                           {c.is_selected && (
                             <span className="stu-badge stu-badge--muted">Your Answer</span>
                           )}
@@ -244,24 +242,24 @@ export const StudentQuizResult: React.FC = () => {
 
               {/* Text / Essay Answers */}
               {q.choices.length === 0 && (
-                <div className="mt-3">
-                  <div className="small fw-semibold text-muted mb-1">Your Submission:</div>
+                <div className="core-space--margin-top-3">
+                  <div className="core-type--small core-type--weight-semibold core-text--muted core-space--margin-bottom-1">Your Submission:</div>
                   <div
-                    className="p-2 rounded mb-2 text-dark"
+                    className="core-space--padding-2 core-radius core-space--margin-bottom-2 core-text--dark"
                     style={{
                       backgroundColor: 'var(--stu-surface-alt)',
                       border: '1px solid var(--stu-border)',
                       fontSize: '0.875rem',
                     }}
                   >
-                    {q.student_answer || <span className="text-muted fst-italic">No response entered</span>}
+                    {q.student_answer || <span className="core-text--muted fst-italic">No response entered</span>}
                   </div>
 
                   {result.show_correct_answers && q.correct_answer && (
                     <div>
-                      <div className="small fw-semibold text-success mb-1">Model / Correct Answer:</div>
+                      <div className="core-type--small core-type--weight-semibold core-text--success core-space--margin-bottom-1">Model / Correct Answer:</div>
                       <div
-                        className="p-2 rounded text-dark"
+                        className="core-space--padding-2 core-radius core-text--dark"
                         style={{
                           backgroundColor: 'var(--stu-success-bg)',
                           border: '1px solid var(--stu-success-border)',
@@ -278,14 +276,14 @@ export const StudentQuizResult: React.FC = () => {
               {/* Explanation Callout */}
               {result.show_correct_answers && q.explanation && (
                 <div
-                  className="mt-3 p-2 rounded small text-dark"
+                  className="core-space--margin-top-3 core-space--padding-2 core-radius core-type--small core-text--dark"
                   style={{
                     backgroundColor: 'var(--stu-sky-subtle)',
                     border: '1px solid var(--stu-sky-border)',
                   }}
                 >
                   <strong style={{ color: 'var(--stu-sky)' }}>
-                    <i className="bi bi-lightbulb me-1" aria-hidden="true" /> Explanation:
+                    <AppIcon name="lightbulb" className="core-space--margin-end-1" aria-hidden="true" /> Explanation:
                   </strong>{' '}
                   {q.explanation}
                 </div>

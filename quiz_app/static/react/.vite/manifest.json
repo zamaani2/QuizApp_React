@@ -133,9 +133,9 @@
     "isDynamicEntry": true,
     "imports": [
       "_me.js",
+      "index.html",
       "_teacher.js",
-      "_student.js",
-      "index.html"
+      "_student.js"
     ],
     "css": [
       "assets/QuizResultPrint.css"
@@ -148,8 +148,8 @@
     "isDynamicEntry": true,
     "imports": [
       "_me.js",
-      "_academic.js",
       "index.html",
+      "_academic.js",
       "_ConfirmDialog.js"
     ],
     "css": [
@@ -163,8 +163,8 @@
     "isDynamicEntry": true,
     "imports": [
       "_me.js",
-      "_admin.js",
-      "index.html"
+      "index.html",
+      "_admin.js"
     ],
     "css": [
       "assets/AdminDashboard.css"
@@ -177,8 +177,8 @@
     "isDynamicEntry": true,
     "imports": [
       "_me.js",
-      "_academic.js",
       "index.html",
+      "_academic.js",
       "_ConfirmDialog.js"
     ]
   },
@@ -189,8 +189,8 @@
     "isDynamicEntry": true,
     "imports": [
       "_me.js",
-      "_academic.js",
       "index.html",
+      "_academic.js",
       "_ConfirmDialog.js"
     ],
     "css": [
@@ -204,8 +204,8 @@
     "isDynamicEntry": true,
     "imports": [
       "_me.js",
-      "_academic.js",
-      "index.html"
+      "index.html",
+      "_academic.js"
     ]
   },
   "src/features/admin/StructureManager.tsx": {
@@ -215,8 +215,8 @@
     "isDynamicEntry": true,
     "imports": [
       "_me.js",
-      "_academic.js",
       "index.html",
+      "_academic.js",
       "_ConfirmDialog.js"
     ],
     "css": [
@@ -230,8 +230,8 @@
     "isDynamicEntry": true,
     "imports": [
       "_me.js",
-      "_allocations.js",
       "index.html",
+      "_allocations.js",
       "_ConfirmDialog.js"
     ],
     "css": [
@@ -245,9 +245,9 @@
     "isDynamicEntry": true,
     "imports": [
       "_me.js",
+      "index.html",
       "_admin.js",
       "_academic.js",
-      "index.html",
       "_ConfirmDialog.js"
     ],
     "css": [
@@ -261,8 +261,8 @@
     "isDynamicEntry": true,
     "imports": [
       "_me.js",
-      "_academic.js",
       "index.html",
+      "_academic.js",
       "_ConfirmDialog.js"
     ],
     "css": [
@@ -276,8 +276,8 @@
     "isDynamicEntry": true,
     "imports": [
       "_me.js",
-      "_allocations.js",
       "index.html",
+      "_allocations.js",
       "_ConfirmDialog.js"
     ]
   },
@@ -288,9 +288,9 @@
     "isDynamicEntry": true,
     "imports": [
       "_me.js",
+      "index.html",
       "_admin.js",
       "_academic.js",
-      "index.html",
       "_ConfirmDialog.js"
     ],
     "css": [
@@ -304,8 +304,8 @@
     "isDynamicEntry": true,
     "imports": [
       "_me.js",
-      "_academic.js",
       "index.html",
+      "_academic.js",
       "_ConfirmDialog.js"
     ],
     "css": [
@@ -334,8 +334,8 @@
     "isDynamicEntry": true,
     "imports": [
       "_me.js",
-      "_student.js",
-      "index.html"
+      "index.html",
+      "_student.js"
     ]
   },
   "src/features/student/StudentDashboard.tsx": {
@@ -345,8 +345,8 @@
     "isDynamicEntry": true,
     "imports": [
       "_me.js",
-      "_student.js",
-      "index.html"
+      "index.html",
+      "_student.js"
     ]
   },
   "src/features/student/StudentProfileView.tsx": {
@@ -356,8 +356,8 @@
     "isDynamicEntry": true,
     "imports": [
       "_me.js",
-      "_student.js",
-      "index.html"
+      "index.html",
+      "_student.js"
     ]
   },
   "src/features/student/StudentProgressView.tsx": {
@@ -367,8 +367,8 @@
     "isDynamicEntry": true,
     "imports": [
       "_me.js",
-      "_student.js",
-      "index.html"
+      "index.html",
+      "_student.js"
     ]
   },
   "src/features/student/StudentQuizDetail.tsx": {
@@ -378,8 +378,8 @@
     "isDynamicEntry": true,
     "imports": [
       "_me.js",
-      "_student.js",
-      "index.html"
+      "index.html",
+      "_student.js"
     ]
   },
   "src/features/student/StudentQuizList.tsx": {
@@ -389,8 +389,8 @@
     "isDynamicEntry": true,
     "imports": [
       "_me.js",
-      "_student.js",
-      "index.html"
+      "index.html",
+      "_student.js"
     ]
   },
   "src/features/student/StudentQuizResult.tsx": {
@@ -400,8 +400,8 @@
     "isDynamicEntry": true,
     "imports": [
       "_me.js",
-      "_student.js",
-      "index.html"
+      "index.html",
+      "_student.js"
     ]
   },
   "src/features/student/StudentQuizTake.tsx": {
@@ -411,8 +411,8 @@
     "isDynamicEntry": true,
     "imports": [
       "_me.js",
-      "_student.js",
-      "index.html"
+      "index.html",
+      "_student.js"
     ]
   },
   "src/features/superadmin/AdminDetail.tsx": {
@@ -564,8 +564,8 @@
     "isDynamicEntry": true,
     "imports": [
       "_me.js",
-      "_teacher.js",
       "index.html",
+      "_teacher.js",
       "_ConfirmDialog.js"
     ]
   },
@@ -620,8 +620,8 @@
     "isDynamicEntry": true,
     "imports": [
       "_me.js",
-      "_teacher.js",
-      "index.html"
+      "index.html",
+      "_teacher.js"
     ]
   }
 }

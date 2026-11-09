@@ -475,7 +475,7 @@
   user-select: none;
 }
 
-.stu-bottom-tab i {
+.stu-bottom-tab .app-icon {
   font-size: 1.25rem;
   line-height: 1.1;
   transition: transform 0.15s ease;
@@ -486,7 +486,7 @@
   font-weight: 700;
 }
 
-.stu-bottom-tab--active i {
+.stu-bottom-tab--active .app-icon {
   color: var(--stu-navy);
   transform: translateY(-1px);
 }

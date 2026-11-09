@@ -1,3 +1,4 @@
+import { AppIcon } from '../../components/common/AppIcon';
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { studentApi } from '../../api/student';
@@ -80,7 +81,7 @@ export const StudentQuizList: React.FC = () => {
           <h1 className="stu-welcome__name">{isAssignments ? 'My Assignments' : 'Available Quizzes'}</h1>
           {className && (
             <span className="stu-welcome__role-badge">
-              <i className="bi bi-mortarboard-fill" aria-hidden="true" /> {className}
+              <AppIcon name="graduationCap" aria-hidden="true" /> {className}
             </span>
           )}
         </div>
@@ -92,14 +93,14 @@ export const StudentQuizList: React.FC = () => {
       </div>
 
       {/* Search Input */}
-      <div className="mb-3">
+      <div className="core-space--margin-bottom-3">
         <div className="input-group" style={{ maxWidth: '600px' }}>
-          <span className="input-group-text bg-white border-end-0" style={{ borderColor: 'var(--stu-border)' }}>
-            <i className="bi bi-search text-muted" aria-hidden="true" />
+          <span className="input-group-text core-surface--white core-border--end-none" style={{ borderColor: 'var(--stu-border)' }}>
+            <AppIcon name="search" className="core-text--muted" aria-hidden="true" />
           </span>
           <input
             type="search"
-            className="form-control border-start-0 ps-0"
+            className="core-field__input core-border--start-none core-space--padding-start-0"
             style={{ borderColor: 'var(--stu-border)', fontSize: '0.875rem' }}
             placeholder="Search by quiz title, subject, or teacher..."
             value={searchTerm}
@@ -124,9 +125,9 @@ export const StudentQuizList: React.FC = () => {
       </div>
 
       {error && (
-        <Alert variant="danger" dismissible={false} className="mb-3">
+        <Alert variant="danger" dismissible={false} className="core-space--margin-bottom-3">
           <h5>Error loading quizzes</h5>
-          <p className="mb-2">{error}</p>
+          <p className="core-space--margin-bottom-2">{error}</p>
           <button className="stu-btn-outline" onClick={() => loadQuizzes(statusFilter)}>
             Retry
           </button>
@@ -134,14 +135,14 @@ export const StudentQuizList: React.FC = () => {
       )}
 
       {loading ? (
-        <div className="d-flex justify-content-center py-5">
+        <div className="core-display-flex core-layout--justify-center core-space--padding-y-5">
           <LoadingSpinner size="lg" message="Loading quizzes..." />
         </div>
       ) : filteredQuizzes.length === 0 ? (
-        <div className="stu-card text-center py-5">
-          <i className="bi bi-journal-check text-muted" style={{ fontSize: '2.5rem' }} aria-hidden="true" />
-          <h2 className="stu-card__title mt-3 mb-1" style={{ fontSize: '1.1rem' }}>No quizzes found</h2>
-          <p className="text-muted mb-0" style={{ fontSize: '0.875rem' }}>
+        <div className="stu-card core-text--center core-space--padding-y-5">
+          <AppIcon name="clipboardCheck" className="core-text--muted" style={{ fontSize: '2.5rem' }} aria-hidden="true" />
+          <h2 className="stu-card__title core-space--margin-top-3 core-space--margin-bottom-1" style={{ fontSize: '1.1rem' }}>No quizzes found</h2>
+          <p className="core-text--muted core-space--margin-bottom-0" style={{ fontSize: '0.875rem' }}>
             {searchTerm
               ? 'No quizzes match your search filter.'
               : 'There are no quizzes matching this status.'}
@@ -155,13 +156,13 @@ export const StudentQuizList: React.FC = () => {
               <div className="stu-quiz-card__header">
                 <div className="stu-quiz-card__icon-title">
                   <div className="stu-quiz-card__icon">
-                    <i className="bi bi-journal-text" aria-hidden="true" />
+                    <AppIcon name="bookText" aria-hidden="true" />
                   </div>
                   <div>
                     <h2 className="stu-quiz-card__title">{quiz.title}</h2>
-                    <div className="d-flex align-items-center gap-2 flex-wrap">
+                    <div className="core-display-flex core-layout--align-center core-layout--gap-2 core-layout--wrap">
                       <span className="stu-badge stu-badge--sky">{quiz.subject_name}</span>
-                      <span className="small text-muted">By {quiz.teacher_name}</span>
+                      <span className="core-type--small core-text--muted">By {quiz.teacher_name}</span>
                     </div>
                   </div>
                 </div>
@@ -169,24 +170,24 @@ export const StudentQuizList: React.FC = () => {
               </div>
 
               {quiz.description && (
-                <p className="text-muted small mb-0" style={{ lineHeight: '1.4' }}>
+                <p className="core-text--muted core-type--small core-space--margin-bottom-0" style={{ lineHeight: '1.4' }}>
                   {quiz.description}
                 </p>
               )}
 
               <div className="stu-quiz-card__meta">
                 <span className="stu-quiz-card__meta-item">
-                  <i className="bi bi-clock" aria-hidden="true" />
+                  <AppIcon name="clock" aria-hidden="true" />
                   {quiz.duration_minutes > 0 ? `${quiz.duration_minutes} mins` : 'Untimed'}
                 </span>
                 <span>•</span>
                 <span className="stu-quiz-card__meta-item">
-                  <i className="bi bi-question-circle" aria-hidden="true" />
+                  <AppIcon name="circleHelp" aria-hidden="true" />
                   {quiz.total_questions} questions
                 </span>
                 <span>•</span>
                 <span className="stu-quiz-card__meta-item">
-                  <i className="bi bi-star" aria-hidden="true" />
+                  <AppIcon name="star" aria-hidden="true" />
                   {quiz.total_marks} marks
                 </span>
                 <span>•</span>
@@ -196,7 +197,7 @@ export const StudentQuizList: React.FC = () => {
                 {quiz.attempts_count > 0 && (
                   <>
                     <span>•</span>
-                    <span className="stu-quiz-card__meta-item text-primary fw-semibold">
+                    <span className="stu-quiz-card__meta-item core-text--primary core-type--weight-semibold">
                       Best: {quiz.best_percentage}%
                     </span>
                   </>

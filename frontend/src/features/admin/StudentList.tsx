@@ -1,3 +1,4 @@
+import { AppIcon } from '../../components/common/AppIcon';
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   archiveStudent,
@@ -349,18 +350,18 @@ export const StudentList: React.FC = () => {
       accessor: (row) => (
         <div className="directory-row-actions">
           <Button variant="outline-secondary" size="sm" onClick={() => setDetailsTarget(row)} title="View student details" aria-label={`View ${row.full_name}`}>
-            <i className="bi bi-eye" aria-hidden="true" />
+            <AppIcon name="eye" aria-hidden="true" />
           </Button>
           <Button variant="outline-primary" size="sm" onClick={() => void openEditModal(row)} title="Edit student" aria-label={`Edit ${row.full_name}`}>
-            <i className="bi bi-pencil" aria-hidden="true" />
+            <AppIcon name="pencil" aria-hidden="true" />
           </Button>
           {row.is_active ? (
             <Button variant="outline-danger" size="sm" onClick={() => setArchiveTarget(row)} title="Archive student" aria-label={`Archive ${row.full_name}`}>
-              <i className="bi bi-archive" aria-hidden="true" />
+              <AppIcon name="archive" aria-hidden="true" />
             </Button>
           ) : (
             <Button variant="outline-secondary" size="sm" onClick={() => setRestoreTarget(row)} title="Restore student" aria-label={`Restore ${row.full_name}`}>
-              <i className="bi bi-arrow-counterclockwise" aria-hidden="true" />
+              <AppIcon name="rotateCounterclockwise" aria-hidden="true" />
             </Button>
           )}
         </div>
@@ -391,14 +392,14 @@ export const StudentList: React.FC = () => {
             </label>
           )}
           <button className="directory-page__action" type="button" onClick={loadStudents} disabled={loading}>
-            <i className="bi bi-arrow-clockwise" aria-hidden="true" /> Refresh
+            <AppIcon name="rotateClockwise" aria-hidden="true" /> Refresh
           </button>
           {(!isSuperadmin || selectedSchoolId !== 'all') && (
             <>
               <a className="directory-page__action" href={exportHref('csv')}>Export CSV</a>
               <a className="directory-page__action" href={exportHref('xlsx')}>Export XLSX</a>
               <Button variant="outline-secondary" size="sm" onClick={() => void openImportDialog()}>
-                <i className="bi bi-upload" aria-hidden="true" /> Import students
+                <AppIcon name="upload" aria-hidden="true" /> Import students
               </Button>
             </>
           )}
@@ -415,7 +416,7 @@ export const StudentList: React.FC = () => {
             </Button>
           )}
           <Button variant="primary" size="sm" onClick={() => void openCreateModal()} disabled={isSuperadmin && selectedSchoolId === 'all'}>
-            <i className="bi bi-person-plus" aria-hidden="true" /> New Student
+            <AppIcon name="userRoundPlus" aria-hidden="true" /> New Student
           </Button>
         </div>
       </header>
@@ -530,7 +531,7 @@ export const StudentList: React.FC = () => {
                 </select>
               </label>
             )}
-            <div className="mt-2">
+            <div className="core-space--margin-top-2">
               {bulkAction === 'restore' ? 'Restore' : 'Archive'} {selectedStudentIds.length} selected student profile(s)? Student history is retained.
             </div>
           </div>

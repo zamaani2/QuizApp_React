@@ -1,3 +1,4 @@
+import { AppIcon } from '../../components/common/AppIcon';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { studentApi } from '../../api/student';
@@ -30,7 +31,7 @@ export const StudentProgressView: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="d-flex justify-content-center py-5" data-testid="student-progress-loading">
+      <div className="core-display-flex core-layout--justify-center core-space--padding-y-5" data-testid="student-progress-loading">
         <LoadingSpinner size="lg" message="Loading your academic progress..." />
       </div>
     );
@@ -41,7 +42,7 @@ export const StudentProgressView: React.FC = () => {
       <div data-testid="student-progress-error">
         <Alert variant="danger" dismissible={false}>
           <h5>Unable to load progress</h5>
-          <p className="mb-2">{error || 'An unexpected error occurred.'}</p>
+          <p className="core-space--margin-bottom-2">{error || 'An unexpected error occurred.'}</p>
           <button className="stu-btn-outline" onClick={loadProgress}>
             Retry
           </button>
@@ -59,7 +60,7 @@ export const StudentProgressView: React.FC = () => {
         <div className="stu-welcome__heading-row">
           <h1 className="stu-welcome__name">Learning Progress</h1>
           <span className="stu-welcome__role-badge">
-            <i className="bi bi-mortarboard-fill" aria-hidden="true" /> {academic.current_class?.name || 'Academic Record'}
+            <AppIcon name="graduationCap" aria-hidden="true" /> {academic.current_class?.name || 'Academic Record'}
           </span>
         </div>
         <div className="stu-welcome__subtitle">
@@ -95,7 +96,7 @@ export const StudentProgressView: React.FC = () => {
       <div className="stu-cta-card">
         <div className="stu-cta-card__top">
           <div className="stu-cta-card__icon-box">
-            <i className="bi bi-trophy-fill" aria-hidden="true" />
+            <AppIcon name="trophy" aria-hidden="true" />
           </div>
           <div className="stu-cta-card__info">
             <div className="stu-cta-card__eyebrow">ACADEMIC EXCELLENCE</div>
@@ -122,9 +123,9 @@ export const StudentProgressView: React.FC = () => {
       </div>
 
       {stats.recent_activity.length === 0 ? (
-        <div className="stu-card text-center py-4">
-          <i className="bi bi-journal-check text-muted" style={{ fontSize: '2rem' }} aria-hidden="true" />
-          <p className="text-muted mt-2 mb-0" style={{ fontSize: '0.875rem' }}>
+        <div className="stu-card core-text--center core-space--padding-y-4">
+          <AppIcon name="clipboardCheck" className="core-text--muted" style={{ fontSize: '2rem' }} aria-hidden="true" />
+          <p className="core-text--muted core-space--margin-top-2 core-space--margin-bottom-0" style={{ fontSize: '0.875rem' }}>
             No assessments completed yet. Take your first quiz to see your progress here!
           </p>
         </div>
@@ -135,7 +136,7 @@ export const StudentProgressView: React.FC = () => {
               <div className="stu-result-card__info">
                 <h3 className="stu-result-card__title">{item.quiz_title}</h3>
                 <div className="stu-result-card__sub">
-                  <span className="stu-badge stu-badge--sky me-2">{item.subject_name}</span>
+                  <span className="stu-badge stu-badge--sky core-space--margin-end-2">{item.subject_name}</span>
                   {item.submitted_at && <span>{new Date(item.submitted_at).toLocaleDateString()}</span>}
                 </div>
               </div>

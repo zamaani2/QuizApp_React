@@ -175,7 +175,7 @@ export const StudentAppLayout: FC<StudentAppLayoutProps> = ({ children }) => {
 
           <a
             href="/auth-app/?next=%2Fapp%2F"
-            className={`stu-sidebar__link text-danger ${isCollapsed ? 'justify-content-center px-0' : ''}`}
+            className={`stu-sidebar__link core-text--danger ${isCollapsed ? 'core-layout--justify-center core-space--padding-x-0' : ''}`}
             title="Sign out of student account"
             aria-label="Sign out"
           >
@@ -196,7 +196,7 @@ export const StudentAppLayout: FC<StudentAppLayoutProps> = ({ children }) => {
       >
         <div className="stu-header__inner">
           <div className="stu-header__left">
-            <Link to="/student/profile" className="text-decoration-none" title="View Student Profile">
+            <Link to="/student/profile" className="core-text--decoration-none" title="View Student Profile">
               <div className="stu-avatar-pill" aria-label={`Logged in as ${user?.full_name || 'Student'}`}>
                 {initial}
               </div>
@@ -231,7 +231,7 @@ export const StudentAppLayout: FC<StudentAppLayoutProps> = ({ children }) => {
 
             <a
               href="/auth-app/?next=%2Fapp%2F"
-              className="stu-icon-btn d-none d-md-flex"
+              className="stu-icon-btn core-display-none core-display-md-flex"
               title="Sign Out / Switch Session"
               aria-label="Sign Out"
             >
@@ -270,7 +270,7 @@ export const StudentAppLayout: FC<StudentAppLayoutProps> = ({ children }) => {
                 className={`stu-bottom-tab ${active ? 'stu-bottom-tab--active' : ''}`}
                 aria-label={item.label}
               >
-                <Icon size={20} aria-hidden="true" />
+                <Icon className="app-icon" size={20} aria-hidden="true" />
                 <span>{item.label}</span>
                 {active && <span className="stu-bottom-tab__indicator" aria-hidden="true" />}
               </Link>

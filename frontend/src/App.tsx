@@ -1,3 +1,4 @@
+import { AppIcon } from './components/common/AppIcon';
 import { useState, lazy, Suspense, type FC } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth, RoleGuard } from './auth';
@@ -216,8 +217,8 @@ export const ComponentInventoryPreview: FC = () => {
       header: 'Component',
       accessor: (row) => (
         <div>
-          <span className="fw-semibold text-dark">{row.name}</span>
-          <div className="small text-muted">{row.description}</div>
+          <span className="core-type--weight-semibold core-text--dark">{row.name}</span>
+          <div className="core-type--small core-text--muted">{row.description}</div>
         </div>
       ),
       sortable: true,
@@ -234,12 +235,12 @@ export const ComponentInventoryPreview: FC = () => {
       header: 'Status',
       accessor: (row) => (
         <span
-          className={`badge ${
+          className={`core-badge ${
             row.status === 'Ready'
-              ? 'bg-success'
+              ? 'core-surface--success'
               : row.status === 'In Review'
-              ? 'bg-warning text-dark'
-              : 'bg-secondary'
+              ? 'core-surface--warning core-text--dark'
+              : 'core-surface--secondary'
           }`}
         >
           {row.status}
@@ -259,62 +260,62 @@ export const ComponentInventoryPreview: FC = () => {
           title="Phase 2 Shared UI Active"
           dismissible
           onDismiss={() => setAlertDismissed(true)}
-          className="mb-4"
+          className="core-space--margin-bottom-4"
         >
-          Visual parity established with Django layout. Bootstrap 5 tokens, accent themes, and
-          reusable primitives (Table, Modal, Form, Buttons) are now available.
+          Visual parity established with Django layout. React-owned style tokens, accent themes,
+          and reusable primitives (Table, Modal, Form, Buttons) are now available.
         </Alert>
       )}
 
       {/* Overview Cards */}
-      <div className="row g-3 mb-4">
-        <div className="col-12 col-md-4">
-          <div className="card shadow-sm border-0 h-100">
-            <div className="card-body p-3">
-              <div className="d-flex align-items-center gap-3">
-                <div className="p-3 bg-primary-subtle rounded-3 text-primary">
-                  <i className="bi bi-shield-check fs-4" />
+      <div className="core-grid core-grid--gap-3 core-space--margin-bottom-4">
+        <div className="core-grid__span-12 core-grid__span-md-4">
+          <div className="core-card core-shadow--sm core-border--none core-size--height-full">
+            <div className="core-card__body core-space--padding-3">
+              <div className="core-display-flex core-layout--align-center core-layout--gap-3">
+                <div className="core-space--padding-3 core-surface--primary-subtle core-radius--3 core-text--primary">
+                  <AppIcon name="shieldCheck" className="core-type--size-4" />
                 </div>
                 <div>
-                  <div className="text-muted small fw-semibold">SESSION AUTH</div>
-                  <div className="h6 mb-0 fw-bold">{user?.username}</div>
-                  <small className="text-capitalize text-muted">{user?.role}</small>
+                  <div className="core-text--muted core-type--small core-type--weight-semibold">SESSION AUTH</div>
+                  <div className="core-type--heading-6 core-space--margin-bottom-0 core-type--weight-bold">{user?.username}</div>
+                  <small className="core-text--capitalize core-text--muted">{user?.role}</small>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="col-12 col-md-4">
-          <div className="card shadow-sm border-0 h-100">
-            <div className="card-body p-3">
-              <div className="d-flex align-items-center gap-3">
-                <div className="p-3 bg-success-subtle rounded-3 text-success">
-                  <i className="bi bi-building fs-4" />
+        <div className="core-grid__span-12 core-grid__span-md-4">
+          <div className="core-card core-shadow--sm core-border--none core-size--height-full">
+            <div className="core-card__body core-space--padding-3">
+              <div className="core-display-flex core-layout--align-center core-layout--gap-3">
+                <div className="core-space--padding-3 core-surface--success-subtle core-radius--3 core-text--success">
+                  <AppIcon name="building" className="core-type--size-4" />
                 </div>
                 <div>
-                  <div className="text-muted small fw-semibold">TENANT SCHOOL</div>
-                  <div className="h6 mb-0 fw-bold">{school?.name || 'Superadmin Scoped'}</div>
-                  <small className="text-muted">{school?.code || 'Active'}</small>
+                  <div className="core-text--muted core-type--small core-type--weight-semibold">TENANT SCHOOL</div>
+                  <div className="core-type--heading-6 core-space--margin-bottom-0 core-type--weight-bold">{school?.name || 'Superadmin Scoped'}</div>
+                  <small className="core-text--muted">{school?.code || 'Active'}</small>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="col-12 col-md-4">
-          <div className="card shadow-sm border-0 h-100">
-            <div className="card-body p-3">
-              <div className="d-flex align-items-center gap-3">
-                <div className="p-3 bg-info-subtle rounded-3 text-info">
-                  <i className="bi bi-palette fs-4" />
+        <div className="core-grid__span-12 core-grid__span-md-4">
+          <div className="core-card core-shadow--sm core-border--none core-size--height-full">
+            <div className="core-card__body core-space--padding-3">
+              <div className="core-display-flex core-layout--align-center core-layout--gap-3">
+                <div className="core-space--padding-3 core-surface--info-subtle core-radius--3 core-text--info">
+                  <AppIcon name="palette" className="core-type--size-4" />
                 </div>
                 <div>
-                  <div className="text-muted small fw-semibold">ACCENT THEME</div>
-                  <div className="h6 mb-0 fw-bold text-capitalize">
+                  <div className="core-text--muted core-type--small core-type--weight-semibold">ACCENT THEME</div>
+                  <div className="core-type--heading-6 core-space--margin-bottom-0 core-type--weight-bold core-text--capitalize">
                     {data?.ui_preferences?.theme || 'Academic Pro'}
                   </div>
-                  <small className="text-muted">Synced with Django</small>
+                  <small className="core-text--muted">Synced with Django</small>
                 </div>
               </div>
             </div>
@@ -323,24 +324,24 @@ export const ComponentInventoryPreview: FC = () => {
       </div>
 
       {/* Shared Primitives Inventory Table */}
-      <div className="card shadow-sm border-0 mb-4">
-        <div className="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div className="core-card core-shadow--sm core-border--none core-space--margin-bottom-4">
+        <div className="core-card__header core-surface--white core-border--bottom core-space--padding-y-3 core-display-flex core-layout--justify-between core-layout--align-center core-layout--wrap core-layout--gap-2">
           <div>
-            <h2 className="h6 fw-bold mb-0 text-dark">Shared UI Components Inventory</h2>
-            <small className="text-muted">
+            <h2 className="core-type--heading-6 core-type--weight-bold core-space--margin-bottom-0 core-text--dark">Shared UI Components Inventory</h2>
+            <small className="core-text--muted">
               Standard primitives built to match Django appearance and accessibility
             </small>
           </div>
           <Button
             variant="primary"
             size="sm"
-            icon={<i className="bi bi-window-stack" />}
+            icon={<AppIcon name="panelsTopLeft" />}
             onClick={() => setIsModalOpen(true)}
           >
             Launch Modal Preview
           </Button>
         </div>
-        <div className="card-body p-3">
+        <div className="core-card__body core-space--padding-3">
           <DataTable
             columns={columns}
             data={SAMPLE_COMPONENTS}
@@ -357,7 +358,7 @@ export const ComponentInventoryPreview: FC = () => {
         onClose={() => setIsModalOpen(false)}
         title="Shared Modal Primitive"
         footer={
-          <div className="d-flex justify-content-end gap-2 w-100">
+          <div className="core-display-flex core-layout--justify-end core-layout--gap-2 core-size--width-full">
             <Button variant="secondary" size="sm" onClick={() => setIsModalOpen(false)}>
               Close
             </Button>
@@ -367,11 +368,11 @@ export const ComponentInventoryPreview: FC = () => {
           </div>
         }
       >
-        <p className="mb-2">
-          This modal primitive is built using accessible Bootstrap 5 dialog classes. It traps focus,
+        <p className="core-space--margin-bottom-2">
+          This modal primitive uses accessible QuizApp dialog styles. It traps focus,
           responds to the <kbd>Esc</kbd> key, and closes when clicking the backdrop.
         </p>
-        <p className="mb-0 text-muted small">
+        <p className="core-space--margin-bottom-0 core-text--muted core-type--small">
           It is ready to be used by Phase 3 (Admin) and Phase 4 (Teacher) forms and confirmation
           workflows.
         </p>
@@ -386,7 +387,7 @@ const AppShellWithRoutes: FC = () => {
 
   if (loading) {
     return (
-      <div className="d-flex min-vh-100 align-items-center justify-content-center bg-light">
+      <div className="core-display-flex core-size--min-height-vh-100 core-layout--align-center core-layout--justify-center core-surface--light">
         <LoadingSpinner message="Loading authenticated workspace..." size="lg" />
       </div>
     );
@@ -435,7 +436,7 @@ const AppShellWithRoutes: FC = () => {
   const routeContent = (
     <Suspense
         fallback={
-          <div className="d-flex min-vh-50 align-items-center justify-content-center py-5">
+          <div className="core-display-flex core-size--min-height-vh-50 core-layout--align-center core-layout--justify-center core-space--padding-y-5">
             <LoadingSpinner message="Loading view..." size="md" />
           </div>
         }
@@ -870,10 +871,10 @@ const AppShellWithRoutes: FC = () => {
           <Route
             path="*"
             element={
-              <div className="container py-5 text-center">
-                <h3 className="h4 fw-bold mb-2">Page Not Found</h3>
-                <p className="text-muted mb-4">The requested React route does not exist.</p>
-                <a href="/app/" className="btn btn-primary btn-sm">
+              <div className="core-container core-space--padding-y-5 core-text--center">
+                <h3 className="core-type--heading-4 core-type--weight-bold core-space--margin-bottom-2">Page Not Found</h3>
+                <p className="core-text--muted core-space--margin-bottom-4">The requested React route does not exist.</p>
+                <a href="/app/" className="core-button core-button--primary core-button--sm">
                   Return to Dashboard
                 </a>
               </div>
@@ -901,7 +902,7 @@ const AppShellWithRoutes: FC = () => {
 export const App: FC = () => {
   return (
     <AuthProvider>
-      <BrowserRouter basename={import.meta.env.DEV ? '/' : '/app'}>
+      <BrowserRouter basename="/app">
         <AppShellWithRoutes />
       </BrowserRouter>
     </AuthProvider>

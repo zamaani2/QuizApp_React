@@ -1,3 +1,4 @@
+import { AppIcon } from '../../components/common/AppIcon';
 import React, { useCallback, useEffect, useState } from 'react';
 import { academicApi, type SchoolStructureResponse } from '../../api/academic';
 import type {
@@ -263,7 +264,7 @@ export const StructureManager: React.FC<StructureManagerProps> = ({ resource }) 
           title={`Edit ${item.name}`}
           onClick={() => openEditModal(item)}
         >
-          <i className="bi bi-pencil" aria-hidden="true" />
+          <AppIcon name="pencil" aria-hidden="true" />
         </Button>
         <Button
           variant="outline-danger"
@@ -272,7 +273,7 @@ export const StructureManager: React.FC<StructureManagerProps> = ({ resource }) 
           title={`Delete ${item.name}`}
           onClick={() => setDeleteTarget(item)}
         >
-          <i className="bi bi-trash" aria-hidden="true" />
+          <AppIcon name="trash" aria-hidden="true" />
         </Button>
       </div>
     ),
@@ -293,7 +294,7 @@ export const StructureManager: React.FC<StructureManagerProps> = ({ resource }) 
         </div>
         <div className="academic-admin__heading-actions">
           <Button variant="primary" size="sm" onClick={openCreateModal}>
-            <i className="bi bi-plus-lg" aria-hidden="true" /> Add {details.singular}
+            <AppIcon name="plus" aria-hidden="true" /> Add {details.singular}
           </Button>
         </div>
       </header>
@@ -325,7 +326,7 @@ export const StructureManager: React.FC<StructureManagerProps> = ({ resource }) 
           </label>
         ) : <span className="academic-admin__catalog-secondary">Manage records for your school.</span>}
         <Button variant="outline-secondary" size="sm" onClick={() => void loadData()} loading={loading}>
-          <i className="bi bi-arrow-repeat" aria-hidden="true" /> Refresh
+          <AppIcon name="refresh" aria-hidden="true" /> Refresh
         </Button>
       </section>
 

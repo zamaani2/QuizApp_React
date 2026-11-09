@@ -124,19 +124,19 @@ export const QuestionEditor: React.FC = () => {
   const isChoiceType = questionType === 'multiple_choice' || questionType === 'true_false';
 
   return (
-    <div className="assessment-page container-fluid py-4">
-      <div className="mb-3">
-        <Link to={`/teacher/quizzes/${quizId}`} className="text-decoration-none">&larr; Back to {quiz.title}</Link>
+    <div className="assessment-page core-container core-space--padding-y-4">
+      <div className="core-space--margin-bottom-3">
+        <Link to={`/teacher/quizzes/${quizId}`} className="core-text--decoration-none">&larr; Back to {quiz.title}</Link>
       </div>
-      <h1 className="h3 mb-4">{parsedQuestionId ? 'Edit Question' : 'Add Question'}</h1>
+      <h1 className="core-type--heading-3 core-space--margin-bottom-4">{parsedQuestionId ? 'Edit Question' : 'Add Question'}</h1>
       {error && <Alert variant="danger" dismissible onDismiss={() => setError(null)}>{error}</Alert>}
-      <form className="card shadow-sm border-0" onSubmit={handleSubmit}>
-        <div className="card-body">
-          <div className="row g-3">
+      <form className="core-card core-shadow--sm core-border--none" onSubmit={handleSubmit}>
+        <div className="core-card__body">
+          <div className="core-grid core-grid--gap-3">
             {!parsedQuestionId && (
-              <div className="col-md-6">
-                <label className="form-label" htmlFor="question-type">Question type</label>
-                <select id="question-type" className="form-select" value={questionType} onChange={(event) => {
+              <div className="core-grid__span-md-6">
+                <label className="core-field__label" htmlFor="question-type">Question type</label>
+                <select id="question-type" className="core-field__select" value={questionType} onChange={(event) => {
                   setQuestionType(event.target.value);
                   setChoices(initialChoices());
                 }}>
@@ -144,46 +144,46 @@ export const QuestionEditor: React.FC = () => {
                 </select>
               </div>
             )}
-            <div className="col-md-3">
-              <label className="form-label" htmlFor="question-marks">Marks</label>
-              <input id="question-marks" className="form-control" type="number" min="1" name="marks" required defaultValue={question?.marks ?? 1} />
+            <div className="core-grid__span-md-3">
+              <label className="core-field__label" htmlFor="question-marks">Marks</label>
+              <input id="question-marks" className="core-field__input" type="number" min="1" name="marks" required defaultValue={question?.marks ?? 1} />
             </div>
-            <div className="col-md-3">
-              <label className="form-label" htmlFor="question-order">Order</label>
-              <input id="question-order" className="form-control" type="number" min="1" name="order" defaultValue={question?.order ?? quiz.questions.length + 1} />
+            <div className="core-grid__span-md-3">
+              <label className="core-field__label" htmlFor="question-order">Order</label>
+              <input id="question-order" className="core-field__input" type="number" min="1" name="order" defaultValue={question?.order ?? quiz.questions.length + 1} />
             </div>
-            <div className="col-12">
-              <label className="form-label" htmlFor="question-text">Question *</label>
-              <textarea id="question-text" className="form-control" name="question_text" rows={4} required defaultValue={question?.question_text ?? ''} />
+            <div className="core-grid__span-12">
+              <label className="core-field__label" htmlFor="question-text">Question *</label>
+              <textarea id="question-text" className="core-field__input" name="question_text" rows={4} required defaultValue={question?.question_text ?? ''} />
             </div>
             {isChoiceType && (
-              <div className="col-12">
+              <div className="core-grid__span-12">
                 <fieldset>
-                  <legend className="form-label">Answer choices</legend>
+                  <legend className="core-field__label">Answer choices</legend>
                   {questionType === 'true_false' ? (
-                    <div className="d-flex gap-4">
+                    <div className="core-display-flex core-layout--gap-4">
                       {['true', 'false'].map((value) => (
-                        <label className="form-check" key={value}>
-                          <input className="form-check-input" type="radio" name="correct-true-false" value={value} checked={tfCorrect === value} onChange={() => setTfCorrect(value)} />
-                          <span className="form-check-label text-capitalize">{value}</span>
+                        <label className="core-field__check" key={value}>
+                          <input className="core-field__check-input" type="radio" name="correct-true-false" value={value} checked={tfCorrect === value} onChange={() => setTfCorrect(value)} />
+                          <span className="core-field__check-label core-text--capitalize">{value}</span>
                         </label>
                       ))}
                     </div>
                   ) : (
                     <>
                       {choices.map((choice, index) => (
-                        <div className="row g-2 align-items-center mb-2 flex-wrap" key={choice.id ?? index}>
-                          <div className="col-12 col-sm">
-                            <label className="visually-hidden" htmlFor={`choice-${index}`}>Choice {index + 1}</label>
-                            <input id={`choice-${index}`} className="form-control" value={choice.text} onChange={(event) => changeChoice(index, { text: event.target.value })} placeholder={`Choice ${index + 1}`} />
+                        <div className="core-grid core-grid--gap-2 core-layout--align-center core-space--margin-bottom-2 core-layout--wrap" key={choice.id ?? index}>
+                          <div className="core-grid__span-12 core-grid__column-sm">
+                            <label className="core-visually-hidden" htmlFor={`choice-${index}`}>Choice {index + 1}</label>
+                            <input id={`choice-${index}`} className="core-field__input" value={choice.text} onChange={(event) => changeChoice(index, { text: event.target.value })} placeholder={`Choice ${index + 1}`} />
                           </div>
-                          <div className="col-auto">
-                            <label className="form-check mb-0">
-                              <input className="form-check-input" type="checkbox" checked={choice.isCorrect} onChange={(event) => changeChoice(index, { isCorrect: event.target.checked })} />
-                              <span className="form-check-label">Correct</span>
+                          <div className="core-grid__column-auto">
+                            <label className="core-field__check core-space--margin-bottom-0">
+                              <input className="core-field__check-input" type="checkbox" checked={choice.isCorrect} onChange={(event) => changeChoice(index, { isCorrect: event.target.checked })} />
+                              <span className="core-field__check-label">Correct</span>
                             </label>
                           </div>
-                          <div className="col-auto">
+                          <div className="core-grid__column-auto">
                             <Button type="button" variant="outline-danger" size="sm" disabled={choices.length <= 2} onClick={() => setChoices((current) => current.filter((_, choiceIndex) => choiceIndex !== index))}>Remove</Button>
                           </div>
                         </div>
@@ -195,38 +195,38 @@ export const QuestionEditor: React.FC = () => {
               </div>
             )}
             {answerFieldRequired && (
-              <div className="col-12">
-                <label className="form-label" htmlFor="question-answer">
+              <div className="core-grid__span-12">
+                <label className="core-field__label" htmlFor="question-answer">
                   {questionType === 'matching' ? 'Correct pairs (left=right, separated by semicolons)' :
                     questionType === 'ordering' ? 'Correct order (items separated by semicolons)' : 'Accepted answer(s)'}
                 </label>
-                <textarea id="question-answer" className="form-control" rows={2} name="correct_answer" required={questionType === 'matching' || questionType === 'ordering'} defaultValue={question?.correct_answer_text ?? ''} />
+                <textarea id="question-answer" className="core-field__input" rows={2} name="correct_answer" required={questionType === 'matching' || questionType === 'ordering'} defaultValue={question?.correct_answer_text ?? ''} />
               </div>
             )}
-            <div className="col-md-6">
-              <label className="form-label" htmlFor="question-difficulty">Difficulty</label>
-              <select id="question-difficulty" className="form-select" name="difficulty" defaultValue={question?.difficulty ?? 'medium'}>
+            <div className="core-grid__span-md-6">
+              <label className="core-field__label" htmlFor="question-difficulty">Difficulty</label>
+              <select id="question-difficulty" className="core-field__select" name="difficulty" defaultValue={question?.difficulty ?? 'medium'}>
                 <option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option>
               </select>
             </div>
-            <div className="col-md-6">
-              <label className="form-label" htmlFor="negative-marks">Negative marks</label>
-              <input id="negative-marks" className="form-control" type="number" min="0" step="0.1" name="negative_marks" defaultValue={question?.negative_marks ?? 0} />
+            <div className="core-grid__span-md-6">
+              <label className="core-field__label" htmlFor="negative-marks">Negative marks</label>
+              <input id="negative-marks" className="core-field__input" type="number" min="0" step="0.1" name="negative_marks" defaultValue={question?.negative_marks ?? 0} />
             </div>
-            <div className="col-12">
-              <label className="form-label" htmlFor="question-explanation">Explanation</label>
-              <textarea id="question-explanation" className="form-control" rows={2} name="explanation" defaultValue={question?.explanation ?? ''} />
+            <div className="core-grid__span-12">
+              <label className="core-field__label" htmlFor="question-explanation">Explanation</label>
+              <textarea id="question-explanation" className="core-field__input" rows={2} name="explanation" defaultValue={question?.explanation ?? ''} />
             </div>
-            <div className="col-12">
-              <label className="form-check">
-                <input className="form-check-input" type="checkbox" name="is_required" defaultChecked={question?.is_required ?? true} />
-                <span className="form-check-label">Required question</span>
+            <div className="core-grid__span-12">
+              <label className="core-field__check">
+                <input className="core-field__check-input" type="checkbox" name="is_required" defaultChecked={question?.is_required ?? true} />
+                <span className="core-field__check-label">Required question</span>
               </label>
             </div>
           </div>
         </div>
-        <div className="card-footer bg-white d-flex flex-wrap justify-content-end gap-2">
-          <Link to={`/teacher/quizzes/${quizId}`} className="btn btn-outline-secondary">Cancel</Link>
+        <div className="core-card__footer core-surface--white core-display-flex core-layout--wrap core-layout--justify-end core-layout--gap-2">
+          <Link to={`/teacher/quizzes/${quizId}`} className="core-button core-button--outline-secondary">Cancel</Link>
           <Button type="submit" loading={saving}>{parsedQuestionId ? 'Save Question' : 'Add Question'}</Button>
         </div>
       </form>

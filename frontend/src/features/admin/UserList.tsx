@@ -1,3 +1,4 @@
+import { AppIcon } from '../../components/common/AppIcon';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert } from '../../components/common/Alert';
 import { Button } from '../../components/common/Button';
@@ -232,11 +233,11 @@ export const UserList: React.FC = () => {
       accessor: (row) => (
         <div className="directory-row-actions">
           <Button variant="outline-primary" size="sm" onClick={() => void openEditModal(row)} title="Edit user" aria-label={`Edit ${row.full_name}`}>
-            <i className="bi bi-pencil" aria-hidden="true" />
+            <AppIcon name="pencil" aria-hidden="true" />
           </Button>
           {row.id !== currentUser?.user.id && (isSuperadmin || row.role !== 'superadmin') && (
             <Button variant="outline-danger" size="sm" onClick={() => setDeleteTarget(row)} title="Delete user" aria-label={`Delete ${row.full_name}`}>
-              <i className="bi bi-trash" aria-hidden="true" />
+              <AppIcon name="trash" aria-hidden="true" />
             </Button>
           )}
         </div>
@@ -254,7 +255,7 @@ export const UserList: React.FC = () => {
         </div>
         <div className="directory-page__actions">
           <button className="directory-page__action" type="button" onClick={() => void loadUsers()} disabled={loading}>
-            <i className="bi bi-arrow-clockwise" aria-hidden="true" /> Refresh
+            <AppIcon name="rotateClockwise" aria-hidden="true" /> Refresh
           </button>
           {selectedUserIds.length > 0 && (
             <Button variant="warning" size="sm" onClick={() => setBulkResetOpen(true)}>
@@ -262,7 +263,7 @@ export const UserList: React.FC = () => {
             </Button>
           )}
           <Button variant="primary" size="sm" onClick={() => void openCreateModal()}>
-            <i className="bi bi-person-plus" aria-hidden="true" /> Add User
+            <AppIcon name="userRoundPlus" aria-hidden="true" /> Add User
           </Button>
         </div>
       </header>
@@ -349,7 +350,7 @@ export const UserList: React.FC = () => {
                 {schools.map((school) => <option key={school.id} value={school.id}>{school.name}</option>)}
               </select>}
             </label>
-            <div className="mt-2">Send a one-time password setup email to {selectedUserIds.length} selected account(s)?</div>
+            <div className="core-space--margin-top-2">Send a one-time password setup email to {selectedUserIds.length} selected account(s)?</div>
           </div>
         }
         confirmLabel="Send reset links"

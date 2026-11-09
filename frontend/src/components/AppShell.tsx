@@ -10,11 +10,11 @@ export const AppShell: FC<AppShellProps> = ({ children }) => {
 
   if (loading) {
     return (
-      <div className="container py-5 text-center" role="status">
-        <div className="spinner-border text-primary" aria-hidden="true">
-          <span className="visually-hidden">Loading application...</span>
+      <div className="core-container core-space--padding-y-5 core-text--center" role="status">
+        <div className="core-spinner core-text--primary" aria-hidden="true">
+          <span className="core-visually-hidden">Loading application...</span>
         </div>
-        <p className="mt-3 text-muted">Loading authenticated workspace...</p>
+        <p className="core-space--margin-top-3 core-text--muted">Loading authenticated workspace...</p>
       </div>
     );
   }
@@ -22,12 +22,12 @@ export const AppShell: FC<AppShellProps> = ({ children }) => {
   if (error) {
     if (error.status === 401) {
       return (
-        <div className="container py-5">
-          <div className="alert alert-warning" role="alert">
-            <h4 className="alert-heading">Session Expired</h4>
+        <div className="core-container core-space--padding-y-5">
+          <div className="core-alert core-alert--warning" role="alert">
+            <h4 className="core-alert__heading">Session Expired</h4>
             <p>Your session is not active or has expired. Please log in to continue.</p>
             <hr />
-            <a href="/login/?next=/app/" className="btn btn-primary">
+            <a href="/login/?next=/app/" className="core-button core-button--primary">
               Log In
             </a>
           </div>
@@ -37,12 +37,12 @@ export const AppShell: FC<AppShellProps> = ({ children }) => {
 
     if (error.status === 403) {
       return (
-        <div className="container py-5">
-          <div className="alert alert-danger" role="alert">
-            <h4 className="alert-heading">Access Restricted</h4>
+        <div className="core-container core-space--padding-y-5">
+          <div className="core-alert core-alert--danger" role="alert">
+            <h4 className="core-alert__heading">Access Restricted</h4>
             <p>{error.message || 'A valid school association is required to access this application.'}</p>
             <hr />
-            <a href="/app/" className="btn btn-secondary">
+            <a href="/app/" className="core-button core-button--secondary">
               Back to Dashboard
             </a>
           </div>
@@ -51,9 +51,9 @@ export const AppShell: FC<AppShellProps> = ({ children }) => {
     }
 
     return (
-      <div className="container py-5">
-        <div className="alert alert-danger" role="alert">
-          <h4 className="alert-heading">Application Error</h4>
+      <div className="core-container core-space--padding-y-5">
+        <div className="core-alert core-alert--danger" role="alert">
+          <h4 className="core-alert__heading">Application Error</h4>
           <p>{error.message}</p>
         </div>
       </div>
@@ -66,49 +66,49 @@ export const AppShell: FC<AppShellProps> = ({ children }) => {
 
   return (
     <div className="react-app-root">
-      <header className="navbar navbar-expand-lg navbar-dark bg-dark px-3 shadow-sm">
-        <div className="container-fluid">
-          <span className="navbar-brand fw-bold mb-0">
+      <header className="core-navbar core-navbar--expand-lg core-navbar--dark core-surface--dark core-space--padding-x-3 core-shadow--sm">
+        <div className="core-container">
+          <span className="core-navbar__brand core-type--weight-bold core-space--margin-bottom-0">
             {school?.name ? `${school.name} (QuizApp)` : 'QuizApp'}
           </span>
 
-          <div className="d-flex align-items-center gap-3">
-            <span className="badge bg-primary text-uppercase">{roleName}</span>
-            <span className="text-light small">{user?.full_name || user?.username}</span>
-            <a href="/app/" className="btn btn-outline-light btn-sm">
+          <div className="core-display-flex core-layout--align-center core-layout--gap-3">
+            <span className="core-badge core-surface--primary core-text--uppercase">{roleName}</span>
+            <span className="core-text--light core-type--small">{user?.full_name || user?.username}</span>
+            <a href="/app/" className="core-button core-button--outline-light core-button--sm">
               Django Portal
             </a>
-            <a href="/logout/" className="btn btn-outline-danger btn-sm">
+            <a href="/logout/" className="core-button core-button--outline-danger core-button--sm">
               Log Out
             </a>
           </div>
         </div>
       </header>
 
-      <main className="container py-4" id="main-content">
+      <main className="core-container core-space--padding-y-4" id="main-content">
         {children || (
-          <div className="card shadow-sm border-0">
-            <div className="card-body p-4">
-              <h2 className="card-title h4 mb-3">React Foundation Ready</h2>
-              <p className="card-text text-muted">
+          <div className="core-card core-shadow--sm core-border--none">
+            <div className="core-card__body core-space--padding-4">
+              <h2 className="core-card__title core-type--heading-4 core-space--margin-bottom-3">React Foundation Ready</h2>
+              <p className="core-card__text core-text--muted">
                 Welcome, <strong>{user?.full_name || user?.username}</strong>. The React + TypeScript +
                 Vite foundation is active under the <code>/app/</code> route namespace.
               </p>
-              <ul className="list-group list-group-flush mb-3">
-                <li className="list-group-item d-flex justify-content-between align-items-center">
+              <ul className="core-list core-list--flush core-space--margin-bottom-3">
+                <li className="core-list__item core-display-flex core-layout--justify-between core-layout--align-center">
                   <span>Authentication</span>
-                  <span className="badge bg-success">Django Session Active</span>
+                  <span className="core-badge core-surface--success">Django Session Active</span>
                 </li>
-                <li className="list-group-item d-flex justify-content-between align-items-center">
+                <li className="core-list__item core-display-flex core-layout--justify-between core-layout--align-center">
                   <span>Role Scoping</span>
-                  <span className="badge bg-info text-dark">{user?.role}</span>
+                  <span className="core-badge core-surface--info core-text--dark">{user?.role}</span>
                 </li>
-                <li className="list-group-item d-flex justify-content-between align-items-center">
+                <li className="core-list__item core-display-flex core-layout--justify-between core-layout--align-center">
                   <span>Tenant (School)</span>
-                  <span className="badge bg-secondary">{school?.name || 'Global / Superadmin'}</span>
+                  <span className="core-badge core-surface--secondary">{school?.name || 'Global / Superadmin'}</span>
                 </li>
               </ul>
-              <div className="text-muted small">
+              <div className="core-text--muted core-type--small">
                 Strangler migration status: Foundation phase active. Existing Django pages remain primary.
               </div>
             </div>

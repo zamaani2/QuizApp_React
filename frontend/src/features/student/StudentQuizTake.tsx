@@ -1,3 +1,4 @@
+import { AppIcon } from '../../components/common/AppIcon';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { studentApi } from '../../api/student';
@@ -203,7 +204,7 @@ export const StudentQuizTake: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="d-flex justify-content-center align-items-center min-vh-100" data-testid="student-quiz-take-loading">
+      <div className="core-display-flex core-layout--justify-center core-layout--align-center core-size--min-height-vh-100" data-testid="student-quiz-take-loading">
         <LoadingSpinner size="lg" message="Loading your assessment..." />
       </div>
     );
@@ -211,10 +212,10 @@ export const StudentQuizTake: React.FC = () => {
 
   if (error || !data) {
     return (
-      <div className="p-4" data-testid="student-quiz-take-error">
+      <div className="core-space--padding-4" data-testid="student-quiz-take-error">
         <Alert variant="danger" dismissible={false}>
           <h5>Unable to load quiz session</h5>
-          <p className="mb-2">{error || 'Session could not be initialized.'}</p>
+          <p className="core-space--margin-bottom-2">{error || 'Session could not be initialized.'}</p>
           <button className="stu-btn-outline" onClick={loadAttempt}>
             Retry
           </button>
@@ -250,24 +251,24 @@ export const StudentQuizTake: React.FC = () => {
             </div>
           </div>
 
-          <div className="d-flex align-items-center gap-2">
+          <div className="core-display-flex core-layout--align-center core-layout--gap-2">
             {/* Autosave status indicator */}
-            <div className="d-none d-sm-block" style={{ fontSize: '0.75rem' }}>
+            <div className="core-display-none core-display-sm-block" style={{ fontSize: '0.75rem' }}>
               {saveStatus === 'saving' && (
-                <span className="text-muted">
-                  <span className="spinner-border spinner-border-sm me-1" style={{ width: '10px', height: '10px' }} />
+                <span className="core-text--muted">
+                  <span className="core-spinner core-spinner--sm core-space--margin-end-1" style={{ width: '10px', height: '10px' }} />
                   Saving...
                 </span>
               )}
               {saveStatus === 'saved' && (
-                <span className="text-success fw-semibold">
-                  <i className="bi bi-cloud-check me-1" />
+                <span className="core-text--success core-type--weight-semibold">
+                  <AppIcon name="cloudCheck" className="core-space--margin-end-1" />
                   Saved
                 </span>
               )}
               {saveStatus === 'error' && (
-                <span className="text-warning fw-semibold" title={saveErrorMessage || ''}>
-                  <i className="bi bi-cloud-slash me-1" />
+                <span className="core-text--warning core-type--weight-semibold" title={saveErrorMessage || ''}>
+                  <AppIcon name="cloudOff" className="core-space--margin-end-1" />
                   Saved Offline
                 </span>
               )}
@@ -286,7 +287,7 @@ export const StudentQuizTake: React.FC = () => {
                 data-testid="quiz-timer"
                 aria-label={`Time remaining: ${formatTime(secondsRemaining)}`}
               >
-                <i className="bi bi-clock" aria-hidden="true" />
+                <AppIcon name="clock" aria-hidden="true" />
                 <span>{formatTime(secondsRemaining)}</span>
               </div>
             )}
@@ -347,7 +348,7 @@ export const StudentQuizTake: React.FC = () => {
             {/* Multiple Choice & True/False Choices */}
             {(currentQuestion.question_type === 'multiple_choice' ||
               currentQuestion.question_type === 'true_false') && (
-              <div className="d-flex flex-column" role="radiogroup" aria-label="Answer options">
+              <div className="core-display-flex core-layout--column" role="radiogroup" aria-label="Answer options">
                 {currentQuestion.choices.map((choice) => {
                   const isSelected = currentAnswer?.selected_choice_id === choice.id;
                   return (
@@ -377,17 +378,17 @@ export const StudentQuizTake: React.FC = () => {
             {(currentQuestion.question_type === 'essay' ||
               currentQuestion.question_type === 'short_answer' ||
               currentQuestion.question_type === 'fill_blank') && (
-              <div className="mb-3">
+              <div className="core-space--margin-bottom-3">
                 <label
                   htmlFor="essay-answer"
-                  className="form-label small fw-bold"
+                  className="core-field__label core-type--small core-type--weight-bold"
                   style={{ color: 'var(--stu-navy)' }}
                 >
                   Type your response below:
                 </label>
                 <textarea
                   id="essay-answer"
-                  className="form-control"
+                  className="core-field__input"
                   rows={6}
                   placeholder="Write your answer clearly..."
                   style={{
@@ -411,8 +412,8 @@ export const StudentQuizTake: React.FC = () => {
                     saveAnswer(currentQuestion.id, { text_answer: e.target.value })
                   }
                 />
-                <div className="small text-muted mt-2">
-                  <i className="bi bi-info-circle me-1" />
+                <div className="core-type--small core-text--muted core-space--margin-top-2">
+                  <AppIcon name="info" className="core-space--margin-end-1" />
                   Your answer saves automatically when you navigate or finish typing.
                 </div>
               </div>
@@ -443,7 +444,7 @@ export const StudentQuizTake: React.FC = () => {
             onClick={() => setShowPaletteDrawer(!showPaletteDrawer)}
             aria-label="Toggle Question Navigator"
           >
-            <i className="bi bi-grid-3x3-gap me-1" aria-hidden="true" />
+            <AppIcon name="layoutGrid" className="core-space--margin-end-1" aria-hidden="true" />
             <span>
               {currentIndex + 1} / {data.total_questions}
             </span>
@@ -481,7 +482,7 @@ export const StudentQuizTake: React.FC = () => {
         title="Question Navigator"
         size="md"
         footer={
-          <div className="d-flex justify-content-end w-100">
+          <div className="core-display-flex core-layout--justify-end core-size--width-full">
             <button
               type="button"
               className="stu-btn-primary"
@@ -493,11 +494,11 @@ export const StudentQuizTake: React.FC = () => {
         }
       >
         <div>
-          <p className="small text-muted mb-3">
+          <p className="core-type--small core-text--muted core-space--margin-bottom-3">
             Tap any question number to jump directly to it:
           </p>
 
-          <div className="stu-palette-grid mb-3">
+          <div className="stu-palette-grid core-space--margin-bottom-3">
             {data.questions.map((q, idx) => {
               const ans = responses[String(q.id)];
               const isAnswered =
@@ -530,16 +531,16 @@ export const StudentQuizTake: React.FC = () => {
             })}
           </div>
 
-          <div className="d-flex align-items-center gap-3 pt-2 border-top small text-muted">
-            <div className="d-flex align-items-center gap-1">
+          <div className="core-display-flex core-layout--align-center core-layout--gap-3 core-space--padding-top-2 core-border--top core-type--small core-text--muted">
+            <div className="core-display-flex core-layout--align-center core-layout--gap-1">
               <span className="stu-palette-btn stu-palette-btn--current" style={{ width: '16px', height: '16px', fontSize: '9px' }}>✓</span>
               <span>Current</span>
             </div>
-            <div className="d-flex align-items-center gap-1">
+            <div className="core-display-flex core-layout--align-center core-layout--gap-1">
               <span className="stu-palette-btn stu-palette-btn--answered" style={{ width: '16px', height: '16px', fontSize: '9px' }}>✓</span>
               <span>Answered</span>
             </div>
-            <div className="d-flex align-items-center gap-1">
+            <div className="core-display-flex core-layout--align-center core-layout--gap-1">
               <span className="stu-palette-btn stu-palette-btn--unanswered" style={{ width: '16px', height: '16px', fontSize: '9px' }}>-</span>
               <span>Unanswered</span>
             </div>
@@ -554,7 +555,7 @@ export const StudentQuizTake: React.FC = () => {
         title="Submit Quiz Assessment"
         size="md"
         footer={
-          <div className="d-flex gap-2 justify-content-end w-100">
+          <div className="core-display-flex core-layout--gap-2 core-layout--justify-end core-size--width-full">
             <Button
               variant="outline-secondary"
               size="sm"
@@ -566,7 +567,7 @@ export const StudentQuizTake: React.FC = () => {
             <Button
               variant="success"
               size="sm"
-              className="fw-bold"
+              className="core-type--weight-bold"
               onClick={handleSubmit}
               loading={submitting}
             >
@@ -577,29 +578,29 @@ export const StudentQuizTake: React.FC = () => {
       >
         <div>
           {submitError && (
-            <Alert variant="danger" dismissible onDismiss={() => setSubmitError(null)} className="mb-3">
+            <Alert variant="danger" dismissible onDismiss={() => setSubmitError(null)} className="core-space--margin-bottom-3">
               {submitError}
             </Alert>
           )}
 
-          <p className="mb-3">
+          <p className="core-space--margin-bottom-3">
             Are you sure you want to finish and submit <strong>{data.quiz_title}</strong>?
           </p>
 
-          <div className="p-3 bg-light rounded border mb-3">
-            <div className="d-flex justify-content-between mb-1 small">
+          <div className="core-space--padding-3 core-surface--light core-radius core-border core-space--margin-bottom-3">
+            <div className="core-display-flex core-layout--justify-between core-space--margin-bottom-1 core-type--small">
               <span>Total Questions:</span>
               <strong>{data.total_questions}</strong>
             </div>
-            <div className="d-flex justify-content-between mb-1 small">
+            <div className="core-display-flex core-layout--justify-between core-space--margin-bottom-1 core-type--small">
               <span>Questions Answered:</span>
-              <strong className="text-success">{answeredCount}</strong>
+              <strong className="core-text--success">{answeredCount}</strong>
             </div>
-            <div className="d-flex justify-content-between small">
+            <div className="core-display-flex core-layout--justify-between core-type--small">
               <span>Unanswered Questions:</span>
               <strong
                 className={
-                  data.total_questions - answeredCount > 0 ? 'text-danger' : 'text-success'
+                  data.total_questions - answeredCount > 0 ? 'core-text--danger' : 'core-text--success'
                 }
               >
                 {data.total_questions - answeredCount}
@@ -608,8 +609,8 @@ export const StudentQuizTake: React.FC = () => {
           </div>
 
           {data.total_questions - answeredCount > 0 && (
-            <div className="alert alert-warning small mb-0">
-              <i className="bi bi-exclamation-triangle me-1" />
+            <div className="core-alert core-alert--warning core-type--small core-space--margin-bottom-0">
+              <AppIcon name="triangleAlert" className="core-space--margin-end-1" />
               You have unanswered questions. Unanswered questions will receive 0 marks.
             </div>
           )}
@@ -634,10 +635,10 @@ export const StudentQuizTake: React.FC = () => {
           </Button>
         }
       >
-        <div className="text-center py-2">
-          <i className="bi bi-alarm fs-1 text-danger d-block mb-2" />
-          <h5 className="fw-bold">Time has expired!</h5>
-          <p className="text-muted small mb-0">
+        <div className="core-text--center core-space--padding-y-2">
+          <AppIcon name="alarmClock" className="core-type--size-1 core-text--danger core-display-block core-space--margin-bottom-2" />
+          <h5 className="core-type--weight-bold">Time has expired!</h5>
+          <p className="core-text--muted core-type--small core-space--margin-bottom-0">
             Your assessment has been automatically finalized and submitted with your saved answers.
           </p>
         </div>

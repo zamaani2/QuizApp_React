@@ -1,3 +1,4 @@
+import { AppIcon } from './AppIcon';
 import type { FC, ReactNode } from 'react';
 
 export interface EmptyStateProps {
@@ -18,7 +19,7 @@ export const EmptyState: FC<EmptyStateProps> = ({
   return (
     <div className={`core-empty-state ${className}`.trim()}>
       <div className="core-empty-state__icon">
-        {icon || <i className="bi bi-inbox" aria-hidden="true" />}
+        {icon || <AppIcon name="inbox" aria-hidden="true" />}
       </div>
       <h3>{title}</h3>
       {description && <p>{description}</p>}

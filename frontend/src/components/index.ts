@@ -1,4 +1,5 @@
 export * from './common/Button';
+export * from './common/AppIcon';
 export * from './common/LoadingSpinner';
 export * from './common/Alert';
 export * from './common/EmptyState';

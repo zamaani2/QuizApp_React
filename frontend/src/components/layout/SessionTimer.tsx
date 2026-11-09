@@ -1,3 +1,4 @@
+import { AppIcon } from '../common/AppIcon';
 import { useState, useEffect, type FC } from 'react';
 import { apiClient } from '../../api/client';
 import { ConfirmDialog } from '../common/ConfirmDialog';
@@ -70,7 +71,7 @@ export const SessionTimer: FC<SessionTimerProps> = ({ initialSeconds = 28800 }) 
         title="Session time remaining"
         aria-live="off"
       >
-        <i className="bi bi-clock-history" aria-hidden="true" />
+        <AppIcon name="history" aria-hidden="true" />
         <span className="core-session__label">Session</span>
         <span>{formattedTime}</span>
       </div>

@@ -1,3 +1,4 @@
+import { AppIcon } from '../../components/common/AppIcon';
 import React, { useEffect, useState, useCallback } from 'react';
 import { academicApi } from '../../api/academic';
 import type { SubjectItem, SubjectInput, StructureLookups } from '../../types';
@@ -209,7 +210,7 @@ export const SubjectsManager: React.FC = () => {
           <div>
             {row.subject_name}
             {activeTab === 'all' && !row.is_active && (
-              <span className="badge bg-secondary ms-2">
+              <span className="core-badge core-surface--secondary core-space--margin-start-2">
                 Archived
               </span>
             )}
@@ -242,7 +243,7 @@ export const SubjectsManager: React.FC = () => {
       sortable: true,
       accessor: (row) => (
         <span className="academic-admin__status academic-admin__status--info">
-          <i className="bi bi-journal-check" aria-hidden="true" />{' '}
+          <AppIcon name="clipboardCheck" aria-hidden="true" />{' '}
           {row.quiz_count} Quizzes
         </span>
       ),
@@ -253,7 +254,7 @@ export const SubjectsManager: React.FC = () => {
       sortable: true,
       accessor: (row) => (
         <span className="academic-admin__status academic-admin__status--info">
-          <i className="bi bi-building" aria-hidden="true" /> {row.class_count} Classes
+          <AppIcon name="building" aria-hidden="true" /> {row.class_count} Classes
         </span>
       ),
     },
@@ -277,7 +278,7 @@ export const SubjectsManager: React.FC = () => {
             onClick={() => openEditModal(row)}
             title="Edit Subject"
           >
-            <i className="bi bi-pencil" />
+            <AppIcon name="pencil" />
           </Button>
           {row.is_active ? (
             <Button
@@ -286,7 +287,7 @@ export const SubjectsManager: React.FC = () => {
               onClick={() => setArchiveTarget(row)}
               title="Archive Subject"
             >
-              <i className="bi bi-archive" />
+              <AppIcon name="archive" />
             </Button>
           ) : (
             <Button
@@ -295,7 +296,7 @@ export const SubjectsManager: React.FC = () => {
               onClick={() => setRestoreTarget(row)}
               title="Restore Subject"
             >
-              <i className="bi bi-arrow-counterclockwise" />
+              <AppIcon name="rotateCounterclockwise" />
             </Button>
           )}
         </div>
@@ -316,7 +317,7 @@ export const SubjectsManager: React.FC = () => {
 
         <div className="academic-admin__heading-actions">
           <Button variant="primary" size="sm" onClick={openCreateModal}>
-            <i className="bi bi-plus-lg me-1" />
+            <AppIcon name="plus" className="core-space--margin-end-1" />
             Add Subject
           </Button>
         </div>
@@ -454,7 +455,7 @@ export const SubjectsManager: React.FC = () => {
             </label>
           </div>
 
-          <div className="d-flex gap-2">
+          <div className="core-display-flex core-layout--gap-2">
             <Button
               variant="outline-secondary"
               size="sm"
@@ -474,7 +475,7 @@ export const SubjectsManager: React.FC = () => {
               onClick={loadData}
               loading={loading}
             >
-              <i className="bi bi-arrow-repeat me-1" />
+              <AppIcon name="refresh" className="core-space--margin-end-1" />
               Refresh
             </Button>
           </div>

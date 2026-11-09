@@ -1,3 +1,4 @@
+import { AppIcon } from '../common/AppIcon';
 import { Fragment, useState, useMemo, type ReactNode } from 'react';
 import { EmptyState } from '../common/EmptyState';
 import { LoadingSpinner } from '../common/LoadingSpinner';
@@ -116,7 +117,7 @@ export function DataTable<T>({
       {searchable && (
         <div className="data-table__toolbar">
           <label className="data-table__search">
-            <i className="bi bi-search" aria-hidden="true" />
+            <AppIcon name="search" aria-hidden="true" />
             <input
               type="text"
               className="data-table__search-input"
@@ -169,8 +170,9 @@ export function DataTable<T>({
                     {col.sortable ? (
                       <button className="data-table__sort" type="button" onClick={() => handleSort(col.id, col.sortable)}>
                         <span>{col.header}</span>
-                        <i
-                          className={`bi ${isSorted ? sortDirection === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down' : 'bi-arrow-down-up'}`}
+                        <AppIcon
+                          name={isSorted ? sortDirection === 'asc' ? 'arrowUp' : 'arrowDown' : 'arrowDownUp'}
+                          className="data-table__sort-icon"
                           aria-label={isSorted ? `Sorted ${sortDirection === 'asc' ? 'ascending' : 'descending'}` : undefined}
                           aria-hidden={isSorted ? undefined : true}
                         />

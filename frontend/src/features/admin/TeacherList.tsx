@@ -1,3 +1,4 @@
+import { AppIcon } from '../../components/common/AppIcon';
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   archiveTeacher,
@@ -211,15 +212,15 @@ export const TeacherList: React.FC = () => {
       accessor: (row) => (
         <div className="directory-row-actions">
           <Button variant="outline-primary" size="sm" onClick={() => void openEditModal(row)} title="Edit teacher" aria-label={`Edit ${row.full_name}`}>
-            <i className="bi bi-pencil" aria-hidden="true" />
+            <AppIcon name="pencil" aria-hidden="true" />
           </Button>
           {row.is_active ? (
             <Button variant="outline-danger" size="sm" onClick={() => setArchiveTarget(row)} title="Archive teacher" aria-label={`Archive ${row.full_name}`}>
-              <i className="bi bi-archive" aria-hidden="true" />
+              <AppIcon name="archive" aria-hidden="true" />
             </Button>
           ) : (
             <Button variant="outline-secondary" size="sm" onClick={() => setRestoreTarget(row)} title="Restore teacher" aria-label={`Restore ${row.full_name}`}>
-              <i className="bi bi-arrow-counterclockwise" aria-hidden="true" />
+              <AppIcon name="rotateCounterclockwise" aria-hidden="true" />
             </Button>
           )}
         </div>
@@ -237,10 +238,10 @@ export const TeacherList: React.FC = () => {
         </div>
         <div className="directory-page__actions">
           <button className="directory-page__action" type="button" onClick={loadTeachers} disabled={loading}>
-            <i className="bi bi-arrow-clockwise" aria-hidden="true" /> Refresh
+            <AppIcon name="rotateClockwise" aria-hidden="true" /> Refresh
           </button>
           <Button variant="primary" size="sm" onClick={() => void openCreateModal()}>
-            <i className="bi bi-person-plus" aria-hidden="true" /> New Teacher
+            <AppIcon name="userRoundPlus" aria-hidden="true" /> New Teacher
           </Button>
         </div>
       </header>
