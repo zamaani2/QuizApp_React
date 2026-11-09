@@ -15,124 +15,25 @@ from .models import (
 
 
 APP_DIR = Path(__file__).resolve().parent
-THEMES = ("academic", "green", "purple", "red")
-THEME_BODY_CLASSES = {
-    "academic": "academic-pro-theme-page",
-    "green": "green-theme-page",
-    "purple": "purple-theme-page",
-    "red": "red-theme-page",
-}
-THEME_COLORS = {
-    "academic": "#1e40af",
-    "green": "#047857",
-    "purple": "#7c3aed",
-    "red": "#dc2626",
-}
 
 
-class AccentThemeAssetTests(SimpleTestCase):
-    def test_design_system_defines_only_the_four_accent_themes(self):
-        css = (APP_DIR / "static" / "css" / "academic_pro_theme.css").read_text(
-            encoding="utf-8"
-        )
-        js_boot = (APP_DIR / "templates" / "partials" / "_theme_boot.html").read_text(
-            encoding="utf-8"
-        )
-        base = (APP_DIR / "templates" / "base.html").read_text(encoding="utf-8")
-
-        themed_canvas = {
-            "academic": "--app-bg: #f1f5fb",
-            "green": "--app-bg: #f1faf4",
-            "purple": "--app-bg: #f7f4fe",
-            "red": "--app-bg: #fff5f5",
+class ReactShellTemplateTests(SimpleTestCase):
+    def test_only_react_shell_templates_remain(self):
+        names = {
+            path.relative_to(APP_DIR / "templates").as_posix()
+            for path in (APP_DIR / "templates").rglob("*")
+            if path.is_file()
         }
-        for theme in THEMES:
-            self.assertIn(f'html[data-app-theme="{theme}"]', css)
-            self.assertIn(THEME_BODY_CLASSES[theme], css)
-            self.assertIn(THEME_COLORS[theme], css)
-            self.assertIn(themed_canvas[theme], css)
-            self.assertIn(f'data-theme="{theme}"', base)
+        self.assertEqual(names, {"auth_core_app.html", "react_app.html"})
 
-        self.assertIn("preferredTheme", js_boot)
-        self.assertIn("preferredTheme", base)
-        self.assertIn("['academic', 'green', 'purple', 'red']", js_boot)
-        self.assertIn("['academic', 'green', 'purple', 'red']", base)
-
-        self.assertNotIn("data-bs-theme-value", base)
-        self.assertNotRegex(
-            base.lower(),
-            r"dark mode|light mode|system mode|appearance switching",
-        )
-        self.assertNotIn("prefers-color-scheme", css)
-
-    def test_legacy_theme_selectors_remain_available(self):
-        css = (APP_DIR / "static" / "css" / "academic_pro_theme.css").read_text(
+        app_shell = (APP_DIR / "templates" / "react_app.html").read_text(
             encoding="utf-8"
         )
-        for selector in (
-            ".theme-option",
-            ".theme-color-dot.academic",
-            ".theme-color-dot.green",
-            ".theme-color-dot.purple",
-            ".theme-color-dot.red",
-            ".btn-primary",
-            ".modal-content",
-            ".dropdown-menu",
-            ".progress-bar",
-            "--app-content-wash",
-        ):
-            self.assertIn(selector, css)
-
-    def test_authenticated_shell_uses_visible_theme_accents(self):
-        styles = (APP_DIR / "templates" / "partials" / "_styles.html").read_text(
+        auth_shell = (APP_DIR / "templates" / "auth_core_app.html").read_text(
             encoding="utf-8"
         )
-        boot = (APP_DIR / "templates" / "partials" / "_theme_boot.html").read_text(
-            encoding="utf-8"
-        )
-        theme_files = {
-            "academic": "academic_pro_theme.css",
-            "green": "green_theme.css",
-            "purple": "purple_theme.css",
-            "red": "red_theme.css",
-        }
-        for theme, filename in theme_files.items():
-            self.assertNotIn(f"css/{filename}", styles)
-            self.assertIn(THEME_BODY_CLASSES[theme], boot)
-            self.assertIn(f".{THEME_BODY_CLASSES[theme]} .app-header", (
-                APP_DIR / "static" / "css" / filename
-            ).read_text(encoding="utf-8"))
-
-    def test_theme_styles_override_shared_content_component_defaults(self):
-        theme_files = {
-            "academic": "academic_pro_theme.css",
-            "green": "green_theme.css",
-            "purple": "purple_theme.css",
-            "red": "red_theme.css",
-        }
-        content_rules = (
-            ".app-content {",
-            ".app-content .card-header {",
-            ".app-content .btn-primary {",
-            ".app-content .table > thead > tr > th {",
-            ".app-content .form-control,",
-        )
-
-        for theme, filename in theme_files.items():
-            css = (APP_DIR / "static" / "css" / filename).read_text(
-                encoding="utf-8"
-            )
-            theme_class = THEME_BODY_CLASSES[theme]
-            for rule in content_rules:
-                marker = f".{theme_class} {rule}"
-                rule_start = css.rfind(marker)
-                self.assertNotEqual(rule_start, -1, f"{filename} missing {marker}")
-                rule_end = css.index("}", rule_start)
-                self.assertIn(
-                    "!important",
-                    css[rule_start:rule_end],
-                    f"{filename} {marker} must override shared component styles",
-                )
+        self.assertIn('id="root"', app_shell)
+        self.assertIn('id="auth-core-root"', auth_shell)
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
@@ -199,39 +100,27 @@ class AccentThemePageTests(TestCase):
             school=cls.school,
         )
 
-    def _assert_theme_picker(self, response):
-        content = response.content.decode()
-        self.assertContains(response, 'data-app-theme="academic"')
-        self.assertContains(response, "preferredTheme")
-        self.assertContains(response, 'class="app-theme-trigger"')
-        for theme in THEMES:
-            self.assertIn(f'data-theme="{theme}"', content)
-        self.assertNotIn("data-bs-theme-value", content)
-        self.assertNotIn("prefers-color-scheme", content)
-
-    def test_login_pages_do_not_load_legacy_theme_stylesheets(self):
+    def test_legacy_auth_routes_redirect_to_the_react_auth_shell(self):
         login = self.client.get(reverse("quiz_app:login"))
         superadmin_login = self.client.get(
             reverse("quiz_app:superadmin_login") + "?classic=1"
         )
         reset = self.client.get(reverse("quiz_app:password_reset"))
-        self.assertEqual(login.status_code, 200)
-        self.assertEqual(superadmin_login.status_code, 200)
-        self.assertEqual(reset.status_code, 200)
-        theme_stylesheets = (
-            "academic_pro_theme.css",
-            "green_theme.css",
-            "purple_theme.css",
-            "red_theme.css",
+        self.assertRedirects(
+            login, "/auth-app/", fetch_redirect_response=False
         )
-        for response in (login, superadmin_login, reset):
-            self.assertContains(response, "preferredTheme")
-            self.assertContains(response, 'data-app-theme="academic"')
-            self.assertNotContains(response, "css/app-ui.css")
-            for stylesheet in theme_stylesheets:
-                self.assertNotContains(response, f"css/{stylesheet}")
+        self.assertRedirects(
+            superadmin_login,
+            "/auth-app/?portal=superadmin",
+            fetch_redirect_response=False,
+        )
+        self.assertRedirects(
+            reset,
+            "/auth-app/?flow=password-reset",
+            fetch_redirect_response=False,
+        )
 
-    def test_role_dashboards_use_react_or_classic_shells(self):
+    def test_role_dashboards_use_react_shells(self):
         cases = (
             (
                 self.superadmin,
@@ -244,11 +133,8 @@ class AccentThemePageTests(TestCase):
         for user, url in cases:
             with self.subTest(role=user.role):
                 self.client.force_login(user)
-                response = self.client.get(url, follow=user.role != "superadmin")
+                response = self.client.get(url, follow=True)
                 self.assertEqual(response.status_code, 200)
-                if user.role == "superadmin":
-                    self._assert_theme_picker(response)
-                else:
-                    self.assertContains(response, 'id="root"')
-                    self.assertContains(response, 'data-app-theme="academic"')
+                self.assertContains(response, 'id="root"')
+                self.assertContains(response, 'data-app-theme="academic"')
                 self.client.logout()

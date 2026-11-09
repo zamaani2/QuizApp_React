@@ -21,11 +21,6 @@ from .models import (
 
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
-PREVIOUSLY_REPORTED_TEMPLATES = (
-    "quiz/question/question_create.html",
-    "quiz/question/question_import.html",
-    "superadmin/admin_detail.html",
-)
 
 
 class TemplateCompilationTests(SimpleTestCase):
@@ -38,11 +33,6 @@ class TemplateCompilationTests(SimpleTestCase):
             except Exception as exc:
                 failures.append(f"{name}: {type(exc).__name__}: {exc}")
         self.assertFalse(failures, "\n".join(failures))
-
-    def test_previously_reported_templates_compile(self):
-        for name in PREVIOUSLY_REPORTED_TEMPLATES:
-            get_template(name)
-
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 class AuthenticatedWorkflowTests(TestCase):
@@ -159,7 +149,7 @@ class AuthenticatedWorkflowTests(TestCase):
         self.assertEqual(response.status_code, 302)
         return response
 
-    def test_extra_js_from_child_templates_is_rendered(self):
+    def test_migrated_quiz_and_admin_pages_redirect_to_react(self):
         self.client.force_login(self.teacher_user)
         create_page = self.client.get(
             reverse("quiz_app:question_create", args=[self.quiz.pk])
@@ -167,29 +157,33 @@ class AuthenticatedWorkflowTests(TestCase):
         import_page = self.client.get(
             reverse("quiz_app:question_bulk_import", args=[self.quiz.pk])
         )
-        self.assertEqual(create_page.status_code, 200)
-        self.assertContains(create_page, "js/question_management.js")
-        self.assertContains(create_page, "vendor/bootstrap/5.3.3/js/bootstrap.bundle.min.js")
-        self.assertNotContains(create_page, "vendor/popperjs/2.11.8/umd/popper.min.js")
-        self.assertContains(create_page, "sweetalert2.all.min.js")
         quiz_detail = self.client.get(reverse("quiz_app:quiz_detail", args=[self.quiz.pk]))
-        self.assertEqual(quiz_detail.status_code, 200)
-        self.assertContains(quiz_detail, "js/question_management.js")
-        self.assertContains(quiz_detail, "delete-question-btn")
-        self.assertContains(quiz_detail, "data-delete-url")
-        self.assertContains(create_page, 'id="questionForm"')
-        self.assertEqual(import_page.status_code, 200)
-        self.assertContains(import_page, 'id="importForm"')
+        self.assertRedirects(
+            create_page,
+            f"/app/teacher/quizzes/{self.quiz.pk}/questions/new",
+            fetch_redirect_response=False,
+        )
+        self.assertRedirects(
+            import_page,
+            f"/app/teacher/quizzes/{self.quiz.pk}/questions/import",
+            fetch_redirect_response=False,
+        )
+        self.assertRedirects(
+            quiz_detail,
+            f"/app/teacher/quizzes/{self.quiz.pk}",
+            fetch_redirect_response=False,
+        )
 
         self.client.force_login(self.superadmin)
         detail_page = self.client.get(
             reverse("quiz_app:superadmin_admin_detail", args=[self.admin.pk])
             + "?classic=1"
         )
-        self.assertEqual(detail_page.status_code, 200)
-        self.assertContains(detail_page, "bootstrap.Modal.getOrCreateInstance")
-        self.assertNotContains(detail_page, '.modal("show")')
-        self.assertNotContains(detail_page, ".modal('show')")
+        self.assertRedirects(
+            detail_page,
+            f"/app/superadmin/admins/{self.admin.pk}",
+            fetch_redirect_response=False,
+        )
 
     def test_superadmin_login_dashboard_admin_modal_and_permissions(self):
         login_page = self.client.get(reverse("quiz_app:superadmin_login"))
@@ -230,20 +224,36 @@ class AuthenticatedWorkflowTests(TestCase):
             "/app/superadmin/dashboard",
             fetch_redirect_response=False,
         )
-        self.assertEqual(classic_dashboard.status_code, 200)
-        self.assertContains(classic_dashboard, "id=\"app-sidebar\"")
+        self.assertRedirects(
+            classic_dashboard,
+            "/app/superadmin/dashboard",
+            fetch_redirect_response=False,
+        )
         self.assertRedirects(
             admin_list,
             "/app/superadmin/admins",
             fetch_redirect_response=False,
         )
-        self.assertEqual(classic_admin_list.status_code, 200)
-        self.assertEqual(admin_detail.status_code, 200)
-        self.assertContains(admin_detail, "id=\"editAdminBtn\"")
-        self.assertEqual(edit_modal.status_code, 200)
-        self.assertIn("html", edit_modal.json())
-        self.assertIn("adminForm", edit_modal.json()["html"])
-        self.assertEqual(create_modal.status_code, 200)
+        self.assertRedirects(
+            classic_admin_list,
+            "/app/superadmin/admins",
+            fetch_redirect_response=False,
+        )
+        self.assertRedirects(
+            admin_detail,
+            f"/app/superadmin/admins/{self.admin.pk}",
+            fetch_redirect_response=False,
+        )
+        self.assertRedirects(
+            edit_modal,
+            f"/app/superadmin/admins/{self.admin.pk}/edit",
+            fetch_redirect_response=False,
+        )
+        self.assertRedirects(
+            create_modal,
+            "/app/superadmin/admins/new",
+            fetch_redirect_response=False,
+        )
 
         create_response = self.client.post(
             reverse("quiz_app:superadmin_admin_create"),
@@ -297,17 +307,21 @@ class AuthenticatedWorkflowTests(TestCase):
         for url in pages:
             response = self.client.get(url, follow=True)
             self.assertEqual(response.status_code, 200, url)
-            if response.request["PATH_INFO"].startswith("/app/"):
-                self.assertContains(response, "id=\"root\"")
-            else:
-                self.assertContains(response, "id=\"app-sidebar\"")
+            self.assertTrue(
+                response.request["PATH_INFO"].startswith("/app/"),
+                f"{url} did not resolve to the React app",
+            )
+            self.assertContains(response, 'id="root"')
 
         create_form = self.client.get(
             reverse("quiz_app:student_create"),
             HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
-        self.assertEqual(create_form.status_code, 200)
-        self.assertIn("html", create_form.json())
+        self.assertRedirects(
+            create_form,
+            "/app/admin/students",
+            fetch_redirect_response=False,
+        )
 
         create_response = self.client.post(
             reverse("quiz_app:student_create"),
@@ -358,10 +372,26 @@ class AuthenticatedWorkflowTests(TestCase):
         create_page = self.client.get(
             reverse("quiz_app:question_create", args=[self.quiz.pk])
         )
-        self.assertEqual(dashboard.status_code, 200)
-        self.assertEqual(quiz_list.status_code, 200)
-        self.assertEqual(quiz_detail.status_code, 200)
-        self.assertEqual(create_page.status_code, 200)
+        self.assertRedirects(
+            dashboard,
+            "/app/teacher/dashboard",
+            fetch_redirect_response=False,
+        )
+        self.assertRedirects(
+            quiz_list,
+            "/app/teacher/quizzes",
+            fetch_redirect_response=False,
+        )
+        self.assertRedirects(
+            quiz_detail,
+            f"/app/teacher/quizzes/{self.quiz.pk}",
+            fetch_redirect_response=False,
+        )
+        self.assertRedirects(
+            create_page,
+            f"/app/teacher/quizzes/{self.quiz.pk}/questions/new",
+            fetch_redirect_response=False,
+        )
 
         create_response = self.client.post(
             reverse("quiz_app:question_create", args=[self.quiz.pk]),
@@ -378,7 +408,11 @@ class AuthenticatedWorkflowTests(TestCase):
         edit_page = self.client.get(
             reverse("quiz_app:question_edit", args=[self.quiz.pk, question.pk])
         )
-        self.assertEqual(edit_page.status_code, 200)
+        self.assertRedirects(
+            edit_page,
+            f"/app/teacher/quizzes/{self.quiz.pk}/questions/{question.pk}/edit",
+            fetch_redirect_response=False,
+        )
         edit_response = self.client.post(
             reverse("quiz_app:question_edit", args=[self.quiz.pk, question.pk]),
             {
@@ -419,10 +453,26 @@ class AuthenticatedWorkflowTests(TestCase):
         assignments = self.client.get(reverse("quiz_app:quiz_assignment_overview"))
         results = self.client.get(reverse("quiz_app:quiz_results_list"))
         grading = self.client.get(reverse("quiz_app:quiz_grading_list"))
-        self.assertEqual(import_page.status_code, 200)
-        self.assertEqual(assignments.status_code, 200)
-        self.assertEqual(results.status_code, 200)
-        self.assertEqual(grading.status_code, 200)
+        self.assertRedirects(
+            import_page,
+            f"/app/teacher/quizzes/{self.quiz.pk}/questions/import",
+            fetch_redirect_response=False,
+        )
+        self.assertRedirects(
+            assignments,
+            "/app/teacher/quizzes",
+            fetch_redirect_response=False,
+        )
+        self.assertRedirects(
+            results,
+            "/app/teacher/results",
+            fetch_redirect_response=False,
+        )
+        self.assertRedirects(
+            grading,
+            "/app/teacher/grading",
+            fetch_redirect_response=False,
+        )
 
         other_admin_page = self.client.get(
             reverse("quiz_app:superadmin_admin_detail", args=[self.admin.pk])
@@ -439,27 +489,43 @@ class AuthenticatedWorkflowTests(TestCase):
         instructions = self.client.get(
             reverse("quiz_app:student_quiz_detail", args=[self.quiz.pk])
         )
-        self.assertEqual(dashboard.status_code, 200)
-        self.assertEqual(assigned.status_code, 200)
-        self.assertContains(assigned, self.quiz.title)
-        self.assertEqual(instructions.status_code, 200)
+        self.assertRedirects(
+            dashboard,
+            "/app/student/dashboard",
+            fetch_redirect_response=False,
+        )
+        self.assertRedirects(
+            assigned,
+            "/app/student/quizzes",
+            fetch_redirect_response=False,
+        )
+        self.assertRedirects(
+            instructions,
+            f"/app/student/quizzes/{self.quiz.pk}",
+            fetch_redirect_response=False,
+        )
 
-        start_response = self.client.get(
+        start_response = self.client.post(
             reverse("quiz_app:student_quiz_start", args=[self.quiz.pk])
         )
-        self.assertEqual(start_response.status_code, 302)
         attempt = QuizAttempt.objects.get(
             quiz=self.quiz,
             student=self.student,
             is_submitted=False,
         )
+        self.assertRedirects(
+            start_response,
+            reverse("quiz_app:student_quiz_take", args=[attempt.pk]),
+            fetch_redirect_response=False,
+        )
         take_page = self.client.get(
             reverse("quiz_app:student_quiz_take", args=[attempt.pk])
         )
-        self.assertEqual(take_page.status_code, 200)
-        self.assertContains(take_page, "js/quiz_taking.js")
-        self.assertContains(take_page, "timeRemainingSeconds")
-        self.assertContains(take_page, self.question.question_text)
+        self.assertRedirects(
+            take_page,
+            f"/app/student/take/{attempt.pk}",
+            fetch_redirect_response=False,
+        )
 
         save_response = self.client.post(
             reverse("quiz_app:student_quiz_save", args=[attempt.pk]),
@@ -474,8 +540,11 @@ class AuthenticatedWorkflowTests(TestCase):
         refresh_page = self.client.get(
             reverse("quiz_app:student_quiz_take", args=[attempt.pk])
         )
-        self.assertEqual(refresh_page.status_code, 200)
-        self.assertContains(refresh_page, self.question.question_text)
+        self.assertRedirects(
+            refresh_page,
+            f"/app/student/take/{attempt.pk}",
+            fetch_redirect_response=False,
+        )
 
         first_submit = self.client.post(
             reverse("quiz_app:student_quiz_submit", args=[attempt.pk])
@@ -496,8 +565,11 @@ class AuthenticatedWorkflowTests(TestCase):
         result_page = self.client.get(
             reverse("quiz_app:student_quiz_result_detail", args=[attempt.pk])
         )
-        self.assertEqual(result_page.status_code, 200)
-        self.assertContains(result_page, self.quiz.title)
+        self.assertRedirects(
+            result_page,
+            f"/app/student/attempts/{attempt.pk}/result",
+            fetch_redirect_response=False,
+        )
 
         logout_response = self.client.get(reverse("quiz_app:logout"))
         self.assertEqual(logout_response.status_code, 302)
@@ -531,13 +603,3 @@ class AuthenticatedWorkflowTests(TestCase):
         student_client.force_login(self.student_user)
         denied = student_client.post(url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
         self.assertEqual(denied.status_code, 403)
-
-
-@override_settings(ALLOWED_HOSTS=["testserver", "localhost", "127.0.0.1"])
-class BootstrapModalMarkupTests(TestCase):
-    def test_admin_form_partial_uses_bootstrap5_dismiss(self):
-        template = get_template("superadmin/partials/admin_form.html")
-        html = template.render({"admin": None, "schools": []})
-        self.assertIn("data-bs-dismiss", html)
-        self.assertNotIn("data-dismiss", html)
-        self.assertIn("getOrCreateInstance", html)

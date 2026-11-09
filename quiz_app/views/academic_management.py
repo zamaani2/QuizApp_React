@@ -8,19 +8,17 @@ This module provides views for managing academic years and terms including:
 - Deleting academic years and terms
 - Setting current academic year and term
 """
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
-from django.db.models import Q
 from django.db import transaction
 from django.core.exceptions import ValidationError
 
 from ..models import (
     AcademicYear,
     Term,
-    SchoolInformation,
 )
 from ..utils.tenant_utils import get_object_or_404_with_school, get_write_school
 
@@ -37,36 +35,7 @@ def academic_year_list_view(request):
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:dashboard")
 
-    school = request.user.school
-    academic_years = AcademicYear.objects.all()
-    
-    if school:
-        academic_years = academic_years.filter(school=school)
-    
-    # Search functionality
-    search_query = request.GET.get('search', '')
-    if search_query:
-        academic_years = academic_years.filter(
-            Q(name__icontains=search_query)
-        )
-    
-    # Filter by current status
-    current_filter = request.GET.get('is_current', '')
-    if current_filter == 'true':
-        academic_years = academic_years.filter(is_current=True)
-    elif current_filter == 'false':
-        academic_years = academic_years.filter(is_current=False)
-    
-    # Order by start date (newest first)
-    academic_years = academic_years.order_by('-start_date', 'name')
-    
-    context = {
-        'academic_years': academic_years,
-        'search_query': search_query,
-        'current_filter': current_filter,
-    }
-    
-    return render(request, 'academic/academic_year_list.html', context)
+    return redirect("/app/admin/academic-years")
 
 
 @login_required
@@ -83,7 +52,10 @@ def academic_year_create_view(request):
             return JsonResponse({'error': 'Permission denied'}, status=403)
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:academic_year_list")
-    
+
+    if request.method == "GET":
+        return redirect("/app/admin/academic-years")
+
     school = request.user.school
     
     # For non-superadmin users, school is required
@@ -94,19 +66,6 @@ def academic_year_create_view(request):
             'success': False,
             'error': 'No school associated with your account. Please contact administrator.'
         }, status=400)
-    
-    if request.method == "GET":
-        # Return form for modal
-        html = render(request, 'academic/partials/academic_year_form.html', {
-            'academic_year': None,
-            'schools': (
-                SchoolInformation.objects.filter(is_active=True).order_by("name")
-                if request.user.role == "superadmin"
-                else SchoolInformation.objects.none()
-            ),
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
     
     # POST - Create academic year
     school = get_write_school(request)
@@ -252,20 +211,15 @@ def academic_year_edit_view(request, academic_year_id):
             return JsonResponse({'error': 'Permission denied'}, status=403)
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:academic_year_list")
+
+    if request.method == "GET":
+        return redirect("/app/admin/academic-years")
     
     academic_year = get_object_or_404_with_school(
         AcademicYear, request, pk=academic_year_id
     )
     school = academic_year.school
-    
-    if request.method == "GET":
-        # Return form for modal
-        html = render(request, 'academic/partials/academic_year_form.html', {
-            'academic_year': academic_year,
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
-    
+
     # POST - Update academic year
     try:
         with transaction.atomic():
@@ -438,55 +392,7 @@ def term_list_view(request):
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:dashboard")
 
-    school = request.user.school
-    terms = Term.objects.all()
-    
-    if school:
-        terms = terms.filter(school=school)
-    
-    # Search functionality
-    search_query = request.GET.get('search', '')
-    if search_query:
-        terms = terms.filter(
-            Q(academic_year__name__icontains=search_query)
-        )
-    
-    # Filter by academic year
-    academic_year_filter = request.GET.get('academic_year', '')
-    if academic_year_filter:
-        terms = terms.filter(academic_year_id=academic_year_filter)
-    
-    # Filter by term number
-    term_number_filter = request.GET.get('term_number', '')
-    if term_number_filter:
-        terms = terms.filter(term_number=term_number_filter)
-    
-    # Filter by current status
-    current_filter = request.GET.get('is_current', '')
-    if current_filter == 'true':
-        terms = terms.filter(is_current=True)
-    elif current_filter == 'false':
-        terms = terms.filter(is_current=False)
-    
-    # Order by start date (newest first)
-    terms = terms.order_by('-start_date', 'academic_year', 'term_number')
-    
-    # Get academic years for filter
-    academic_years = AcademicYear.objects.all()
-    if school:
-        academic_years = academic_years.filter(school=school)
-    academic_years = academic_years.order_by('-start_date')
-    
-    context = {
-        'terms': terms,
-        'academic_years': academic_years,
-        'search_query': search_query,
-        'academic_year_filter': academic_year_filter,
-        'term_number_filter': term_number_filter,
-        'current_filter': current_filter,
-    }
-    
-    return render(request, 'academic/term_list.html', context)
+    return redirect("/app/admin/terms")
 
 
 @login_required
@@ -503,23 +409,10 @@ def term_create_view(request):
             return JsonResponse({'error': 'Permission denied'}, status=403)
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:term_list")
-    
+
     school = request.user.school
-    
     if request.method == "GET":
-        # Get academic years for dropdown
-        academic_years = AcademicYear.objects.all()
-        if school:
-            academic_years = academic_years.filter(school=school)
-        academic_years = academic_years.order_by('-start_date')
-        
-        # Return form for modal
-        html = render(request, 'academic/partials/term_form.html', {
-            'term': None,
-            'academic_years': academic_years,
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
+        return redirect("/app/admin/terms")
     
     # POST - Create term
     try:
@@ -609,27 +502,13 @@ def term_edit_view(request, term_id):
             return JsonResponse({'error': 'Permission denied'}, status=403)
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:term_list")
-    
-    school = request.user.school
-    
+
+    if request.method == "GET":
+        return redirect("/app/admin/terms")
+
     term = get_object_or_404_with_school(Term, request, pk=term_id)
     school = term.academic_year.school
-    
-    if request.method == "GET":
-        # Get academic years for dropdown
-        academic_years = AcademicYear.objects.all()
-        if school:
-            academic_years = academic_years.filter(school=school)
-        academic_years = academic_years.order_by('-start_date')
-        
-        # Return form for modal
-        html = render(request, 'academic/partials/term_form.html', {
-            'term': term,
-            'academic_years': academic_years,
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
-    
+
     # POST - Update term
     try:
         with transaction.atomic():

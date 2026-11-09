@@ -6,12 +6,11 @@ This module provides views for managing school information including:
 - Viewing school details
 - Editing school information (admin can edit their own school, superadmin can edit any)
 """
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
-from django.db.models import Q
 from django.db import transaction
 from django.core.exceptions import ValidationError
 from django.utils.text import slugify
@@ -21,44 +20,6 @@ from ..models import (
     AcademicYear,
     Term,
 )
-
-
-@login_required
-@require_http_methods(["GET"])
-def school_list_view(request):
-    """
-    Display list of all schools (superadmin only).
-    """
-    if request.user.role != "superadmin":
-        messages.error(request, "You don't have permission to access this page.")
-        return redirect("quiz_app:dashboard")
-
-    schools = SchoolInformation.objects.all().order_by('name')
-    
-    # Search functionality
-    search_query = request.GET.get('search', '')
-    if search_query:
-        schools = schools.filter(
-            Q(name__icontains=search_query) |
-            Q(short_name__icontains=search_query) |
-            Q(school_code__icontains=search_query) |
-            Q(address__icontains=search_query)
-        )
-    
-    # Filter by active status
-    active_filter = request.GET.get('is_active', '')
-    if active_filter == 'true':
-        schools = schools.filter(is_active=True)
-    elif active_filter == 'false':
-        schools = schools.filter(is_active=False)
-    
-    context = {
-        'schools': schools,
-        'search_query': search_query,
-        'active_filter': active_filter,
-    }
-    
-    return render(request, 'school/school_list.html', context)
 
 
 @login_required
@@ -74,43 +35,11 @@ def school_detail_view(request, school_id=None):
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:dashboard")
 
-    if request.user.role == "superadmin" and not school_id:
-        if request.GET.get("classic") == "1":
-            return redirect("/superadmin/schools/?classic=1")
-        return redirect("/app/superadmin/schools")
-    if request.GET.get("classic") != "1":
-        if request.user.role == "superadmin" and school_id:
+    if request.user.role == "superadmin":
+        if school_id:
             return redirect(f"/app/superadmin/schools/{school_id}")
-        return redirect("/app/admin/school")
-    
-    # Determine which school to show
-    if school_id:
-        # Superadmin viewing a specific school
-        if request.user.role != "superadmin":
-            messages.error(request, "You don't have permission to view other schools.")
-            return redirect("quiz_app:school_detail")
-        school = get_object_or_404(SchoolInformation, pk=school_id)
-    else:
-        # Admin viewing their own school
-        if request.user.role == "superadmin":
-            # Superadmin without school_id - redirect to list
-            return redirect("quiz_app:school_list")
-        school = request.user.school
-        if not school:
-            messages.error(request, "No school associated with your account.")
-            return redirect("quiz_app:dashboard")
-    
-    # Get academic years and terms for dropdowns
-    academic_years = AcademicYear.objects.filter(school=school).order_by('-start_date')
-    terms = Term.objects.filter(academic_year__school=school).order_by('-academic_year__start_date', 'term_number')
-    
-    context = {
-        'school': school,
-        'academic_years': academic_years,
-        'terms': terms,
-    }
-    
-    return render(request, 'school/school_detail.html', context)
+        return redirect("/app/superadmin/schools")
+    return redirect("/app/admin/school")
 
 
 @login_required
@@ -128,7 +57,7 @@ def school_edit_view(request, school_id=None):
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:dashboard")
 
-    if request.method == "GET" and request.GET.get("classic") != "1":
+    if request.method == "GET":
         if request.user.role == "superadmin":
             if school_id:
                 return redirect(f"/app/superadmin/schools/{school_id}/edit")
@@ -150,35 +79,13 @@ def school_edit_view(request, school_id=None):
             # Superadmin without school_id - redirect to list
             if request.method == "GET":
                 return JsonResponse({'error': 'Please select a school to edit'}, status=400)
-            return redirect("quiz_app:school_list")
+            return redirect("/app/superadmin/schools")
         school = request.user.school
         if not school:
             if request.method == "GET":
                 return JsonResponse({'error': 'No school associated with your account'}, status=404)
             messages.error(request, "No school associated with your account.")
             return redirect("quiz_app:dashboard")
-    
-    if request.method == "GET":
-        # Get academic years and terms for dropdowns
-        academic_years = AcademicYear.objects.filter(school=school).order_by('-start_date')
-        terms = Term.objects.filter(academic_year__school=school).order_by('-academic_year__start_date', 'term_number')
-        
-        # Check if request is AJAX (for modal)
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            html = render(request, 'school/partials/school_form.html', {
-                'school': school,
-                'academic_years': academic_years,
-                'terms': terms,
-            }).content.decode('utf-8')
-            return JsonResponse({'html': html})
-        else:
-            # Regular page request
-            context = {
-                'school': school,
-                'academic_years': academic_years,
-                'terms': terms,
-            }
-            return render(request, 'school/school_edit.html', context)
     
     # POST - Update school
     try:
@@ -308,83 +215,4 @@ def school_delete_view(request, school_id):
         return JsonResponse({
             'success': False,
             'error': f'Error deleting school: {str(e)}'
-        }, status=500)
-
-
-@login_required
-@require_http_methods(["GET", "POST"])
-def school_create_view(request):
-    """
-    Create a new school (superadmin only).
-    """
-    if request.user.role != "superadmin":
-        if request.method == "GET":
-            return JsonResponse({'error': 'Permission denied'}, status=403)
-        messages.error(request, "You don't have permission to perform this action.")
-        return redirect("quiz_app:school_list")
-    
-    if request.method == "GET":
-        # Return form for modal
-        html = render(request, 'school/partials/school_form.html', {
-            'school': None,
-            'academic_years': [],
-            'terms': [],
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
-    
-    # POST - Create school
-    try:
-        with transaction.atomic():
-            # Get form data
-            name = request.POST.get('name', '').strip()
-            short_name = request.POST.get('short_name', '').strip()
-            address = request.POST.get('address', '').strip()
-            phone_number = request.POST.get('phone_number', '').strip()
-            
-            # Validation
-            if not all([name, short_name, address, phone_number]):
-                return JsonResponse({
-                    'success': False,
-                    'error': 'Please fill in all required fields.'
-                }, status=400)
-            
-            # Create school
-            school = SchoolInformation(
-                name=name,
-                short_name=short_name,
-                address=address,
-                phone_number=phone_number,
-                slug=slugify(name),
-                postal_code=request.POST.get('postal_code', '').strip() or None,
-                email=request.POST.get('email', '').strip() or None,
-                website=request.POST.get('website', '').strip() or None,
-                school_code=request.POST.get('school_code', '').strip() or None,
-                motto=request.POST.get('motto', '').strip() or None,
-                vision=request.POST.get('vision', '').strip() or None,
-                mission=request.POST.get('mission', '').strip() or None,
-                report_header=request.POST.get('report_header', '').strip() or None,
-                report_footer=request.POST.get('report_footer', '').strip() or None,
-                grading_system_description=request.POST.get('grading_system_description', '').strip() or None,
-                created_by=request.user,
-                updated_by=request.user,
-            )
-            
-            if 'logo' in request.FILES:
-                school.logo = request.FILES['logo']
-            if 'school_stamp' in request.FILES:
-                school.school_stamp = request.FILES['school_stamp']
-            
-            school.save()
-            
-            return JsonResponse({
-                'success': True,
-                'message': f'School {school.name} created successfully.',
-                'school_id': school.id,
-            })
-    
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': f'Error creating school: {str(e)}'
         }, status=500)

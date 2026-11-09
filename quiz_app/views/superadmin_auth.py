@@ -4,7 +4,7 @@ Superadmin authentication views.
 Separate login/logout for superadmin users to keep them isolated from school users.
 """
 import logging
-from django.shortcuts import render, redirect
+from django.shortcuts import redirect
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -31,7 +31,7 @@ def _superadmin_login_failure_response(request, code, message, status, context=N
         return JsonResponse({"code": code, "message": message}, status=status)
 
     messages.error(request, message)
-    return render(request, "superadmin/login.html", context or {})
+    return redirect("/auth-app/?portal=superadmin")
 
 
 @csrf_protect
@@ -53,9 +53,7 @@ def superadmin_login_view(request):
                         "redirect_url": "/app/superadmin/dashboard",
                     }
                 )
-            if request.method == "GET" and request.GET.get("classic") != "1":
-                return redirect("/app/superadmin/dashboard")
-            return redirect("quiz_app:superadmin_dashboard")
+            return redirect("/app/superadmin/dashboard")
         else:
             # If logged in as non-superadmin, logout first
             logout(request)
@@ -69,7 +67,7 @@ def superadmin_login_view(request):
                 )
             messages.info(request, "Please login with superadmin credentials.")
 
-    if request.method == "GET" and request.GET.get("classic") != "1":
+    if request.method == "GET":
         query = {"portal": "superadmin"}
         next_url = request.GET.get("next")
         if next_url:
@@ -220,7 +218,7 @@ def superadmin_login_view(request):
             messages.error(request, "Invalid username or password. Please try again.")
     
     # GET request or failed POST - show login form
-    return render(request, "superadmin/login.html", context)
+    return redirect("/auth-app/?portal=superadmin")
 
 
 @login_required
@@ -265,6 +263,5 @@ def superadmin_logout_view(request):
         f"Goodbye, {user_name}! You have been successfully logged out."
     )
     return redirect("/auth-app/?portal=superadmin")
-
 
 

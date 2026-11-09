@@ -8,7 +8,7 @@ This module provides views for students to:
 """
 import copy
 
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
@@ -163,25 +163,15 @@ def student_quiz_start_view(request, quiz_id):
     
     # Handle password verification if required
     if quiz.require_password:
-        if request.method == "GET":
-            # Show password form
-            return render(request, 'quiz/student/quiz_password_form.html', {
-                'quiz': quiz,
-            })
-        
         # POST: Verify password
         password = request.POST.get('password', '').strip()
         if not password:
             messages.error(request, "Please enter the quiz password.")
-            return render(request, 'quiz/student/quiz_password_form.html', {
-                'quiz': quiz,
-            })
+            return redirect(f"/app/student/quizzes/{quiz.pk}")
         
         if not quiz.verify_password(password):
             messages.error(request, "Incorrect password. Please try again.")
-            return render(request, 'quiz/student/quiz_password_form.html', {
-                'quiz': quiz,
-            })
+            return redirect(f"/app/student/quizzes/{quiz.pk}")
     
     try:
         with transaction.atomic():
@@ -489,7 +479,7 @@ def student_quiz_take_view(request, attempt_id):
         'total_questions': total_questions,
     }
     
-    return render(request, 'quiz/student/quiz_take.html', context)
+    return redirect(f"/app/student/take/{attempt.pk}")
 
 
 @login_required
@@ -877,7 +867,7 @@ def student_quiz_result_detail_view(request, attempt_id):
         'can_review': can_review,
     }
     
-    return render(request, 'quiz/student/result_detail.html', context)
+    return redirect(f"/app/student/attempts/{attempt.pk}/result")
 
 
 @login_required

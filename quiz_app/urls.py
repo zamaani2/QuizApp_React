@@ -4,10 +4,10 @@ URL configuration for quiz_app.
 This module defines all URL patterns for the quiz application,
 including authentication, dashboards, and other features.
 """
+from functools import wraps
+
 from django.urls import path
-from django.urls import reverse_lazy
-from django.contrib.auth import views as auth_views
-from .account_security import SafePasswordResetForm
+from django.shortcuts import redirect
 from .api_views import (
     me_api_view,
     react_app_shell_view,
@@ -72,6 +72,10 @@ from .api_views import (
 from .views import (
     login_view,
     logout_view,
+    password_reset_view,
+    password_reset_done_view,
+    password_reset_confirm_view,
+    password_reset_complete_view,
     dashboard_view,
     admin_dashboard_view,
     teacher_dashboard_view,
@@ -162,8 +166,6 @@ from .views import (
     assignment_edit_view,
     assignment_delete_view,
     get_class_subjects_view,
-    school_list_view,
-    school_create_view,
     school_edit_view,
     school_delete_view,
     school_detail_view,
@@ -217,41 +219,39 @@ from .views import (
 
 app_name = "quiz_app"
 
+
+def react_owned_page(view, destination):
+    """Keep retired Django page URLs usable by sending GETs to React."""
+    @wraps(view)
+    def wrapped(request, *args, **kwargs):
+        if request.method == "GET":
+            if not request.user.is_authenticated:
+                return redirect("/auth-app/")
+            target = (
+                destination(request, *args, **kwargs)
+                if callable(destination)
+                else destination.format(**kwargs)
+            )
+            return redirect(target)
+        return view(request, *args, **kwargs)
+
+    return wrapped
+
+
 urlpatterns = [
     # Authentication URLs (School Users)
     path("login/", login_view, name="login"),
     path("logout/", logout_view, name="logout"),
-    path(
-        "password-reset/",
-        auth_views.PasswordResetView.as_view(
-            form_class=SafePasswordResetForm,
-            template_name="auth/password_reset.html",
-            email_template_name="auth/password_reset_email.txt",
-            subject_template_name="auth/password_reset_subject.txt",
-            success_url=reverse_lazy("quiz_app:password_reset_done"),
-        ),
-        name="password_reset",
-    ),
-    path(
-        "password-reset/done/",
-        auth_views.PasswordResetDoneView.as_view(
-            template_name="auth/password_reset_done.html",
-        ),
-        name="password_reset_done",
-    ),
+    path("password-reset/", password_reset_view, name="password_reset"),
+    path("password-reset/done/", password_reset_done_view, name="password_reset_done"),
     path(
         "password-reset/<uidb64>/<token>/",
-        auth_views.PasswordResetConfirmView.as_view(
-            template_name="auth/password_reset_confirm.html",
-            success_url=reverse_lazy("quiz_app:password_reset_complete"),
-        ),
+        password_reset_confirm_view,
         name="password_reset_confirm",
     ),
     path(
         "password-reset/complete/",
-        auth_views.PasswordResetCompleteView.as_view(
-            template_name="auth/password_reset_complete.html",
-        ),
+        password_reset_complete_view,
         name="password_reset_complete",
     ),
     
@@ -274,19 +274,19 @@ urlpatterns = [
     path("extend-session/", extend_session_view, name="extend_session"),
     
     # Student Management URLs
-    path("students/", student_list_view, name="student_list"),
-    path("students/create/", student_create_view, name="student_create"),
-    path("students/<int:student_id>/edit/", student_edit_view, name="student_edit"),
+    path("students/", react_owned_page(student_list_view, "/app/admin/students"), name="student_list"),
+    path("students/create/", react_owned_page(student_create_view, "/app/admin/students"), name="student_create"),
+    path("students/<int:student_id>/edit/", react_owned_page(student_edit_view, "/app/admin/students"), name="student_edit"),
     path("students/<int:student_id>/delete/", student_delete_view, name="student_delete"),
     path("students/<int:student_id>/restore/", student_restore_view, name="student_restore"),
-    path("students/<int:student_id>/detail/", student_detail_view, name="student_detail"),
-    path("students/profile/", student_profile_view, name="student_profile"),
-    path("students/bulk-import/", student_bulk_import_view, name="student_bulk_import"),
+    path("students/<int:student_id>/detail/", react_owned_page(student_detail_view, "/app/admin/students"), name="student_detail"),
+    path("students/profile/", react_owned_page(student_profile_view, lambda request: "/app/student/profile" if request.user.role == "student" else "/app/admin/students"), name="student_profile"),
+    path("students/bulk-import/", react_owned_page(student_bulk_import_view, "/app/admin/students"), name="student_bulk_import"),
     path("students/bulk-import/template/", student_bulk_import_template_view, name="student_bulk_import_template"),
     path("students/bulk-import/template-xlsx/", student_bulk_import_template_xlsx_view, name="student_bulk_import_template_xlsx"),
     path("students/bulk-import/preview-headers/", student_bulk_import_preview_headers_view, name="student_bulk_import_preview_headers"),
     path("students/export/<str:format_type>/", student_export_view, name="student_export"),
-    path("students/bulk-delete/", student_bulk_delete_view, name="student_bulk_delete"),
+    path("students/bulk-delete/", react_owned_page(student_bulk_delete_view, "/app/admin/students"), name="student_bulk_delete"),
     
     # Student Class Enrollment Management URLs
     path("enrollments/", student_enrollment_list_view, name="enrollment_list"),
@@ -336,24 +336,24 @@ urlpatterns = [
     path("subjects/<int:subject_id>/restore/", subject_restore_view, name="subject_restore"),
     
     # Class Management URLs
-    path("classes/", class_list_view, name="class_list"),
-    path("classes/create/", class_create_view, name="class_create"),
-    path("classes/<int:class_id>/edit/", class_edit_view, name="class_edit"),
+    path("classes/", react_owned_page(class_list_view, "/app/admin/classes"), name="class_list"),
+    path("classes/create/", react_owned_page(class_create_view, "/app/admin/classes"), name="class_create"),
+    path("classes/<int:class_id>/edit/", react_owned_page(class_edit_view, "/app/admin/classes"), name="class_edit"),
     path("classes/<int:class_id>/delete/", class_delete_view, name="class_delete"),
     path("classes/<int:class_id>/restore/", class_restore_view, name="class_restore"),
-    path("classes/<int:class_id>/detail/", class_detail_view, name="class_detail"),
+    path("classes/<int:class_id>/detail/", react_owned_page(class_detail_view, "/app/admin/classes/{class_id}"), name="class_detail"),
     path("classes/<int:class_id>/subjects/add/", class_subject_add_view, name="class_subject_add"),
     path("classes/<int:class_id>/subjects/<int:class_subject_id>/remove/", class_subject_remove_view, name="class_subject_remove"),
     
     # Teacher Management URLs
-    path("teachers/", teacher_list_view, name="teacher_list"),
-    path("teachers/create/", teacher_create_view, name="teacher_create"),
-    path("teachers/<int:teacher_id>/edit/", teacher_edit_view, name="teacher_edit"),
+    path("teachers/", react_owned_page(teacher_list_view, "/app/admin/teachers"), name="teacher_list"),
+    path("teachers/create/", react_owned_page(teacher_create_view, "/app/admin/teachers"), name="teacher_create"),
+    path("teachers/<int:teacher_id>/edit/", react_owned_page(teacher_edit_view, "/app/admin/teachers"), name="teacher_edit"),
     path("teachers/<int:teacher_id>/delete/", teacher_delete_view, name="teacher_delete"),
     path("teachers/<int:teacher_id>/restore/", teacher_restore_view, name="teacher_restore"),
-    path("teachers/<int:teacher_id>/detail/", teacher_detail_view, name="teacher_detail"),
-    path("teachers/profile/", teacher_profile_view, name="teacher_profile"),
-    path("teachers/bulk-import/", teacher_bulk_import_view, name="teacher_bulk_import"),
+    path("teachers/<int:teacher_id>/detail/", react_owned_page(teacher_detail_view, "/app/admin/teachers"), name="teacher_detail"),
+    path("teachers/profile/", react_owned_page(teacher_profile_view, lambda request: "/app/teacher/dashboard" if request.user.role == "teacher" else "/app/admin/teachers"), name="teacher_profile"),
+    path("teachers/bulk-import/", react_owned_page(teacher_bulk_import_view, "/app/admin/teachers"), name="teacher_bulk_import"),
     path("teachers/bulk-import/preview/", teacher_bulk_import_preview_view, name="teacher_bulk_import_preview"),
     path(
         "teachers/bulk-import/template/<str:format_type>/",
@@ -361,14 +361,14 @@ urlpatterns = [
         name="teacher_bulk_import_template",
     ),
     path("teachers/export/<str:format_type>/", teacher_export_view, name="teacher_export"),
-    path("teachers/bulk-delete/", teacher_bulk_delete_view, name="teacher_bulk_delete"),
+    path("teachers/bulk-delete/", react_owned_page(teacher_bulk_delete_view, "/app/admin/teachers"), name="teacher_bulk_delete"),
     
     # Teacher Subject Assignment Management URLs
-    path("assignments/", assignment_list_view, name="assignment_list"),
-    path("assignments/create/", assignment_create_view, name="assignment_create"),
-    path("assignments/bulk-create/", assignment_bulk_create_view, name="assignment_bulk_create"),
+    path("assignments/", react_owned_page(assignment_list_view, "/app/admin/assignments"), name="assignment_list"),
+    path("assignments/create/", react_owned_page(assignment_create_view, "/app/admin/assignments"), name="assignment_create"),
+    path("assignments/bulk-create/", react_owned_page(assignment_bulk_create_view, "/app/admin/assignments"), name="assignment_bulk_create"),
     path("assignments/get-class-subjects/", get_class_subjects_view, name="get_class_subjects"),
-    path("assignments/<int:assignment_id>/edit/", assignment_edit_view, name="assignment_edit"),
+    path("assignments/<int:assignment_id>/edit/", react_owned_page(assignment_edit_view, "/app/admin/assignments"), name="assignment_edit"),
     path("assignments/<int:assignment_id>/delete/", assignment_delete_view, name="assignment_delete"),
     
     # School Management URLs (School Admin - own school only)
@@ -390,16 +390,16 @@ urlpatterns = [
     path("superadmin/admins/<int:admin_id>/delete/", superadmin_admin_delete_view, name="superadmin_admin_delete"),
     
     # User Management URLs
-    path("users/", user_list_view, name="user_list"),
-    path("users/create/", user_create_view, name="user_create"),
-    path("users/<int:user_id>/edit/", user_edit_view, name="user_edit"),
+    path("users/", react_owned_page(user_list_view, lambda request: "/app/superadmin/users" if request.user.role == "superadmin" else "/app/admin/users"), name="user_list"),
+    path("users/create/", react_owned_page(user_create_view, lambda request: "/app/superadmin/users" if request.user.role == "superadmin" else "/app/admin/users"), name="user_create"),
+    path("users/<int:user_id>/edit/", react_owned_page(user_edit_view, lambda request: "/app/superadmin/users" if request.user.role == "superadmin" else "/app/admin/users"), name="user_edit"),
     path("users/<int:user_id>/delete/", user_delete_view, name="user_delete"),
-    path("users/bulk-password-reset/", user_bulk_password_reset_view, name="user_bulk_password_reset"),
+    path("users/bulk-password-reset/", react_owned_page(user_bulk_password_reset_view, lambda request: "/app/superadmin/users" if request.user.role == "superadmin" else "/app/admin/users"), name="user_bulk_password_reset"),
     
     # Quiz Management URLs (for teachers)
     path("quizzes/", quiz_list_view, name="quiz_list"),
-    path("quizzes/create/", quiz_create_view, name="quiz_create"),
-    path("quizzes/<int:quiz_id>/edit/", quiz_edit_view, name="quiz_edit"),
+    path("quizzes/create/", react_owned_page(quiz_create_view, "/app/teacher/quizzes/new"), name="quiz_create"),
+    path("quizzes/<int:quiz_id>/edit/", react_owned_page(quiz_edit_view, "/app/teacher/quizzes/{quiz_id}/edit"), name="quiz_edit"),
     path("quizzes/<int:quiz_id>/delete/", quiz_delete_view, name="quiz_delete"),
     path("quizzes/<int:quiz_id>/detail/", quiz_detail_view, name="quiz_detail"),
     path("quizzes/<int:quiz_id>/update-status/", quiz_update_status_view, name="quiz_update_status"),
@@ -407,21 +407,21 @@ urlpatterns = [
     
     # Question Management URLs (for teachers)
     path("quizzes/<int:quiz_id>/questions/", question_list_view, name="question_list"),
-    path("quizzes/<int:quiz_id>/questions/create/", question_create_view, name="question_create"),
-    path("quizzes/<int:quiz_id>/questions/<int:question_id>/edit/", question_edit_view, name="question_edit"),
+    path("quizzes/<int:quiz_id>/questions/create/", react_owned_page(question_create_view, "/app/teacher/quizzes/{quiz_id}/questions/new"), name="question_create"),
+    path("quizzes/<int:quiz_id>/questions/<int:question_id>/edit/", react_owned_page(question_edit_view, "/app/teacher/quizzes/{quiz_id}/questions/{question_id}/edit"), name="question_edit"),
     path("quizzes/<int:quiz_id>/questions/<int:question_id>/delete/", question_delete_view, name="question_delete"),
     path("quizzes/<int:quiz_id>/questions/<int:question_id>/duplicate/", question_duplicate_view, name="question_duplicate"),
     path("quizzes/<int:quiz_id>/questions/reorder/", question_reorder_view, name="question_reorder"),
-    path("quizzes/<int:quiz_id>/questions/import/", question_bulk_import_view, name="question_bulk_import"),
+    path("quizzes/<int:quiz_id>/questions/import/", react_owned_page(question_bulk_import_view, "/app/teacher/quizzes/{quiz_id}/questions/import"), name="question_bulk_import"),
     path("quizzes/<int:quiz_id>/questions/import-template/<str:format_type>/", question_import_template_view, name="question_import_template"),
-    path("quizzes/<int:quiz_id>/questions/bulk-delete/", question_bulk_delete_view, name="question_bulk_delete"),
+    path("quizzes/<int:quiz_id>/questions/bulk-delete/", react_owned_page(question_bulk_delete_view, "/app/teacher/quizzes/{quiz_id}"), name="question_bulk_delete"),
     
     # Quiz Assignment Management URLs (for teachers)
     path("quizzes/assignments/", quiz_assignment_overview_view, name="quiz_assignment_overview"),
-    path("quizzes/<int:quiz_id>/assignments/", quiz_assignment_list_view, name="quiz_assignment_list"),
-    path("quizzes/<int:quiz_id>/assignments/create/", quiz_assignment_create_view, name="quiz_assignment_create"),
+    path("quizzes/<int:quiz_id>/assignments/", react_owned_page(quiz_assignment_list_view, "/app/teacher/quizzes/{quiz_id}/assignments"), name="quiz_assignment_list"),
+    path("quizzes/<int:quiz_id>/assignments/create/", react_owned_page(quiz_assignment_create_view, "/app/teacher/quizzes/{quiz_id}/assignments"), name="quiz_assignment_create"),
     path("quizzes/<int:quiz_id>/assignments/<int:class_id>/delete/", quiz_assignment_delete_view, name="quiz_assignment_delete"),
-    path("quizzes/<int:quiz_id>/assignments/bulk-delete/", quiz_assignment_bulk_delete_view, name="quiz_assignment_bulk_delete"),
+    path("quizzes/<int:quiz_id>/assignments/bulk-delete/", react_owned_page(quiz_assignment_bulk_delete_view, "/app/teacher/quizzes/{quiz_id}/assignments"), name="quiz_assignment_bulk_delete"),
     
     # Class Quiz List URL (view quizzes assigned to a class)
     path("classes/<int:class_id>/quizzes/", class_quiz_list_view, name="class_quiz_list"),

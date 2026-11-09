@@ -23,7 +23,10 @@ describe('Authentication and System Core', () => {
     expect(await screen.findByRole('heading', { name: 'Sign in to QuizApp' })).toBeInTheDocument();
     expect(screen.getByLabelText('Username or email')).toHaveAttribute('name', 'username');
     expect(screen.getByLabelText('Password')).toHaveAttribute('name', 'password');
-    expect(screen.getByRole('link', { name: 'Forgot password?' })).toHaveAttribute('href', '/password-reset/');
+    expect(screen.getByRole('link', { name: 'Forgot password?' })).toHaveAttribute(
+      'href',
+      '/auth-app/?flow=password-reset'
+    );
     expect(document.querySelector('form')).toHaveAttribute('action', '/login/?next=%2Fapp%2F');
     expect(document.querySelector('form')).toHaveAttribute('method', 'post');
     expect(document.querySelector('input[name="csrfmiddlewaretoken"]')).toHaveValue('test-csrf-token');
@@ -76,6 +79,80 @@ describe('Authentication and System Core', () => {
     expect(options?.method).toBe('POST');
     expect(new Headers(options?.headers).get('Accept')).toBe('application/json');
     expect(new Headers(options?.headers).get('X-CSRFToken')).toBe('test-csrf-token');
+  });
+
+  it('submits a password reset request through the Django endpoint', async () => {
+    const unauthorized = {
+      ok: false,
+      status: 401,
+      statusText: 'Unauthorized',
+      json: async () => ({ code: 'UNAUTHORIZED', message: 'Authentication required' }),
+    };
+    const accepted = {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        message: 'If an account with that email exists, a password reset link has been sent.',
+      }),
+    };
+    const fetchMock = vi.fn().mockResolvedValueOnce(unauthorized).mockResolvedValueOnce(accepted);
+    global.fetch = fetchMock;
+    window.history.replaceState({}, '', '/auth-app/?flow=password-reset');
+
+    render(<AuthCoreApp />);
+    await screen.findByRole('heading', { name: 'Reset your password' });
+    fireEvent.change(screen.getByLabelText('Email address'), {
+      target: { value: 'user@school.test' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /send reset link/i }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'If an account with that email exists'
+    );
+    expect(fetchMock.mock.calls[1][0]).toBe('/password-reset/');
+    expect(fetchMock.mock.calls[1][1]?.body.toString()).toBe('email=user%40school.test');
+  });
+
+  it('submits a new password using the one-time reset token', async () => {
+    const unauthorized = {
+      ok: false,
+      status: 401,
+      statusText: 'Unauthorized',
+      json: async () => ({ code: 'UNAUTHORIZED', message: 'Authentication required' }),
+    };
+    const invalidLink = {
+      ok: false,
+      status: 400,
+      statusText: 'Bad Request',
+      json: async () => ({
+        code: 'INVALID_RESET_LINK',
+        message: 'This password reset link is invalid or has expired.',
+      }),
+    };
+    const fetchMock = vi.fn().mockResolvedValueOnce(unauthorized).mockResolvedValueOnce(invalidLink);
+    global.fetch = fetchMock;
+    window.history.replaceState(
+      {},
+      '',
+      '/auth-app/?flow=password-reset-confirm&uid=MTI&token=token-value'
+    );
+
+    render(<AuthCoreApp />);
+    await screen.findByRole('heading', { name: 'Choose a new password' });
+    fireEvent.change(screen.getByLabelText('New password'), {
+      target: { value: 'New-Password-837!' },
+    });
+    fireEvent.change(screen.getByLabelText('Confirm new password'), {
+      target: { value: 'New-Password-837!' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /update password/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('invalid or has expired');
+    expect(fetchMock.mock.calls[1][0]).toBe('/password-reset/MTI/token-value/');
+    expect(fetchMock.mock.calls[1][1]?.body.toString()).toBe(
+      'new_password1=New-Password-837%21&new_password2=New-Password-837%21'
+    );
   });
 
   it('shows the separate superadmin sign-in portal', async () => {

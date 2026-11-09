@@ -1,5 +1,9 @@
 # Superadmin Menu Separation
 
+> Historical implementation note. The Django menu and base templates described
+> here have been retired; the active superadmin navigation is in the React
+> workspace under `/app/superadmin/*`.
+
 ## Overview
 
 The superadmin interface now has a **completely separate navigation menu** from school administrators. This provides better separation of concerns, reduces confusion, and prevents accidental access to school-specific features.
@@ -183,7 +187,6 @@ Potential additions to superadmin menu:
 
 _Last Updated: After menu separation implementation_
 _System: Django Quiz Application - Multi-Tenant Architecture_
-
 
 
 

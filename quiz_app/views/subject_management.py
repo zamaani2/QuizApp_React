@@ -7,12 +7,11 @@ This module provides views for managing subjects including:
 - Editing existing subjects
 - Deleting subjects
 """
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
-from django.db.models import Count, Q
 from django.db import transaction
 from django.core.exceptions import ValidationError
 
@@ -21,7 +20,6 @@ from ..models import (
     LearningArea,
     Department,
     TeacherSubjectAssignment,
-    SchoolInformation,
 )
 from ..utils.tenant_utils import get_object_or_404_with_school, get_write_school
 
@@ -36,68 +34,7 @@ def subject_list_view(request):
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:dashboard")
 
-    if request.GET.get("classic") != "1":
-        return redirect("/app/admin/subjects")
-
-    school = request.user.school
-    subjects = Subject.objects.all()
-    
-    if school:
-        subjects = subjects.filter(school=school)
-    status_filter = request.GET.get("status", "active")
-    if status_filter == "archived":
-        subjects = subjects.filter(is_active=False)
-    elif status_filter == "all":
-        pass
-    else:
-        status_filter = "active"
-        subjects = subjects.filter(is_active=True)
-    
-    # Search functionality
-    search_query = request.GET.get('search', '')
-    if search_query:
-        subjects = subjects.filter(
-            Q(subject_name__icontains=search_query) |
-            Q(subject_code__icontains=search_query)
-        )
-    
-    # Filter by learning area
-    learning_area_filter = request.GET.get('learning_area', '')
-    if learning_area_filter:
-        subjects = subjects.filter(learning_area_id=learning_area_filter)
-    
-    # Filter by department
-    department_filter = request.GET.get('department', '')
-    if department_filter:
-        subjects = subjects.filter(department_id=department_filter)
-    
-    # Order by subject name
-    subjects = subjects.select_related(
-        "learning_area", "department"
-    ).annotate(quiz_count=Count("quizzes")).order_by('subject_name')
-    
-    # Get filter options
-    learning_areas = LearningArea.objects.all()
-    if school:
-        learning_areas = learning_areas.filter(school=school)
-    learning_areas = learning_areas.order_by('name')
-    
-    departments = Department.objects.all()
-    if school:
-        departments = departments.filter(school=school)
-    departments = departments.order_by('name')
-    
-    context = {
-        'subjects': subjects,
-        'learning_areas': learning_areas,
-        'departments': departments,
-        'search_query': search_query,
-        'learning_area_filter': learning_area_filter,
-        'department_filter': department_filter,
-        'status_filter': status_filter,
-    }
-    
-    return render(request, 'subject/subject_list.html', context)
+    return redirect("/app/admin/subjects")
 
 
 @login_required
@@ -115,33 +52,8 @@ def subject_create_view(request):
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:subject_list")
     
-    school = request.user.school
-    
     if request.method == "GET":
-        if request.GET.get("classic") != "1":
-            return redirect("/app/admin/subjects")
-        # Get learning areas and departments for dropdowns
-        learning_areas = LearningArea.objects.all()
-        departments = Department.objects.all()
-        if school:
-            learning_areas = learning_areas.filter(school=school)
-            departments = departments.filter(school=school)
-        learning_areas = learning_areas.order_by('name')
-        departments = departments.order_by('name')
-        
-        # Return form for modal
-        html = render(request, 'subject/partials/subject_form.html', {
-            'subject': None,
-            'learning_areas': learning_areas,
-            'departments': departments,
-            'schools': (
-                SchoolInformation.objects.filter(is_active=True).order_by("name")
-                if request.user.role == "superadmin"
-                else SchoolInformation.objects.none()
-            ),
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
+        return redirect("/app/admin/subjects")
     
     # POST - Create subject
     school = get_write_school(request)
@@ -240,29 +152,11 @@ def subject_edit_view(request, subject_id):
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:subject_list")
     
+    if request.method == "GET":
+        return redirect("/app/admin/subjects")
+
     subject = get_object_or_404_with_school(Subject, request, pk=subject_id)
     school = subject.school
-    
-    if request.method == "GET":
-        if request.GET.get("classic") != "1":
-            return redirect("/app/admin/subjects")
-        # Get learning areas and departments for dropdowns
-        learning_areas = LearningArea.objects.all()
-        departments = Department.objects.all()
-        if school:
-            learning_areas = learning_areas.filter(school=school)
-            departments = departments.filter(school=school)
-        learning_areas = learning_areas.order_by('name')
-        departments = departments.order_by('name')
-        
-        # Return form for modal
-        html = render(request, 'subject/partials/subject_form.html', {
-            'subject': subject,
-            'learning_areas': learning_areas,
-            'departments': departments,
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
     
     # POST - Update subject
     try:

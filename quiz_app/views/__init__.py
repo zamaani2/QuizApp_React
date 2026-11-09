@@ -3,7 +3,14 @@ Views package for quiz_app.
 
 This module exports all views for easy importing.
 """
-from .auth import login_view, logout_view
+from .auth import (
+    login_view,
+    logout_view,
+    password_reset_view,
+    password_reset_done_view,
+    password_reset_confirm_view,
+    password_reset_complete_view,
+)
 from .superadmin_auth import superadmin_login_view, superadmin_logout_view
 from .superadmin_dashboard import superadmin_dashboard_view
 from .superadmin_school_management import (
@@ -108,8 +115,6 @@ from .teacher_assignment_management import (
     get_class_subjects_view,
 )
 from .school_management import (
-    school_list_view,
-    school_create_view,
     school_edit_view,
     school_delete_view,
     school_detail_view,
@@ -186,6 +191,10 @@ from .student_quiz_management import (
 __all__ = [
     "login_view",
     "logout_view",
+    "password_reset_view",
+    "password_reset_done_view",
+    "password_reset_confirm_view",
+    "password_reset_complete_view",
     "superadmin_login_view",
     "superadmin_logout_view",
     "superadmin_dashboard_view",
@@ -270,8 +279,6 @@ __all__ = [
     "assignment_edit_view",
     "assignment_delete_view",
     "get_class_subjects_view",
-    "school_list_view",
-    "school_create_view",
     "school_edit_view",
     "school_delete_view",
     "school_detail_view",

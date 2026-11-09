@@ -9,12 +9,20 @@ interface LoginResponse {
   success: true;
   redirect_url: string;
 }
+interface PasswordResetResponse {
+  success: true;
+  message?: string;
+  redirect_url?: string;
+}
 
 export function AuthCoreApp() {
   const [sessionState, setSessionState] = useState<SessionState>('loading');
   const [identity, setIdentity] = useState<CurrentUserResponse | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resetMessage, setResetMessage] = useState<string | null>(null);
+  const [resetSubmitting, setResetSubmitting] = useState(false);
 
   const loadSession = async () => {
     setSessionState('loading');
@@ -35,6 +43,13 @@ export function AuthCoreApp() {
   const csrfToken = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content || getCsrfToken() || '';
   const searchParams = new URLSearchParams(window.location.search);
   const isSuperadminPortal = searchParams.get('portal') === 'superadmin';
+  const resetFlow = searchParams.get('flow');
+  const resetUid = searchParams.get('uid') || '';
+  const resetToken = searchParams.get('token') || '';
+  const isResetRequest = resetFlow === 'password-reset';
+  const isResetConfirm = resetFlow === 'password-reset-confirm';
+  const isResetStatus = resetFlow === 'password-reset-sent' || resetFlow === 'password-reset-complete';
+  const isResetFlow = isResetRequest || isResetConfirm || isResetStatus;
   const requestedNext =
     searchParams.get('next') || (isSuperadminPortal ? '/app/superadmin/dashboard' : '/app/');
   const loginAction = isSuperadminPortal
@@ -77,6 +92,43 @@ export function AuthCoreApp() {
     }
   };
 
+  const submitPasswordReset = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setResetError(null);
+    setResetMessage(null);
+    setResetSubmitting(true);
+
+    const formData = new FormData(event.currentTarget);
+    const body = new URLSearchParams();
+    const fields = isResetConfirm
+      ? ['new_password1', 'new_password2']
+      : ['email'];
+    for (const field of fields) {
+      const value = formData.get(field);
+      if (typeof value === 'string') body.set(field, value);
+    }
+
+    const action = isResetConfirm
+      ? `/password-reset/${encodeURIComponent(resetUid)}/${encodeURIComponent(resetToken)}/`
+      : '/password-reset/';
+    try {
+      const response = await apiClient<PasswordResetResponse>(action, {
+        method: 'POST',
+        headers: { Accept: 'application/json' },
+        body,
+      });
+      if (response.redirect_url) {
+        window.location.assign(response.redirect_url);
+      } else {
+        setResetMessage(response.message || 'Password reset request received.');
+      }
+    } catch (error) {
+      setResetError(error instanceof Error ? error.message : 'Password reset failed. Please try again.');
+    } finally {
+      setResetSubmitting(false);
+    }
+  };
+
   return (
     <main className="auth-core">
       <section className="auth-core__rail" aria-label="QuizApp system information">
@@ -109,7 +161,63 @@ export function AuthCoreApp() {
           <div className="auth-core__content" role="status">Checking your session...</div>
         )}
 
-        {sessionState === 'anonymous' && (
+        {sessionState === 'anonymous' && isResetRequest && (
+          <div className="auth-core__content">
+            <p className="auth-core__eyebrow">ACCOUNT RECOVERY</p>
+            <h2>Reset your password</h2>
+            <p className="auth-core__intro">
+              Enter the email address linked to your account. If it exists, we will send a secure reset link.
+            </p>
+            <form className="auth-core__form" onSubmit={submitPasswordReset}>
+              {resetError && <p className="auth-core__error" role="alert">{resetError}</p>}
+              {resetMessage && <p className="auth-core__intro" role="status">{resetMessage}</p>}
+              <label htmlFor="reset-email">Email address</label>
+              <input id="reset-email" name="email" type="email" autoComplete="email" required />
+              <button className="auth-core__submit" type="submit" disabled={resetSubmitting}>
+                {resetSubmitting ? 'Sending...' : 'Send reset link'} <span aria-hidden="true">&#8594;</span>
+              </button>
+            </form>
+            <p className="auth-core__support"><a href="/auth-app/">Back to sign in</a></p>
+          </div>
+        )}
+
+        {sessionState === 'anonymous' && isResetConfirm && (
+          <div className="auth-core__content">
+            <p className="auth-core__eyebrow">ACCOUNT RECOVERY</p>
+            <h2>Choose a new password</h2>
+            <p className="auth-core__intro">Set a new password for your QuizApp account.</p>
+            <form className="auth-core__form" onSubmit={submitPasswordReset}>
+              {resetError && <p className="auth-core__error" role="alert">{resetError}</p>}
+              <label htmlFor="new-password">New password</label>
+              <input id="new-password" name="new_password1" type="password" autoComplete="new-password" required />
+              <label htmlFor="confirm-password">Confirm new password</label>
+              <input id="confirm-password" name="new_password2" type="password" autoComplete="new-password" required />
+              <button className="auth-core__submit" type="submit" disabled={resetSubmitting}>
+                {resetSubmitting ? 'Updating...' : 'Update password'} <span aria-hidden="true">&#8594;</span>
+              </button>
+            </form>
+            <p className="auth-core__support"><a href="/auth-app/">Back to sign in</a></p>
+          </div>
+        )}
+
+        {sessionState === 'anonymous' && isResetStatus && (
+          <div className="auth-core__content">
+            <p className="auth-core__eyebrow">ACCOUNT RECOVERY</p>
+            <h2>
+              {resetFlow === 'password-reset-sent' ? 'Check your email' : 'Password updated'}
+            </h2>
+            <p className="auth-core__intro" role="status">
+              {resetFlow === 'password-reset-sent'
+                ? 'If an account with that email exists, a password reset link has been sent.'
+                : 'Your password has been updated. You can now sign in.'}
+            </p>
+            <a className="auth-core__submit auth-core__workspace-link" href="/auth-app/">
+              Return to sign in <span aria-hidden="true">&#8594;</span>
+            </a>
+          </div>
+        )}
+
+        {sessionState === 'anonymous' && !isResetFlow && (
           <div className="auth-core__content">
             <p className="auth-core__eyebrow">{isSuperadminPortal ? 'SYSTEM ADMINISTRATION' : 'WELCOME BACK'}</p>
             <h2>{isSuperadminPortal ? 'Superadmin sign in' : 'Sign in to QuizApp'}</h2>
@@ -132,7 +240,7 @@ export function AuthCoreApp() {
               />
               <div className="auth-core__password-label">
                 <label htmlFor="auth-password">Password</label>
-                <a href="/password-reset/">Forgot password?</a>
+                <a href="/auth-app/?flow=password-reset">Forgot password?</a>
               </div>
               <input
                 id="auth-password"

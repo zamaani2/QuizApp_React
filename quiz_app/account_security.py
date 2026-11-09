@@ -9,7 +9,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.core.exceptions import ImproperlyConfigured
 from django.core.mail import BadHeaderError, EmailMultiAlternatives
 from django.db import transaction
-from django.template import loader
+from django.urls import reverse
 
 logger = logging.getLogger(__name__)
 
@@ -58,9 +58,21 @@ class SafePasswordResetForm(PasswordResetForm):
         to_email,
         html_email_template_name=None,
     ):
-        subject = loader.render_to_string(subject_template_name, context)
-        subject = "".join(subject.splitlines())
-        body = loader.render_to_string(email_template_name, context)
+        subject = "Reset your QuizApp password"
+        user = context["user"]
+        reset_path = reverse(
+            "quiz_app:password_reset_confirm",
+            kwargs={"uidb64": context["uid"], "token": context["token"]},
+        )
+        reset_url = (
+            f"{context['protocol']}://{context['domain']}{reset_path}"
+        )
+        body = (
+            f"Hello {user.get_full_name() or user.get_username()},\n\n"
+            "Use the one-time link below to set or reset your QuizApp password:\n\n"
+            f"{reset_url}\n\n"
+            "If you did not request this, you can ignore this email."
+        )
         email_message = EmailMultiAlternatives(subject, body, from_email, [to_email])
         if html_email_template_name is not None:
             html_email = loader.render_to_string(html_email_template_name, context)
@@ -76,8 +88,8 @@ class SafePasswordResetForm(PasswordResetForm):
     def save(
         self,
         domain_override=None,
-        subject_template_name="registration/password_reset_subject.txt",
-        email_template_name="registration/password_reset_email.html",
+        subject_template_name=None,
+        email_template_name=None,
         use_https=False,
         token_generator=default_token_generator,
         from_email=None,
@@ -129,8 +141,6 @@ def schedule_password_setup_email(user):
             domain_override=site_url.netloc,
             use_https=site_url.scheme == "https",
             from_email=settings.DEFAULT_FROM_EMAIL,
-            subject_template_name="auth/password_reset_subject.txt",
-            email_template_name="auth/password_reset_email.txt",
         )
 
     transaction.on_commit(send_setup_email)

@@ -965,7 +965,7 @@ Valid superadmin credentials submitted through the school-user login flow do not
   - `POST /api/v1/subjects/<id>/restore/`: Restore the subject without reactivating historical assignments.
 - **Permissions:** `role in ["admin", "superadmin"]`; admins are scoped to their school, superadmins may filter lists by active school and must choose an active school when creating a subject.
 - **List fields:** `class_count` and `quiz_count` are included with school identity and subject status.
-- **Legacy views:** `/subjects/`, `/subjects/create/`, and `/subjects/<id>/edit/` GET routes redirect to `/app/admin/subjects`; append `?classic=1` to render the legacy page/modal form.
+- **Legacy views:** `/subjects/`, `/subjects/create/`, and `/subjects/<id>/edit/` GET routes redirect to `/app/admin/subjects`. The Django page/form fallback and `?classic=1` behavior have been retired.
 
 ### 6.5 School Settings (`/api/v1/school/`)
 - **Methods:**
@@ -1040,7 +1040,7 @@ Valid superadmin credentials submitted through the school-user login flow do not
     - Logic: Validates all selected rows belong to the requested school (or the admin's school), then soft-deactivates them.
     - Response `200 OK`: `{"success": true, "unassigned_count": 2, "message": "...history was retained."}`
 
-The React screen is `/app/admin/enrollments`. Legacy `/enrollments/`, `/enrollments/create/`, `/enrollments/bulk-create/`, and `/enrollments/<id>/edit/` GET routes redirect there; append `?classic=1` to render the legacy Django view/form.
+The React screen is `/app/admin/enrollments`. Legacy `/enrollments/`, `/enrollments/create/`, `/enrollments/bulk-create/`, and `/enrollments/<id>/edit/` GET routes redirect there. The Django page/form fallback and `?classic=1` behavior have been retired.
 
 ### 7.2 Teacher Subject Assignments (`/api/v1/teacher-assignments/`)
 - **Base URL:** `/api/v1/teacher-assignments/`

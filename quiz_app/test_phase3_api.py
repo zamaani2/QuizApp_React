@@ -298,7 +298,7 @@ class Phase3ApiTests(TestCase):
         self.assertEqual(create.status_code, 403)
         self.assertEqual(detail.status_code, 403)
 
-    def test_superadmin_school_pages_redirect_to_react_and_keep_classic_fallback(self):
+    def test_superadmin_school_pages_always_redirect_to_react(self):
         self.client.force_login(self.superadmin)
         list_url = reverse("quiz_app:superadmin_school_list")
         detail_url = reverse(
@@ -314,14 +314,20 @@ class Phase3ApiTests(TestCase):
             "/app/superadmin/schools",
             fetch_redirect_response=False,
         )
-        self.assertEqual(self.client.get(list_url + "?classic=1").status_code, 200)
+        self.assertRedirects(
+            self.client.get(list_url + "?classic=1"),
+            "/app/superadmin/schools",
+            fetch_redirect_response=False,
+        )
         self.assertRedirects(
             self.client.get(detail_url),
             f"/app/superadmin/schools/{self.school_a.pk}",
             fetch_redirect_response=False,
         )
-        self.assertEqual(
-            self.client.get(detail_url + "?classic=1").status_code, 200
+        self.assertRedirects(
+            self.client.get(detail_url + "?classic=1"),
+            f"/app/superadmin/schools/{self.school_a.pk}",
+            fetch_redirect_response=False,
         )
         self.assertRedirects(
             self.client.get(edit_url),
@@ -333,9 +339,11 @@ class Phase3ApiTests(TestCase):
             "/app/superadmin/schools/new",
             fetch_redirect_response=False,
         )
-        classic_create = self.client.get(create_url + "?classic=1")
-        self.assertEqual(classic_create.status_code, 200)
-        self.assertIn("html", classic_create.json())
+        self.assertRedirects(
+            self.client.get(create_url + "?classic=1"),
+            "/app/superadmin/schools/new",
+            fetch_redirect_response=False,
+        )
 
     def test_superadmin_dashboard_returns_system_metrics_and_activity(self):
         response = self.client.get(reverse("quiz_app:api_superadmin_dashboard"))
@@ -475,7 +483,7 @@ class Phase3ApiTests(TestCase):
         self.assertEqual(self_delete.json()["code"], "SELF_DELETE_FORBIDDEN")
         self.assertTrue(User.objects.filter(pk=self.admin_a.pk).exists())
 
-    def test_superadmin_admin_pages_redirect_to_react_and_keep_classic_fallback(self):
+    def test_superadmin_admin_pages_always_redirect_to_react(self):
         self.client.force_login(self.superadmin)
         list_url = reverse("quiz_app:superadmin_admin_list")
         detail_url = reverse("quiz_app:superadmin_admin_detail", args=[self.admin_a.pk])
@@ -487,25 +495,41 @@ class Phase3ApiTests(TestCase):
             "/app/superadmin/admins",
             fetch_redirect_response=False,
         )
-        self.assertEqual(self.client.get(list_url + "?classic=1").status_code, 200)
+        self.assertRedirects(
+            self.client.get(list_url + "?classic=1"),
+            "/app/superadmin/admins",
+            fetch_redirect_response=False,
+        )
         self.assertRedirects(
             self.client.get(detail_url),
             f"/app/superadmin/admins/{self.admin_a.pk}",
             fetch_redirect_response=False,
         )
-        self.assertEqual(self.client.get(detail_url + "?classic=1").status_code, 200)
+        self.assertRedirects(
+            self.client.get(detail_url + "?classic=1"),
+            f"/app/superadmin/admins/{self.admin_a.pk}",
+            fetch_redirect_response=False,
+        )
         self.assertRedirects(
             self.client.get(create_url),
             "/app/superadmin/admins/new",
             fetch_redirect_response=False,
         )
-        self.assertIn("html", self.client.get(create_url + "?classic=1").json())
+        self.assertRedirects(
+            self.client.get(create_url + "?classic=1"),
+            "/app/superadmin/admins/new",
+            fetch_redirect_response=False,
+        )
         self.assertRedirects(
             self.client.get(edit_url),
             f"/app/superadmin/admins/{self.admin_a.pk}/edit",
             fetch_redirect_response=False,
         )
-        self.assertEqual(self.client.get(edit_url + "?classic=1").status_code, 200)
+        self.assertRedirects(
+            self.client.get(edit_url + "?classic=1"),
+            f"/app/superadmin/admins/{self.admin_a.pk}/edit",
+            fetch_redirect_response=False,
+        )
 
     def test_superadmin_admins_forbidden_for_non_superadmin(self):
         self.client.force_login(self.admin_a)

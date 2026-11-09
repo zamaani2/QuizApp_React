@@ -8,17 +8,25 @@ This module provides secure and modular authentication views with:
 - IP address tracking
 """
 import logging
-from django.shortcuts import render, redirect
+from urllib.parse import urlencode, urlparse
+
+from django.shortcuts import redirect
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import SetPasswordForm
+from django.contrib.auth.tokens import default_token_generator
 from django.contrib import messages
+from django.core.exceptions import ImproperlyConfigured
 from django.urls import reverse
+from django.utils.encoding import force_str
+from django.utils.http import urlsafe_base64_decode
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_protect
 from django.conf import settings
 from django.utils import timezone
 from django.http import JsonResponse
 
+from ..account_security import SafePasswordResetForm
 from ..models import User
 
 logger = logging.getLogger(__name__)
@@ -46,12 +54,113 @@ def _wants_json_login_response(request):
     return "application/json" in request.headers.get("Accept", "").lower()
 
 
+def _auth_app_redirect(request):
+    next_url = request.GET.get("next")
+    query = urlencode({"next": next_url}) if next_url else ""
+    return redirect(f"/auth-app/?{query}" if query else "/auth-app/")
+
+
 def _login_failure_response(request, code, message, status):
     if _wants_json_login_response(request):
         return JsonResponse({"code": code, "message": message}, status=status)
 
     messages.error(request, message)
-    return render(request, "auth/login.html", {})
+    return _auth_app_redirect(request)
+
+
+@csrf_protect
+@require_http_methods(["GET", "POST"])
+def password_reset_view(request):
+    if request.method == "GET":
+        return redirect("/auth-app/?flow=password-reset")
+
+    form = SafePasswordResetForm(request.POST)
+    if not form.is_valid():
+        return JsonResponse(
+            {
+                "code": "VALIDATION_ERROR",
+                "message": form.errors.get("email", ["Enter a valid email address."])[0],
+            },
+            status=400,
+        )
+
+    site_url = urlparse(settings.SITE_URL)
+    if not site_url.scheme or not site_url.netloc:
+        raise ImproperlyConfigured("SITE_URL must include a scheme and hostname.")
+    form.save(
+        domain_override=site_url.netloc,
+        use_https=site_url.scheme == "https",
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        subject_template_name="",
+        email_template_name="",
+    )
+    return JsonResponse(
+        {
+            "success": True,
+            "message": (
+                "If an account with that email exists, a password reset link "
+                "has been sent."
+            ),
+        }
+    )
+
+
+@csrf_protect
+@require_http_methods(["GET", "POST"])
+def password_reset_confirm_view(request, uidb64, token):
+    if request.method == "GET":
+        query = urlencode(
+            {
+                "flow": "password-reset-confirm",
+                "uid": uidb64,
+                "token": token,
+            }
+        )
+        return redirect(f"/auth-app/?{query}")
+
+    try:
+        user_id = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=user_id)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        user = None
+
+    if user is None or not default_token_generator.check_token(user, token):
+        return JsonResponse(
+            {
+                "code": "INVALID_RESET_LINK",
+                "message": "This password reset link is invalid or has expired.",
+            },
+            status=400,
+        )
+
+    form = SetPasswordForm(user, request.POST)
+    if not form.is_valid():
+        messages = form.errors.get("new_password2") or form.errors.get("new_password1")
+        return JsonResponse(
+            {
+                "code": "PASSWORD_VALIDATION_ERROR",
+                "message": messages[0] if messages else "Enter a valid new password.",
+            },
+            status=400,
+        )
+
+    form.save()
+    return JsonResponse(
+        {
+            "success": True,
+            "redirect_url": "/auth-app/?flow=password-reset-complete",
+        }
+    )
+
+
+@require_http_methods(["GET"])
+def password_reset_done_view(request):
+    return redirect("/auth-app/?flow=password-reset-sent")
+
+
+@require_http_methods(["GET"])
+def password_reset_complete_view(request):
+    return redirect("/auth-app/?flow=password-reset-complete")
 
 
 @csrf_protect
@@ -76,8 +185,6 @@ def login_view(request):
             )
         return redirect("quiz_app:dashboard")
 
-    context = {}
-    
     if request.method == "POST":
         identifier = request.POST.get("username", "").strip()
         password = request.POST.get("password", "")
@@ -208,8 +315,7 @@ def login_view(request):
                 401,
             )
     
-    # GET request or failed POST - show login form
-    return render(request, "auth/login.html", context)
+    return _auth_app_redirect(request)
 
 
 @login_required
@@ -256,4 +362,3 @@ def logout_view(request):
         f"Goodbye, {user_name}! You have been successfully logged out."
     )
     return redirect("quiz_app:auth_core_app")
-

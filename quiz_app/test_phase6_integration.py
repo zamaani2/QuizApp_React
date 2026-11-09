@@ -89,11 +89,11 @@ class Phase6IntegrationTests(TestCase):
         self.student_user.school = self.school
         self.student_user.save()
 
-    def test_unauthenticated_react_shell_redirects_to_login(self):
-        """Unauthenticated requests to /app/ should redirect to /login/?next=/app/"""
+    def test_unauthenticated_react_shell_redirects_to_react_auth(self):
+        """Unauthenticated requests to /app/ should open the React auth app."""
         res = self.client.get('/app/')
         self.assertEqual(res.status_code, 302)
-        self.assertIn('/login/', res.url)
+        self.assertEqual(res.url, '/auth-app/?next=%2Fapp%2F')
 
     def test_authenticated_admin_can_access_react_shell(self):
         """Authenticated admin can load the React SPA shell at /app/"""

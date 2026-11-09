@@ -7,22 +7,18 @@ This module provides views for grading student quiz attempts, especially essay q
 - Grading individual responses
 - Bulk grading operations
 """
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
-from django.db.models import Q, Count, F, Prefetch
+from django.db.models import Q, F
 from django.db import transaction
 from django.utils import timezone
 
 from ..models import (
-    Quiz,
     QuizAttempt,
     QuizResponse,
-    Question,
-    AnswerChoice,
-    Teacher,
 )
 
 
@@ -82,46 +78,6 @@ def quiz_attempt_grading_view(request, attempt_id):
         )
 
     return redirect(f"/app/teacher/grading/{attempt.pk}")
-    
-    # Get all responses ordered by question order
-    responses = attempt.responses.filter(
-        school=school,
-        question__school=school,
-        question__quiz_id=F('attempt__quiz_id'),
-    ).filter(
-        Q(selected_choice__isnull=True) | Q(selected_choice__school=school)
-    ).select_related(
-        'question'
-    ).prefetch_related(
-        Prefetch(
-            'question__answer_choices',
-            queryset=AnswerChoice.objects.filter(school=school),
-        ),
-        'selected_choice',
-        Prefetch(
-            'selected_choices',
-            queryset=AnswerChoice.objects.filter(school=school),
-        ),
-    ).order_by('question__order')
-    
-    # Separate responses by type
-    essay_responses = responses.filter(question__question_type='essay')
-    other_responses = responses.exclude(question__question_type='essay')
-    
-    # Check if all essay questions are graded
-    ungraded_essay_count = essay_responses.filter(is_graded=False).count()
-    
-    context = {
-        'attempt': attempt,
-        'responses': responses,
-        'essay_responses': essay_responses,
-        'other_responses': other_responses,
-        'ungraded_essay_count': ungraded_essay_count,
-    }
-    
-    return render(request, 'quiz/grading/quiz_attempt_grading.html', context)
-
-
 @login_required
 @require_http_methods(["GET", "POST"])
 def quiz_response_grade_view(request, response_id):

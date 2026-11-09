@@ -7,7 +7,7 @@ This module provides views for managing student class assignments including:
 - Editing assignments
 - Unassigning/removing students from classes
 """
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
@@ -52,79 +52,7 @@ def student_enrollment_list_view(request):
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:dashboard")
 
-    if request.GET.get("classic") != "1":
-        return redirect("/app/admin/enrollments")
-
-    school = request.user.school
-    enrollments = StudentClass.objects.filter(
-        school__isnull=False,
-        student__school_id=F("school_id"),
-        assigned_class__school_id=F("school_id"),
-        assigned_class__academic_year__school_id=F("school_id"),
-    )
-    
-    if school:
-        enrollments = enrollments.filter(school=school)
-    
-    # Search functionality
-    search_query = request.GET.get('search', '').strip()
-    if search_query:
-        enrollments = enrollments.filter(
-            Q(student__full_name__icontains=search_query) |
-            Q(student__admission_number__icontains=search_query) |
-            Q(assigned_class__name__icontains=search_query)
-        )
-    
-    # Filters
-    student_filter = request.GET.get('student', '')
-    class_filter = request.GET.get('class', '')
-    active_filter = request.GET.get('is_active', '')
-    
-    if student_filter:
-        enrollments = enrollments.filter(student_id=student_filter)
-    
-    if class_filter:
-        enrollments = enrollments.filter(assigned_class_id=class_filter)
-    
-    if active_filter == 'true':
-        enrollments = enrollments.filter(is_active=True)
-    elif active_filter == 'false':
-        enrollments = enrollments.filter(is_active=False)
-    
-    # Order by date assigned (newest first)
-    enrollments = enrollments.select_related('student', 'assigned_class', 'assigned_by').order_by('-date_assigned', 'student__full_name')
-    
-    # Get filter options
-    students = Student.objects.all()
-    students = students.filter(is_active=True)
-    classes = Class.objects.filter(
-        is_active=True,
-        academic_year__school_id=F("school_id"),
-    )
-    
-    if school:
-        students = students.filter(school=school)
-        classes = classes.filter(school=school)
-    
-    students = students.order_by('full_name')
-    classes = classes.order_by('name')
-    
-    context = {
-        'enrollments': enrollments,
-        'students': students,
-        'classes': classes,
-        'search_query': search_query,
-        'student_filter': student_filter,
-        'class_filter': class_filter,
-        'active_filter': active_filter,
-        'target_schools': (
-            SchoolInformation.objects.filter(is_active=True).order_by("name")
-            if request.user.role == "superadmin"
-            else SchoolInformation.objects.none()
-        ),
-    }
-    
-    return render(request, 'student_enrollment/enrollment_list.html', context)
+    return redirect("/app/admin/enrollments")
 
 
 @login_required
@@ -141,31 +69,10 @@ def student_enrollment_create_view(request):
             return JsonResponse({'error': 'Permission denied'}, status=403)
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:enrollment_list")
-    
+
     school = request.user.school
-    
     if request.method == "GET":
-        if request.GET.get("classic") != "1":
-            return redirect("/app/admin/enrollments")
-        # Get options for dropdowns
-        students = Student.objects.all()
-        classes = Class.objects.all()
-        
-        if school:
-            students = students.filter(school=school)
-            classes = classes.filter(school=school)
-        
-        students = students.order_by('full_name')
-        classes = classes.order_by('name')
-        
-        # Return form for modal
-        html = render(request, 'student_enrollment/partials/enrollment_form.html', {
-            'enrollment': None,
-            'students': students,
-            'classes': classes,
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
+        return redirect("/app/admin/enrollments")
     
     # POST - Create enrollment
     try:
@@ -313,34 +220,10 @@ def student_enrollment_bulk_create_view(request):
             return JsonResponse({'error': 'Permission denied'}, status=403)
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:enrollment_list")
-    
+
     school = request.user.school
-    
     if request.method == "GET":
-        if request.GET.get("classic") != "1":
-            return redirect("/app/admin/enrollments")
-        # Get options for dropdowns
-        students = Student.objects.all()
-        students = students.filter(is_active=True)
-        classes = Class.objects.filter(
-            is_active=True,
-            academic_year__school_id=F("school_id"),
-        )
-        
-        if school:
-            students = students.filter(school=school)
-            classes = classes.filter(school=school)
-        
-        students = students.order_by('full_name')
-        classes = classes.order_by('name')
-        
-        # Return form for modal
-        html = render(request, 'student_enrollment/partials/bulk_enrollment_form.html', {
-            'students': students,
-            'classes': classes,
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
+        return redirect("/app/admin/enrollments")
     
     # POST - Create bulk enrollments
     try:
@@ -526,8 +409,6 @@ def student_enrollment_edit_view(request, enrollment_id):
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:enrollment_list")
     
-    school = request.user.school
-    
     enrollment = get_object_or_404_with_school(
         StudentClass, request, pk=enrollment_id
     )
@@ -546,30 +427,7 @@ def student_enrollment_edit_view(request, enrollment_id):
         return JsonResponse({'error': 'Enrollment has an invalid school association.'}, status=404)
     
     if request.method == "GET":
-        if request.GET.get("classic") != "1":
-            return redirect("/app/admin/enrollments")
-        # Get options for dropdowns
-        students = Student.objects.filter(is_active=True)
-        classes = Class.objects.filter(
-            is_active=True,
-            academic_year__school_id=F("school_id"),
-        )
-        
-        if school:
-            students = students.filter(school=school)
-            classes = classes.filter(school=school)
-        
-        students = students.order_by('full_name')
-        classes = classes.order_by('name')
-        
-        # Return form for modal
-        html = render(request, 'student_enrollment/partials/enrollment_form.html', {
-            'enrollment': enrollment,
-            'students': students,
-            'classes': classes,
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
+        return redirect("/app/admin/enrollments")
     
     # POST - Update enrollment
     try:

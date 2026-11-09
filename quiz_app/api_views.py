@@ -4,6 +4,8 @@ API views and React Shell view for the React frontend migration.
 Governed by REACT_FRONTEND_MIGRATION_PLAN.md and docs/REACT_API_CONTRACTS.md.
 """
 import json
+from urllib.parse import urlencode
+
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -2854,11 +2856,11 @@ def student_profile_api_view(request):
 def react_app_shell_view(request, subpath=""):
     """
     Render the React app shell.
-    Redirects unauthenticated users to the Django login page.
+    Redirects unauthenticated users to the React authentication app.
     Guarantees a CSRF cookie is present on the client.
     """
     if not getattr(request.user, "is_authenticated", False):
-        return redirect(f"/login/?next={request.path}")
+        return redirect(f"/auth-app/?{urlencode({'next': request.path})}")
 
     return render(
         request,

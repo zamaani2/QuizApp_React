@@ -40,7 +40,7 @@
 - ✅ Attempt grading view (`quiz_attempt_grading_view`)
 - ✅ Response grade view (`quiz_response_grade_view`)
 - ✅ Bulk grade view (`quiz_attempt_bulk_grade_view`)
-- **Templates**: `quiz/grading/quiz_grading_list.html`, `quiz/grading/quiz_attempt_grading.html`
+- **Templates**: None; legacy grading pages redirect to the React grading workflow.
 - **URLs**: All grading URLs are implemented
 
 ### 5. **Quiz Results Management** ✅

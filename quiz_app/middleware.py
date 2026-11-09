@@ -8,6 +8,10 @@ class TenantAccessMiddleware:
     authentication_views = {
         ("quiz_app.views.auth", "login_view"),
         ("quiz_app.views.auth", "logout_view"),
+        ("quiz_app.views.auth", "password_reset_view"),
+        ("quiz_app.views.auth", "password_reset_done_view"),
+        ("quiz_app.views.auth", "password_reset_confirm_view"),
+        ("quiz_app.views.auth", "password_reset_complete_view"),
         ("quiz_app.views.superadmin_auth", "superadmin_login_view"),
         ("quiz_app.views.superadmin_auth", "superadmin_logout_view"),
     }

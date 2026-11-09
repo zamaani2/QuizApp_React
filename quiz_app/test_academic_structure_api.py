@@ -120,6 +120,33 @@ class AcademicStructureApiTests(TestCase):
         self.school_a.current_term = self.term_a1
         self.school_a.save()
 
+    def test_academic_legacy_pages_always_redirect_to_react(self):
+        self.client.force_login(self.admin_a)
+        routes = (
+            ("academic_year_list", (), "/app/admin/academic-years"),
+            ("academic_year_create", (), "/app/admin/academic-years"),
+            (
+                "academic_year_edit",
+                (self.year_a1.pk,),
+                "/app/admin/academic-years",
+            ),
+            ("term_list", (), "/app/admin/terms"),
+            ("term_create", (), "/app/admin/terms"),
+            ("term_edit", (self.term_a1.pk,), "/app/admin/terms"),
+        )
+
+        for route_name, args, destination in routes:
+            with self.subTest(route=route_name):
+                response = self.client.get(
+                    reverse(f"quiz_app:{route_name}", args=args),
+                    {"classic": "1"},
+                )
+                self.assertRedirects(
+                    response,
+                    destination,
+                    fetch_redirect_response=False,
+                )
+
     def test_academic_years_list_and_create(self):
         """Admin can list and create academic years."""
         self.client.login(username="admin_a", password=self.password)
@@ -520,7 +547,7 @@ class AcademicStructureApiTests(TestCase):
         )
         self.assertEqual(rejected.status_code, 400)
 
-    def test_subject_legacy_views_redirect_with_classic_fallback(self):
+    def test_subject_legacy_views_always_redirect_to_react(self):
         self.client.force_login(self.admin_a)
         list_url = reverse("quiz_app:subject_list")
         self.assertRedirects(
@@ -528,7 +555,11 @@ class AcademicStructureApiTests(TestCase):
             "/app/admin/subjects",
             fetch_redirect_response=False,
         )
-        self.assertEqual(self.client.get(list_url + "?classic=1").status_code, 200)
+        self.assertRedirects(
+            self.client.get(list_url + "?classic=1"),
+            "/app/admin/subjects",
+            fetch_redirect_response=False,
+        )
 
         create_url = reverse("quiz_app:subject_create")
         self.assertRedirects(
@@ -536,7 +567,11 @@ class AcademicStructureApiTests(TestCase):
             "/app/admin/subjects",
             fetch_redirect_response=False,
         )
-        self.assertEqual(self.client.get(create_url + "?classic=1").status_code, 200)
+        self.assertRedirects(
+            self.client.get(create_url + "?classic=1"),
+            "/app/admin/subjects",
+            fetch_redirect_response=False,
+        )
 
         subject = Subject.objects.create(
             subject_name="Physics",
@@ -548,7 +583,11 @@ class AcademicStructureApiTests(TestCase):
             "/app/admin/subjects",
             fetch_redirect_response=False,
         )
-        self.assertEqual(self.client.get(edit_url + "?classic=1").status_code, 200)
+        self.assertRedirects(
+            self.client.get(edit_url + "?classic=1"),
+            "/app/admin/subjects",
+            fetch_redirect_response=False,
+        )
 
     def test_school_settings_get_and_update(self):
         """Admin can get school settings and update parameters."""
@@ -711,29 +750,28 @@ class AcademicStructureApiTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("current_term_id", response.json()["fields"])
 
-    def test_school_pages_redirect_to_react_and_keep_classic_fallback(self):
+    def test_school_pages_always_redirect_to_react(self):
         self.client.force_login(self.admin_a)
         self.assertRedirects(
             self.client.get(reverse("quiz_app:school_detail")),
             "/app/admin/school",
             fetch_redirect_response=False,
         )
-        self.assertEqual(
-            self.client.get(
-                reverse("quiz_app:school_detail") + "?classic=1"
-            ).status_code,
-            200,
+        self.assertRedirects(
+            self.client.get(reverse("quiz_app:school_detail") + "?classic=1"),
+            "/app/admin/school",
+            fetch_redirect_response=False,
         )
         self.assertRedirects(
             self.client.get(reverse("quiz_app:school_edit")),
             "/app/admin/school",
             fetch_redirect_response=False,
         )
-        classic_edit = self.client.get(
-            reverse("quiz_app:school_edit") + "?classic=1"
+        self.assertRedirects(
+            self.client.get(reverse("quiz_app:school_edit") + "?classic=1"),
+            "/app/admin/school",
+            fetch_redirect_response=False,
         )
-        self.assertEqual(classic_edit.status_code, 200)
-        self.assertContains(classic_edit, "schoolForm")
 
     def test_structure_lookups(self):
         """Admin can fetch consolidated dropdown lookups in one call."""
@@ -996,25 +1034,29 @@ class AcademicStructureApiTests(TestCase):
         )
         self.assertEqual(response.status_code, 400)
 
-    def test_school_structure_routes_redirect_to_react_with_classic_fallback(self):
+    def test_school_structure_routes_always_redirect_to_react(self):
         self.client.force_login(self.admin_a)
-        list_url = reverse("quiz_app:form_list")
-        self.assertRedirects(
-            self.client.get(list_url),
-            "/app/admin/forms",
-            fetch_redirect_response=False,
+        routes = (
+            ("form_list", (), "/app/admin/forms"),
+            ("form_create", (), "/app/admin/forms"),
+            ("form_edit", (self.form_1.pk,), "/app/admin/forms"),
+            ("learning_area_list", (), "/app/admin/learning-areas"),
+            ("learning_area_create", (), "/app/admin/learning-areas"),
+            ("learning_area_edit", (self.la_science.pk,), "/app/admin/learning-areas"),
+            ("department_list", (), "/app/admin/departments"),
+            ("department_create", (), "/app/admin/departments"),
+            ("department_edit", (self.dept_math.pk,), "/app/admin/departments"),
         )
-        self.assertEqual(
-            self.client.get(list_url + "?classic=1").status_code,
-            200,
-        )
-        create_url = reverse("quiz_app:form_create")
-        self.assertRedirects(
-            self.client.get(create_url),
-            "/app/admin/forms",
-            fetch_redirect_response=False,
-        )
-        self.assertEqual(
-            self.client.get(create_url + "?classic=1").status_code,
-            200,
-        )
+
+        for route_name, args, destination in routes:
+            for query in ({}, {"classic": "1"}):
+                with self.subTest(route=route_name, query=query):
+                    response = self.client.get(
+                        reverse(f"quiz_app:{route_name}", args=args),
+                        query,
+                    )
+                    self.assertRedirects(
+                        response,
+                        destination,
+                        fetch_redirect_response=False,
+                    )

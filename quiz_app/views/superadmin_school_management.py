@@ -3,12 +3,11 @@ Superadmin School Management views.
 
 Separate school management interface for superadmin users only.
 """
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
-from django.db.models import Q
 from django.db import transaction
 from django.core.exceptions import ValidationError
 from django.utils.text import slugify
@@ -29,35 +28,7 @@ def superadmin_school_list_view(request):
     if request.user.role != "superadmin":
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:superadmin_login")
-    if request.GET.get("classic") != "1":
-        return redirect("/app/superadmin/schools")
-    
-    schools = SchoolInformation.objects.all().order_by('name')
-    
-    # Search functionality
-    search_query = request.GET.get('search', '')
-    if search_query:
-        schools = schools.filter(
-            Q(name__icontains=search_query) |
-            Q(short_name__icontains=search_query) |
-            Q(school_code__icontains=search_query) |
-            Q(address__icontains=search_query)
-        )
-    
-    # Filter by active status
-    active_filter = request.GET.get('is_active', '')
-    if active_filter == 'true':
-        schools = schools.filter(is_active=True)
-    elif active_filter == 'false':
-        schools = schools.filter(is_active=False)
-    
-    context = {
-        'schools': schools,
-        'search_query': search_query,
-        'active_filter': active_filter,
-    }
-    
-    return render(request, 'superadmin/school_list.html', context)
+    return redirect("/app/superadmin/schools")
 
 
 @login_required
@@ -69,22 +40,7 @@ def superadmin_school_detail_view(request, school_id):
     if request.user.role != "superadmin":
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:superadmin_login")
-    if request.GET.get("classic") != "1":
-        return redirect(f"/app/superadmin/schools/{school_id}")
-    
-    school = get_object_or_404(SchoolInformation, pk=school_id)
-    
-    # Get academic years and terms for dropdowns
-    academic_years = AcademicYear.objects.filter(school=school).order_by('-start_date')
-    terms = Term.objects.filter(academic_year__school=school).order_by('-academic_year__start_date', 'term_number')
-    
-    context = {
-        'school': school,
-        'academic_years': academic_years,
-        'terms': terms,
-    }
-    
-    return render(request, 'superadmin/school_detail.html', context)
+    return redirect(f"/app/superadmin/schools/{school_id}")
 
 
 @login_required
@@ -99,31 +55,10 @@ def superadmin_school_edit_view(request, school_id):
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:superadmin_login")
     
-    school = get_object_or_404(SchoolInformation, pk=school_id)
-    
     if request.method == "GET":
-        if request.GET.get("classic") != "1":
-            return redirect(f"/app/superadmin/schools/{school_id}/edit")
-        # Get academic years and terms for dropdowns
-        academic_years = AcademicYear.objects.filter(school=school).order_by('-start_date')
-        terms = Term.objects.filter(academic_year__school=school).order_by('-academic_year__start_date', 'term_number')
-        
-        # Check if request is AJAX (for modal)
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            html = render(request, 'superadmin/partials/school_form.html', {
-                'school': school,
-                'academic_years': academic_years,
-                'terms': terms,
-            }).content.decode('utf-8')
-            return JsonResponse({'html': html})
-        else:
-            # Regular page request
-            context = {
-                'school': school,
-                'academic_years': academic_years,
-                'terms': terms,
-            }
-            return render(request, 'superadmin/school_edit.html', context)
+        return redirect(f"/app/superadmin/schools/{school_id}/edit")
+
+    school = get_object_or_404(SchoolInformation, pk=school_id)
     
     # POST - Update school
     try:
@@ -232,16 +167,7 @@ def superadmin_school_create_view(request):
         return redirect("quiz_app:superadmin_login")
     
     if request.method == "GET":
-        if request.GET.get("classic") != "1":
-            return redirect("/app/superadmin/schools/new")
-        # Return form for modal
-        html = render(request, 'superadmin/partials/school_form.html', {
-            'school': None,
-            'academic_years': [],
-            'terms': [],
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
+        return redirect("/app/superadmin/schools/new")
     
     # POST - Create school
     try:
@@ -334,7 +260,6 @@ def superadmin_school_delete_view(request, school_id):
             'success': False,
             'error': f'Error deleting school: {str(e)}'
         }, status=500)
-
 
 
 

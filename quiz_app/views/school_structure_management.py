@@ -6,12 +6,11 @@ This module provides views for managing school structure including:
 - Learning Areas (programs)
 - Departments
 """
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
-from django.db.models import Q
 from django.db import transaction
 from django.core.exceptions import ValidationError
 
@@ -20,7 +19,6 @@ from ..models import (
     LearningArea,
     Department,
     Teacher,
-    SchoolInformation,
 )
 from ..utils.tenant_utils import get_object_or_404_with_school, get_write_school
 
@@ -37,32 +35,7 @@ def form_list_view(request):
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:dashboard")
 
-    if request.GET.get("classic") != "1":
-        return redirect("/app/admin/forms")
-
-    school = request.user.school
-    forms = Form.objects.all()
-    
-    if school:
-        forms = forms.filter(school=school)
-    
-    # Search functionality
-    search_query = request.GET.get('search', '')
-    if search_query:
-        forms = forms.filter(
-            Q(name__icontains=search_query) |
-            Q(description__icontains=search_query)
-        )
-    
-    # Order by form number
-    forms = forms.order_by('form_number', 'name')
-    
-    context = {
-        'forms': forms,
-        'search_query': search_query,
-    }
-    
-    return render(request, 'school_structure/form_list.html', context)
+    return redirect("/app/admin/forms")
 
 
 @login_required
@@ -80,22 +53,8 @@ def form_create_view(request):
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:form_list")
     
-    school = request.user.school
-    
     if request.method == "GET":
-        if request.GET.get("classic") != "1":
-            return redirect("/app/admin/forms")
-        # Return form for modal
-        html = render(request, 'school_structure/partials/form_form.html', {
-            'form_obj': None,
-            'schools': (
-                SchoolInformation.objects.filter(is_active=True).order_by("name")
-                if request.user.role == "superadmin"
-                else SchoolInformation.objects.none()
-            ),
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
+        return redirect("/app/admin/forms")
     
     # POST - Create form
     school = get_write_school(request)
@@ -179,20 +138,11 @@ def form_edit_view(request, form_id):
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:form_list")
     
-    school = request.user.school
-    
+    if request.method == "GET":
+        return redirect("/app/admin/forms")
+
     form_obj = get_object_or_404_with_school(Form, request, pk=form_id)
     school = form_obj.school
-    
-    if request.method == "GET":
-        if request.GET.get("classic") != "1":
-            return redirect("/app/admin/forms")
-        # Return form for modal
-        html = render(request, 'school_structure/partials/form_form.html', {
-            'form_obj': form_obj,
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
     
     # POST - Update form
     try:
@@ -289,33 +239,7 @@ def learning_area_list_view(request):
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:dashboard")
 
-    if request.GET.get("classic") != "1":
-        return redirect("/app/admin/learning-areas")
-
-    school = request.user.school
-    learning_areas = LearningArea.objects.all()
-    
-    if school:
-        learning_areas = learning_areas.filter(school=school)
-    
-    # Search functionality
-    search_query = request.GET.get('search', '')
-    if search_query:
-        learning_areas = learning_areas.filter(
-            Q(name__icontains=search_query) |
-            Q(code__icontains=search_query) |
-            Q(description__icontains=search_query)
-        )
-    
-    # Order by name
-    learning_areas = learning_areas.order_by('name')
-    
-    context = {
-        'learning_areas': learning_areas,
-        'search_query': search_query,
-    }
-    
-    return render(request, 'school_structure/learning_area_list.html', context)
+    return redirect("/app/admin/learning-areas")
 
 
 @login_required
@@ -333,22 +257,8 @@ def learning_area_create_view(request):
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:learning_area_list")
     
-    school = request.user.school
-    
     if request.method == "GET":
-        if request.GET.get("classic") != "1":
-            return redirect("/app/admin/learning-areas")
-        # Return form for modal
-        html = render(request, 'school_structure/partials/learning_area_form.html', {
-            'learning_area': None,
-            'schools': (
-                SchoolInformation.objects.filter(is_active=True).order_by("name")
-                if request.user.role == "superadmin"
-                else SchoolInformation.objects.none()
-            ),
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
+        return redirect("/app/admin/learning-areas")
     
     # POST - Create learning area
     school = get_write_school(request)
@@ -424,22 +334,13 @@ def learning_area_edit_view(request, learning_area_id):
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:learning_area_list")
     
-    school = request.user.school
-    
+    if request.method == "GET":
+        return redirect("/app/admin/learning-areas")
+
     learning_area = get_object_or_404_with_school(
         LearningArea, request, pk=learning_area_id
     )
     school = learning_area.school
-    
-    if request.method == "GET":
-        if request.GET.get("classic") != "1":
-            return redirect("/app/admin/learning-areas")
-        # Return form for modal
-        html = render(request, 'school_structure/partials/learning_area_form.html', {
-            'learning_area': learning_area,
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
     
     # POST - Update learning area
     try:
@@ -527,33 +428,7 @@ def department_list_view(request):
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:dashboard")
 
-    if request.GET.get("classic") != "1":
-        return redirect("/app/admin/departments")
-
-    school = request.user.school
-    departments = Department.objects.all()
-    
-    if school:
-        departments = departments.filter(school=school)
-    
-    # Search functionality
-    search_query = request.GET.get('search', '')
-    if search_query:
-        departments = departments.filter(
-            Q(name__icontains=search_query) |
-            Q(code__icontains=search_query) |
-            Q(description__icontains=search_query)
-        )
-    
-    # Order by name
-    departments = departments.order_by('name')
-    
-    context = {
-        'departments': departments,
-        'search_query': search_query,
-    }
-    
-    return render(request, 'school_structure/department_list.html', context)
+    return redirect("/app/admin/departments")
 
 
 @login_required
@@ -571,29 +446,8 @@ def department_create_view(request):
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:department_list")
     
-    school = request.user.school
-    
     if request.method == "GET":
-        if request.GET.get("classic") != "1":
-            return redirect("/app/admin/departments")
-        # Get teachers for head of department dropdown
-        teachers = Teacher.objects.all()
-        if school:
-            teachers = teachers.filter(school=school)
-        teachers = teachers.order_by('full_name')
-        
-        # Return form for modal
-        html = render(request, 'school_structure/partials/department_form.html', {
-            'department': None,
-            'teachers': teachers,
-            'schools': (
-                SchoolInformation.objects.filter(is_active=True).order_by("name")
-                if request.user.role == "superadmin"
-                else SchoolInformation.objects.none()
-            ),
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
+        return redirect("/app/admin/departments")
     
     # POST - Create department
     school = get_write_school(request)
@@ -682,27 +536,11 @@ def department_edit_view(request, department_id):
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:department_list")
     
-    school = request.user.school
-    
+    if request.method == "GET":
+        return redirect("/app/admin/departments")
+
     department = get_object_or_404_with_school(Department, request, pk=department_id)
     school = department.school
-    
-    if request.method == "GET":
-        if request.GET.get("classic") != "1":
-            return redirect("/app/admin/departments")
-        # Get teachers for head of department dropdown
-        teachers = Teacher.objects.all()
-        if school:
-            teachers = teachers.filter(school=school)
-        teachers = teachers.order_by('full_name')
-        
-        # Return form for modal
-        html = render(request, 'school_structure/partials/department_form.html', {
-            'department': department,
-            'teachers': teachers,
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
     
     # POST - Update department
     try:

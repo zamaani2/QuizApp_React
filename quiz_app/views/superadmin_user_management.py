@@ -3,12 +3,11 @@ Superadmin User Management views.
 
 Allows superadmin to manage school administrators across all schools.
 """
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
-from django.db.models import Q
 from django.db import transaction
 
 from ..account_security import (
@@ -30,46 +29,7 @@ def superadmin_admin_list_view(request):
     if request.user.role != "superadmin":
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:superadmin_login")
-    if request.GET.get("classic") != "1":
-        return redirect("/app/superadmin/admins")
-    
-    # Get all admin users
-    admins = User.objects.filter(role="admin").select_related('school').order_by('school__name', 'full_name')
-    
-    # Search functionality
-    search_query = request.GET.get('search', '')
-    if search_query:
-        admins = admins.filter(
-            Q(full_name__icontains=search_query) |
-            Q(username__icontains=search_query) |
-            Q(email__icontains=search_query) |
-            Q(school__name__icontains=search_query)
-        )
-    
-    # Filter by school
-    school_filter = request.GET.get('school', '')
-    if school_filter:
-        admins = admins.filter(school_id=school_filter)
-    
-    # Filter by active status
-    active_filter = request.GET.get('is_active', '')
-    if active_filter == 'true':
-        admins = admins.filter(is_active=True)
-    elif active_filter == 'false':
-        admins = admins.filter(is_active=False)
-    
-    # Get all schools for filter dropdown
-    schools = SchoolInformation.objects.filter(is_active=True).order_by('name')
-    
-    context = {
-        'admins': admins,
-        'schools': schools,
-        'search_query': search_query,
-        'school_filter': school_filter,
-        'active_filter': active_filter,
-    }
-    
-    return render(request, 'superadmin/admin_list.html', context)
+    return redirect("/app/superadmin/admins")
 
 
 @login_required
@@ -85,18 +45,7 @@ def superadmin_admin_create_view(request):
         return redirect("quiz_app:superadmin_login")
     
     if request.method == "GET":
-        if request.GET.get("classic") != "1":
-            return redirect("/app/superadmin/admins/new")
-        # Get all active schools for dropdown
-        schools = SchoolInformation.objects.filter(is_active=True).order_by('name')
-        
-        # Return form for modal
-        html = render(request, 'superadmin/partials/admin_form.html', {
-            'admin': None,
-            'schools': schools,
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
+        return redirect("/app/superadmin/admins/new")
     
     # POST - Create admin
     try:
@@ -178,28 +127,10 @@ def superadmin_admin_edit_view(request, admin_id):
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:superadmin_login")
     
-    admin = get_object_or_404(User, pk=admin_id, role="admin")
-    
     if request.method == "GET":
-        if request.GET.get("classic") != "1":
-            return redirect(f"/app/superadmin/admins/{admin_id}/edit")
-        # Get all active schools for dropdown
-        schools = SchoolInformation.objects.filter(is_active=True).order_by('name')
-        
-        # Check if request is AJAX (for modal)
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            html = render(request, 'superadmin/partials/admin_form.html', {
-                'admin': admin,
-                'schools': schools,
-            }).content.decode('utf-8')
-            return JsonResponse({'html': html})
-        else:
-            # Regular page request
-            context = {
-                'admin': admin,
-                'schools': schools,
-            }
-            return render(request, 'superadmin/admin_edit.html', context)
+        return redirect(f"/app/superadmin/admins/{admin_id}/edit")
+
+    admin = get_object_or_404(User, pk=admin_id, role="admin")
     
     # POST - Update admin
     try:
@@ -298,16 +229,6 @@ def superadmin_admin_detail_view(request, admin_id):
     if request.user.role != "superadmin":
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:superadmin_login")
-    if request.GET.get("classic") != "1":
-        return redirect(f"/app/superadmin/admins/{admin_id}")
-    
-    admin = get_object_or_404(User, pk=admin_id, role="admin")
-    
-    context = {
-        'admin': admin,
-    }
-    
-    return render(request, 'superadmin/admin_detail.html', context)
-
+    return redirect(f"/app/superadmin/admins/{admin_id}")
 
 

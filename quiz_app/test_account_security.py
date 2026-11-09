@@ -53,11 +53,9 @@ class AccountSetupAndPasswordResetTests(TestCase):
     def get_valid_confirm_path(self, link_path):
         response = self.client.get(link_path)
         self.assertEqual(response.status_code, 302)
-        confirm_path = urlsplit(response.url).path
-        response = self.client.get(confirm_path)
-        self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.context["validlink"])
-        return confirm_path
+        self.assertEqual(urlsplit(response.url).path, "/auth-app/")
+        self.assertIn("flow=password-reset-confirm", response.url)
+        return link_path
 
     def set_password_from_link(self, confirm_path, password):
         return self.client.post(
@@ -66,6 +64,7 @@ class AccountSetupAndPasswordResetTests(TestCase):
                 "new_password1": password,
                 "new_password2": password,
             },
+            HTTP_ACCEPT="application/json",
         )
 
     def test_login_json_mode_returns_generic_error_for_invalid_credentials(self):
@@ -121,16 +120,19 @@ class AccountSetupAndPasswordResetTests(TestCase):
             response.json()["redirect_url"], reverse("quiz_app:dashboard")
         )
 
-    def test_login_without_json_accept_keeps_classic_html_response(self):
+    def test_login_without_json_accept_redirects_to_react_auth(self):
         response = self.client.post(
             reverse("quiz_app:login"),
             {"username": "missing-user", "password": "wrong-password"},
         )
 
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "auth/login.html")
+        self.assertRedirects(
+            response,
+            "/auth-app/",
+            fetch_redirect_response=False,
+        )
 
-    def test_superadmin_login_route_opens_react_portal_and_keeps_classic_fallback(self):
+    def test_superadmin_login_route_always_opens_react_portal(self):
         response = self.client.get(
             reverse("quiz_app:superadmin_login")
             + "?next=%2Fapp%2Fsuperadmin%2Fadmins"
@@ -144,8 +146,11 @@ class AccountSetupAndPasswordResetTests(TestCase):
         classic_response = self.client.get(
             reverse("quiz_app:superadmin_login") + "?classic=1"
         )
-        self.assertEqual(classic_response.status_code, 200)
-        self.assertTemplateUsed(classic_response, "superadmin/login.html")
+        self.assertRedirects(
+            classic_response,
+            "/auth-app/?portal=superadmin",
+            fetch_redirect_response=False,
+        )
 
     def test_superadmin_json_login_enforces_role_and_sets_superadmin_session(self):
         response = self.client.post(
@@ -329,15 +334,16 @@ class AccountSetupAndPasswordResetTests(TestCase):
             confirm_path, "New-Student-Password-938!"
         )
 
-        self.assertRedirects(
-            response, reverse("quiz_app:password_reset_complete")
-        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertTrue(response.json()["success"])
         user.refresh_from_db()
         self.assertTrue(user.check_password("New-Student-Password-938!"))
 
-        reused_response = self.client.get(link_path)
-        self.assertEqual(reused_response.status_code, 200)
-        self.assertFalse(reused_response.context["validlink"])
+        reused_response = self.set_password_from_link(
+            link_path, "Another-Student-Password-939!"
+        )
+        self.assertEqual(reused_response.status_code, 400)
+        self.assertEqual(reused_response.json()["code"], "INVALID_RESET_LINK")
 
     def test_expired_setup_link_is_rejected(self):
         with self.captureOnCommitCallbacks(execute=True):
@@ -345,10 +351,12 @@ class AccountSetupAndPasswordResetTests(TestCase):
         link_path = self.get_reset_link_path()
 
         with override_settings(PASSWORD_RESET_TIMEOUT=-1):
-            response = self.client.get(link_path)
+            response = self.set_password_from_link(
+                link_path, "New-Expired-Password-940!"
+            )
 
-        self.assertEqual(response.status_code, 200)
-        self.assertFalse(response.context["validlink"])
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "INVALID_RESET_LINK")
 
     def test_invalid_setup_link_is_rejected(self):
         with self.captureOnCommitCallbacks(execute=True):
@@ -357,10 +365,12 @@ class AccountSetupAndPasswordResetTests(TestCase):
         path_parts = link_path.rstrip("/").split("/")
         invalid_path = "/".join(path_parts[:-1] + ["invalid-token"]) + "/"
 
-        response = self.client.get(invalid_path)
+        response = self.set_password_from_link(
+            invalid_path, "New-Invalid-Password-941!"
+        )
 
-        self.assertEqual(response.status_code, 200)
-        self.assertFalse(response.context["validlink"])
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "INVALID_RESET_LINK")
 
     def test_password_reset_sends_link_and_updates_existing_account(self):
         user = User.objects.create_user(
@@ -375,19 +385,17 @@ class AccountSetupAndPasswordResetTests(TestCase):
         response = self.client.post(
             reverse("quiz_app:password_reset"),
             {"email": user.email},
+            HTTP_ACCEPT="application/json",
         )
 
-        self.assertRedirects(
-            response, reverse("quiz_app:password_reset_done")
-        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertTrue(response.json()["success"])
         link_path = self.get_reset_link_path()
         confirm_path = self.get_valid_confirm_path(link_path)
         response = self.set_password_from_link(
             confirm_path, "New-Existing-Password-946!"
         )
-        self.assertRedirects(
-            response, reverse("quiz_app:password_reset_complete")
-        )
+        self.assertEqual(response.status_code, 200, response.content)
         user.refresh_from_db()
         self.assertFalse(user.check_password("Old-Existing-Password-845!"))
         self.assertTrue(user.check_password("New-Existing-Password-946!"))
@@ -405,15 +413,17 @@ class AccountSetupAndPasswordResetTests(TestCase):
         existing_response = self.client.post(
             reverse("quiz_app:password_reset"),
             {"email": existing_user.email},
+            HTTP_ACCEPT="application/json",
         )
         unknown_response = self.client.post(
             reverse("quiz_app:password_reset"),
             {"email": "unknown-account@example.test"},
+            HTTP_ACCEPT="application/json",
         )
 
-        self.assertEqual(existing_response.status_code, 302)
-        self.assertEqual(unknown_response.status_code, 302)
-        self.assertEqual(existing_response.url, unknown_response.url)
+        self.assertEqual(existing_response.status_code, 200)
+        self.assertEqual(unknown_response.status_code, 200)
+        self.assertEqual(existing_response.json(), unknown_response.json())
 
     def test_bulk_password_reset_sends_links_without_changing_passwords(self):
         user = User.objects.create_user(

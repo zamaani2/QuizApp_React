@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document status | **Active Architectural Log** |
-| Last updated | 2026-11-06 |
+| Last updated | 2026-11-09 |
 | Governed by | `REACT_FRONTEND_MIGRATION_PLAN.md` |
 
 This document records the architectural findings from the repository audit and the binding architectural decisions (ADRs) for the incremental React migration of QuizApp_Local.
@@ -36,9 +36,8 @@ This document records the architectural findings from the repository audit and t
 - **Resolution:** All new `/api/v1/` endpoints must strictly use these utilities and fail closed.
 
 ### Q5: CSS Framework & Potential Style Interference
-- **Finding (`VERIFIED`):** The application loads Bootstrap 5.3.3 (`quiz_app/templates/partials/_styles.html:5`), Bootstrap Icons 1.11.3, FontAwesome 6.5.1, DataTables 1.13.7, OverlayScrollbars 2.10.1, and SweetAlert2 11.7.32.
-- **Finding (`VERIFIED`):** Four accent themes exist: `academic` (Academic Pro), `green`, `purple`, `red` (`quiz_app/templates/base.html:204-255`, `DECISIONS.md:3-18`).
-- **Original resolution (historical; superseded by ADR-016):** The initial React implementation reused Bootstrap variables and Django accent styles. The target React shells instead use React-owned styles and do not load Django stylesheets.
+- **Historical finding:** The retired Django layout loaded Bootstrap and multiple competing icon/theme styles.
+- **Current resolution:** Django feature templates and their shared layout have been removed. React owns page styling; only React mount shells remain in Django templates.
 
 ### Q6: Quiz Attempt, Timer, and Scoring Authoritativeness
 - **Finding (`VERIFIED`):** `QuizAttempt.submit()`, `QuizAttempt.calculate_score()`, `QuizAttempt.is_time_expired()`, and question response correctness checks (`quiz_app/models.py:2598-2749`) are entirely executed on the backend.
@@ -46,9 +45,9 @@ This document records the architectural findings from the repository audit and t
 - **Resolution:** The React student quiz module will adhere to these server-authoritative rules.
 
 ### Q7: Frontend & JavaScript Test Infrastructure
-- **Finding (`VERIFIED`):** No `package.json` exists in the repository.
+- **Current finding (`VERIFIED`):** `frontend/package.json` defines Vite, React, TypeScript, Vitest, and React Testing Library scripts.
 - **Finding (`VERIFIED`):** Playwright E2E browser tests exist in `quiz_app/test_browser_stabilisation.py` and run via the Django test runner (`python manage.py test quiz_app.test_browser_stabilisation`) when `PLAYWRIGHT_E2E=1`.
-- **Resolution:** A modern, lightweight frontend toolchain will be established in `frontend/` using Vite, React, TypeScript strict, Vitest, and React Testing Library.
+- **Resolution:** Keep frontend tests in `frontend/` and backend tests in Django; run both when changing shared flows.
 
 ### Q8: Docker Build and CI Pipeline
 - **Finding (`VERIFIED`):** `Dockerfile` is a single-stage Python 3.12-slim image. `entrypoint.sh` runs `python manage.py collectstatic --noinput` followed by `gunicorn`.
@@ -56,8 +55,8 @@ This document records the architectural findings from the repository audit and t
 - **Resolution:** Dockerfile can be structured as a multi-stage build: a Node 20 stage builds `frontend/` into `frontend/dist/` (or directly into `quiz_app/static/react/`), and the Python runtime stage collects it. The Docker build must remain resilient when frontend is absent.
 
 ### Q9: Layout Fragments and Shell Parity
-- **Finding (`VERIFIED`):** `quiz_app/templates/base.html` defines top header (`.app-header`), sidebar (`.app-sidebar` with `_menu_items.html`), content wrapper (`.app-content-wrapper`), and footer (`.app-footer`).
-- **Resolution:** The React shell under `/app/` will render an identical structural skeleton, sharing theme accent classes and responsive behavior.
+- **Current finding:** The legacy Django base layout and navigation fragments have been removed.
+- **Resolution:** React owns the authenticated application layout. `react_app.html` and `auth_core_app.html` only mount the production React bundles.
 
 ---
 
@@ -96,7 +95,7 @@ This document records the architectural findings from the repository audit and t
 - **Decision:** Rely exclusively on Django session cookies (`sessionid`) and CSRF tokens (`csrftoken`). The React shell or initial `GET /api/v1/me/` ensures the CSRF cookie is present. The React API client passes `credentials: "same-origin"` and attaches the `X-CSRFToken` header on state-changing requests (`POST`, `PUT`, `PATCH`, `DELETE`).
 - **Consequences:**
   - No JWTs or separate token storage.
-  - If a session expires, API requests return HTTP 401; React directs users to `/auth-app/?next=` preserving the same-origin destination (updated by ADR-016). The Django login page remains a classic fallback.
+  - If a session expires, API requests return HTTP 401; React directs users to `/auth-app/?next=` preserving the same-origin destination (updated by ADR-016). There is no Django-rendered login fallback.
 
 ### ADR-005: Frontend Stack: React 18/19, TypeScript Strict, Vite, Vitest
 - **Status:** ACCEPTED

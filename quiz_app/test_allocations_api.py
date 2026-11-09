@@ -434,7 +434,7 @@ class AcademicAllocationsApiTests(TestCase):
             ).exists()
         )
 
-    def test_enrollment_views_redirect_to_react_and_keep_classic_fallback(self):
+    def test_enrollment_views_always_redirect_to_react(self):
         self.client.force_login(self.admin_user)
         list_url = reverse("quiz_app:enrollment_list")
         response = self.client.get(list_url)
@@ -443,8 +443,10 @@ class AcademicAllocationsApiTests(TestCase):
             "/app/admin/enrollments",
             fetch_redirect_response=False,
         )
-        self.assertEqual(
-            self.client.get(list_url + "?classic=1").status_code, 200
+        self.assertRedirects(
+            self.client.get(list_url + "?classic=1"),
+            "/app/admin/enrollments",
+            fetch_redirect_response=False,
         )
         for route_name in ("enrollment_create", "enrollment_bulk_create"):
             route_url = reverse(f"quiz_app:{route_name}")
@@ -454,7 +456,11 @@ class AcademicAllocationsApiTests(TestCase):
                 "/app/admin/enrollments",
                 fetch_redirect_response=False,
             )
-            self.assertEqual(self.client.get(route_url + "?classic=1").status_code, 200)
+            self.assertRedirects(
+                self.client.get(route_url + "?classic=1"),
+                "/app/admin/enrollments",
+                fetch_redirect_response=False,
+            )
 
         enrollment = StudentClass.objects.create(
             student=self.student1,
@@ -470,7 +476,11 @@ class AcademicAllocationsApiTests(TestCase):
             "/app/admin/enrollments",
             fetch_redirect_response=False,
         )
-        self.assertEqual(self.client.get(edit_url + "?classic=1").status_code, 200)
+        self.assertRedirects(
+            self.client.get(edit_url + "?classic=1"),
+            "/app/admin/enrollments",
+            fetch_redirect_response=False,
+        )
 
     def test_enrollments_lookups(self):
         """Lookups endpoint returns active classes and students."""

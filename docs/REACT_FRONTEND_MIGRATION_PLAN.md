@@ -65,18 +65,24 @@ The React build is served by the same Django deployment (static files via the ex
 *Audit must confirm:* current static-file strategy, any CDN/object-storage usage for static files, and whether it can serve Vite's hashed assets.
 
 ### 4.2 Route namespace — dedicated prefixes [FIXED]
-React workspace pages live under `/app/*`; the React Authentication & System Core entry lives under `/auth-app/*`. Django serves each as a separate document shell from the same origin, after existing application URL patterns.
+React workspace pages live under `/app/*`; the React Authentication & System
+Core entry lives under `/auth-app/*`. In development, Vite serves these React
+routes on port 5173 and proxies backend requests to Django. In production,
+Django serves the React mount shells and built assets.
 
-- Existing Django URLs are never repurposed during the initial phases.
-- A page moves from Django to React by (a) building the React page under `/app/...` and (b) pointing navigation links to it. The old Django URL stays alive until retirement is explicitly approved.
-- Links between the React and Django frontends perform normal navigation between separate pages. They do not mean React is mounted inside or inherits the Django page template.
-- Bare-URL takeover (React serving a path currently owned by Django) is allowed only after the page has been stable in production and is recorded in `docs/REACT_ROUTE_OWNERSHIP.md`.
+- React owns feature-page presentation. Django feature-page GET routes that
+  have React replacements redirect to those React routes; `?classic=1` does
+  not enable a Django fallback.
+- Django continues to own authentication, sessions, permissions, persistence,
+  and API behavior. Keep backend APIs independent from the React route shell.
+- See `docs/REACT_ROUTE_OWNERSHIP.md` for current route ownership and
+  `docs/LEGACY_DJANGO_TEMPLATE_CATALOG.md` for the retained shell inventory.
 
 *Audit must confirm:* the working prefix and `/api/` namespace do not collide with any existing pattern.
 
 ### 4.3 Authentication — Django sessions [FIXED]
 - React uses the existing Django session cookie. **No JWT, no parallel auth system.**
-- Django remains the owner of credential verification, session creation/invalidation, permissions, and password recovery. React owns the primary sign-in presentation at `/auth-app/`; existing Django login and password recovery pages remain available as classic fallbacks.
+- Django remains the owner of credential verification, session creation/invalidation, permissions, and password-reset validation/email delivery. React owns sign-in and password-recovery presentation at `/auth-app/`; Django-rendered auth pages are retired.
 - React submits credentials to the existing Django login handler using its JSON response mode. Django validates `next`, creates the same session, and returns a safe redirect target; invalid credentials return a generic error for display in React rather than rendering the legacy login template.
 - The React shell loads current-user context (id, role, school, permissions) from a single `GET /api/v1/me/` endpoint.
 - Unauthenticated API calls return `401`. Forbidden calls return `403`. The React workspace sends expired sessions to `/auth-app/`, preserving the requested same-origin `next` destination.
