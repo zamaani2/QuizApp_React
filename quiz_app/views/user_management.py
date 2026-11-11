@@ -8,7 +8,7 @@ This module provides views for managing users including:
 - Deleting users
 - Bulk password reset
 """
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.contrib.auth import get_user_model
@@ -41,39 +41,18 @@ def user_list_view(request):
 
 
 @login_required
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["POST"])
 def user_create_view(request):
     """
     Create a new user.
     
-    GET: Returns form in modal
     POST: Creates user and returns JSON response
     """
     if request.user.role not in ["admin", "superadmin"]:
-        if request.method == "GET":
-            return JsonResponse({'error': 'Permission denied'}, status=403)
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:user_list")
     
     school = request.user.school
-    
-    if request.method == "GET":
-        # Return form for modal
-        schools = SchoolInformation.objects.filter(is_active=True)
-        if school:
-            schools = SchoolInformation.objects.filter(pk=school.pk)
-        schools = schools.order_by('name')
-        
-        html = render(request, 'users/partials/user_form.html', {
-            'user': None,
-            'schools': schools,
-            'user_roles': [
-                choice for choice in User.ROLES
-                if request.user.role == "superadmin" or choice[0] != "superadmin"
-            ],
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
     
     # POST - Create user
     try:
@@ -173,17 +152,14 @@ def user_create_view(request):
 
 
 @login_required
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["POST"])
 def user_edit_view(request, user_id):
     """
     Edit an existing user.
     
-    GET: Returns form in modal
     POST: Updates user and returns JSON response
     """
     if request.user.role not in ["admin", "superadmin"]:
-        if request.method == "GET":
-            return JsonResponse({'error': 'Permission denied'}, status=403)
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:user_list")
     
@@ -193,27 +169,7 @@ def user_edit_view(request, user_id):
     
     # Prevent admin from editing superadmin
     if request.user.role == "admin" and user.role == "superadmin":
-        if request.method == "GET":
-            return JsonResponse({'error': 'Permission denied'}, status=403)
         return JsonResponse({'error': 'Permission denied'}, status=403)
-    
-    if request.method == "GET":
-        # Return form for modal
-        schools = SchoolInformation.objects.all()
-        if school:
-            schools = SchoolInformation.objects.filter(pk=school.pk)
-        schools = schools.order_by('name')
-        
-        html = render(request, 'users/partials/user_form.html', {
-            'user': user,
-            'schools': schools,
-            'user_roles': [
-                choice for choice in User.ROLES
-                if request.user.role == "superadmin" or choice[0] != "superadmin"
-            ],
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
     
     # POST - Update user
     try:
@@ -356,28 +312,15 @@ def user_delete_view(request, user_id):
 
 
 @login_required
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["POST"])
 def user_bulk_password_reset_view(request):
     """
     Send password reset links to selected users without changing their passwords.
     
-    GET: Returns bulk password reset modal
     POST: Sends one-time password reset links to selected users
     """
     if request.user.role not in ["admin", "superadmin"]:
-        if request.method == "GET":
-            return JsonResponse({'error': 'Permission denied'}, status=403)
         return JsonResponse({'error': 'Permission denied'}, status=403)
-    
-    if request.method == "GET":
-        html = render(request, 'users/partials/bulk_password_reset_modal.html', {
-            'schools': (
-                SchoolInformation.objects.filter(is_active=True).order_by("name")
-                if request.user.role == "superadmin"
-                else SchoolInformation.objects.none()
-            ),
-        }).content.decode('utf-8')
-        return JsonResponse({'html': html})
     
     # POST - Send password reset links
     try:

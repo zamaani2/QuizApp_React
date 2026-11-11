@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
+import { SignOutForm } from '../SignOutForm';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import './portal-shell.css';
 
@@ -204,17 +205,16 @@ export const TeacherAppLayout: FC<TeacherAppLayoutProps> = ({ children }) => {
         </nav>
 
         <div className="portal-sidebar__footer">
-          <a
-            href="/logout/"
+          <SignOutForm
             className="portal-sidebar__link"
             title="Sign Out"
-            aria-label="Sign Out"
+            ariaLabel="Sign Out"
           >
             <span className="portal-sidebar__link-icon" aria-hidden="true">
               <LogOut size={18} />
             </span>
             <span className="portal-sidebar__link-text">Sign Out</span>
-          </a>
+          </SignOutForm>
         </div>
       </aside>
 
@@ -245,14 +245,13 @@ export const TeacherAppLayout: FC<TeacherAppLayoutProps> = ({ children }) => {
               </div>
             </div>
 
-            <a
-              href="/logout/"
+            <SignOutForm
               className="portal-header__btn"
               title="Sign Out"
               aria-label="Sign Out"
             >
               <LogOut size={16} />
-            </a>
+            </SignOutForm>
           </div>
         </div>
       </header>
@@ -346,14 +345,14 @@ export const TeacherAppLayout: FC<TeacherAppLayoutProps> = ({ children }) => {
               })}
 
               <p className="portal-more-sheet__group-label">Session</p>
-              <a
-                href="/logout/"
+              <SignOutForm
                 className="portal-more-sheet__item core-text--danger"
+                ariaLabel="Sign Out"
                 onClick={() => setIsMoreOpen(false)}
               >
                 <LogOut size={18} />
                 <span>Sign Out</span>
-              </a>
+              </SignOutForm>
             </div>
           </div>
         </>

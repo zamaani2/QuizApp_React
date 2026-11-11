@@ -1,5 +1,6 @@
 import { type FC, type ReactNode } from 'react';
 import { useAuth } from '../auth/AuthContext';
+import { SignOutForm } from './SignOutForm';
 
 interface AppShellProps {
   children?: ReactNode;
@@ -78,9 +79,9 @@ export const AppShell: FC<AppShellProps> = ({ children }) => {
             <a href="/app/" className="core-button core-button--outline-light core-button--sm">
               Django Portal
             </a>
-            <a href="/logout/" className="core-button core-button--outline-danger core-button--sm">
+            <SignOutForm className="core-button core-button--outline-danger core-button--sm">
               Log Out
-            </a>
+            </SignOutForm>
           </div>
         </div>
       </header>

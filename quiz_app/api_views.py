@@ -2639,7 +2639,9 @@ def student_quiz_result_api_view(request, attempt_id):
         attempt, quiz, live_questions, live_responses
     )
     quiz = quiz_snap
-    allow_review = getattr(quiz, "allow_review", True)
+    allow_review = getattr(quiz, "allow_review", True) and getattr(
+        quiz, "show_results_immediately", True
+    )
     show_correct_answers = getattr(quiz, "show_correct_answers", True)
 
     responses_by_q = {r.question_id: r for r in review_responses}

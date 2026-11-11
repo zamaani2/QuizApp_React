@@ -20,7 +20,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.urls import reverse
 from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_POST
 from django.views.decorators.csrf import csrf_protect
 from django.conf import settings
 from django.utils import timezone
@@ -28,6 +28,7 @@ from django.http import JsonResponse
 
 from ..account_security import SafePasswordResetForm
 from ..models import User
+from ..rate_limiting import is_auth_rate_limited, record_auth_attempt
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,14 @@ def _auth_app_redirect(request):
     return redirect(f"/auth-app/?{query}" if query else "/auth-app/")
 
 
+def _react_dashboard_url(user):
+    return {
+        "superadmin": "/app/superadmin/dashboard",
+        "teacher": "/app/teacher/dashboard",
+        "student": "/app/student/dashboard",
+    }.get(user.role, "/app/admin/dashboard")
+
+
 def _login_failure_response(request, code, message, status):
     if _wants_json_login_response(request):
         return JsonResponse({"code": code, "message": message}, status=status)
@@ -73,6 +82,17 @@ def _login_failure_response(request, code, message, status):
 def password_reset_view(request):
     if request.method == "GET":
         return redirect("/auth-app/?flow=password-reset")
+
+    identifier = request.POST.get("email", "")
+    if is_auth_rate_limited(request, "password_reset", identifier):
+        return JsonResponse(
+            {
+                "code": "RATE_LIMITED",
+                "message": "Too many password reset requests. Please try again later.",
+            },
+            status=429,
+        )
+    record_auth_attempt(request, "password_reset", identifier)
 
     form = SafePasswordResetForm(request.POST)
     if not form.is_valid():
@@ -135,11 +155,11 @@ def password_reset_confirm_view(request, uidb64, token):
 
     form = SetPasswordForm(user, request.POST)
     if not form.is_valid():
-        messages = form.errors.get("new_password2") or form.errors.get("new_password1")
+        password_errors = form.errors.get("new_password2") or form.errors.get("new_password1")
         return JsonResponse(
             {
                 "code": "PASSWORD_VALIDATION_ERROR",
-                "message": messages[0] if messages else "Enter a valid new password.",
+                "message": password_errors[0] if password_errors else "Enter a valid new password.",
             },
             status=400,
         )
@@ -181,17 +201,26 @@ def login_view(request):
     if request.user.is_authenticated:
         if _wants_json_login_response(request):
             return JsonResponse(
-                {"success": True, "redirect_url": reverse("quiz_app:dashboard")}
+                {"success": True, "redirect_url": _react_dashboard_url(request.user)}
             )
-        return redirect("quiz_app:dashboard")
+        return redirect(_react_dashboard_url(request.user))
 
     if request.method == "POST":
         identifier = request.POST.get("username", "").strip()
         password = request.POST.get("password", "")
         remember_me = request.POST.get("remember") == "on"
+
+        if is_auth_rate_limited(request, "login", identifier):
+            return _login_failure_response(
+                request,
+                "RATE_LIMITED",
+                "Too many sign-in attempts. Please try again later.",
+                429,
+            )
         
         # Validate input
         if not identifier:
+            record_auth_attempt(request, "login", identifier)
             return _login_failure_response(
                 request,
                 "VALIDATION_ERROR",
@@ -200,6 +229,7 @@ def login_view(request):
             )
         
         if not password:
+            record_auth_attempt(request, "login", identifier)
             return _login_failure_response(
                 request,
                 "VALIDATION_ERROR",
@@ -213,6 +243,7 @@ def login_view(request):
             user_obj = User.get_by_email_or_username(identifier)
         except Exception as e:
             logger.warning(f"Error retrieving user {identifier}: {str(e)}")
+            record_auth_attempt(request, "login", identifier)
             return _login_failure_response(
                 request,
                 "INVALID_CREDENTIALS",
@@ -236,6 +267,7 @@ def login_view(request):
         if user is not None:
             # Check if user is active
             if not user.is_active:
+                record_auth_attempt(request, "login", identifier)
                 return _login_failure_response(
                     request,
                     "ACCOUNT_INACTIVE",
@@ -296,7 +328,7 @@ def login_view(request):
                 return JsonResponse(
                     {
                         "success": True,
-                        "redirect_url": redirect_url or reverse("quiz_app:dashboard"),
+                        "redirect_url": redirect_url or _react_dashboard_url(user),
                     }
                 )
 
@@ -304,10 +336,11 @@ def login_view(request):
                 return redirect(redirect_url)
             
             messages.success(request, f"Welcome back, {user.full_name or user.username}!")
-            return redirect("quiz_app:dashboard")
+            return redirect(_react_dashboard_url(user))
         else:
             # Log failed login attempt
             logger.warning(f"Failed login attempt for identifier: {identifier} from IP {get_client_ip(request)}")
+            record_auth_attempt(request, "login", identifier)
             return _login_failure_response(
                 request,
                 "INVALID_CREDENTIALS",
@@ -319,7 +352,8 @@ def login_view(request):
 
 
 @login_required
-@require_http_methods(["GET", "POST"])
+@csrf_protect
+@require_POST
 def logout_view(request):
     """
     Handle user logout with proper session cleanup.
@@ -329,34 +363,11 @@ def logout_view(request):
     - Proper session cleanup
     - Security logging
     """
-    if request.method == "POST":
-        # Get user info before logout
-        user = request.user
-        user_name = getattr(user, "full_name", None) or user.username
-        
-        # Log logout
-        logger.info(f"User {user.username} logged out from IP {get_client_ip(request)}")
-        
-        # Logout user
-        logout(request)
-        
-        # Clear session data
-        request.session.flush()
-        
-        messages.success(
-            request,
-            f"Goodbye, {user_name}! You have been successfully logged out."
-        )
-        return redirect("quiz_app:auth_core_app")
-    
-    # GET request - show logout confirmation or redirect
-    # For security, we can require POST, but for better UX, we'll allow GET
     user = request.user
     user_name = getattr(user, "full_name", None) or user.username
-    
+    logger.info(f"User {user.username} logged out from IP {get_client_ip(request)}")
     logout(request)
     request.session.flush()
-    
     messages.success(
         request,
         f"Goodbye, {user_name}! You have been successfully logged out."

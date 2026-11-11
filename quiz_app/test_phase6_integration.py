@@ -76,7 +76,7 @@ class Phase6IntegrationTests(TestCase):
 
         # Create Student
         self.student_profile = Student.objects.create(
-            admission_number="ADM-INT-001",
+            admission_number="ADM-INT-01",
             full_name="Student One",
             date_of_birth="2010-01-01",
             gender="M",

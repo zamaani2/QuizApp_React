@@ -8,7 +8,7 @@ from django.shortcuts import redirect
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_POST
 from django.views.decorators.csrf import csrf_protect
 from django.conf import settings
 from django.utils import timezone
@@ -17,6 +17,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from urllib.parse import urlencode
 
 from ..models import User
+from ..rate_limiting import is_auth_rate_limited, record_auth_attempt
 from .auth import get_client_ip
 
 logger = logging.getLogger(__name__)
@@ -74,15 +75,24 @@ def superadmin_login_view(request):
             query["next"] = next_url
         return redirect(f"/auth-app/?{urlencode(query)}")
     
+    identifier = request.POST.get("username", "").strip()
+    if is_auth_rate_limited(request, "login", identifier):
+        return _superadmin_login_failure_response(
+            request,
+            "RATE_LIMITED",
+            "Too many sign-in attempts. Please try again later.",
+            429,
+        )
+
     context = {}
     
     if request.method == "POST":
-        identifier = request.POST.get("username", "").strip()
         password = request.POST.get("password", "")
         remember_me = request.POST.get("remember") == "on"
         
         # Validate input
         if not identifier:
+            record_auth_attempt(request, "login", identifier)
             return _superadmin_login_failure_response(
                 request,
                 "VALIDATION_ERROR",
@@ -92,6 +102,7 @@ def superadmin_login_view(request):
             )
         
         if not password:
+            record_auth_attempt(request, "login", identifier)
             return _superadmin_login_failure_response(
                 request,
                 "VALIDATION_ERROR",
@@ -106,6 +117,7 @@ def superadmin_login_view(request):
             user_obj = User.get_by_email_or_username(identifier)
         except Exception as e:
             logger.warning(f"Error retrieving user {identifier}: {str(e)}")
+            record_auth_attempt(request, "login", identifier)
             return _superadmin_login_failure_response(
                 request,
                 "INVALID_CREDENTIALS",
@@ -117,6 +129,7 @@ def superadmin_login_view(request):
         # Check if user is superadmin
         if not user_obj or user_obj.role != "superadmin":
             logger.warning(f"Non-superadmin attempt to access superadmin login: {identifier}")
+            record_auth_attempt(request, "login", identifier)
             return _superadmin_login_failure_response(
                 request,
                 "SUPERADMIN_LOGIN_REQUIRED",
@@ -151,6 +164,7 @@ def superadmin_login_view(request):
             
             # Check if user is active
             if not user.is_active:
+                record_auth_attempt(request, "login", identifier)
                 return _superadmin_login_failure_response(
                     request,
                     "ACCOUNT_INACTIVE",
@@ -203,10 +217,11 @@ def superadmin_login_view(request):
                 return redirect(redirect_url)
             
             messages.success(request, f"Welcome back, {user.full_name or user.username}!")
-            return redirect("quiz_app:superadmin_dashboard")
+            return redirect("/app/superadmin/dashboard")
         else:
             # Log failed login attempt
             logger.warning(f"Failed superadmin login attempt for identifier: {identifier} from IP {get_client_ip(request)}")
+            record_auth_attempt(request, "login", identifier)
             if _wants_json_login_response(request):
                 return _superadmin_login_failure_response(
                     request,
@@ -222,7 +237,8 @@ def superadmin_login_view(request):
 
 
 @login_required
-@require_http_methods(["GET", "POST"])
+@csrf_protect
+@require_POST
 def superadmin_logout_view(request):
     """
     Handle superadmin logout.
@@ -231,37 +247,13 @@ def superadmin_logout_view(request):
         messages.error(request, "Access denied.")
         return redirect("/auth-app/?portal=superadmin")
     
-    if request.method == "POST":
-        # Get user info before logout
-        user = request.user
-        user_name = getattr(user, "full_name", None) or user.username
-        
-        # Log logout
-        logger.info(f"Superadmin {user.username} logged out from IP {get_client_ip(request)}")
-        
-        # Logout user
-        logout(request)
-        
-        # Clear session data
-        request.session.flush()
-        
-        messages.success(
-            request,
-            f"Goodbye, {user_name}! You have been successfully logged out."
-        )
-        return redirect("/auth-app/?portal=superadmin")
-    
-    # GET request - logout immediately
     user = request.user
     user_name = getattr(user, "full_name", None) or user.username
-    
+    logger.info(f"Superadmin {user.username} logged out from IP {get_client_ip(request)}")
     logout(request)
     request.session.flush()
-    
     messages.success(
         request,
         f"Goodbye, {user_name}! You have been successfully logged out."
     )
     return redirect("/auth-app/?portal=superadmin")
-
-

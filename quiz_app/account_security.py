@@ -9,6 +9,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.core.exceptions import ImproperlyConfigured
 from django.core.mail import BadHeaderError, EmailMultiAlternatives
 from django.db import transaction
+from django.template import loader
 from django.urls import reverse
 
 logger = logging.getLogger(__name__)

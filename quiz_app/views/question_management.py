@@ -9,7 +9,7 @@ This module provides views for managing questions within quizzes including:
 - Reordering questions
 - Bulk importing questions
 """
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse, Http404
@@ -63,17 +63,14 @@ def question_list_view(request, quiz_id):
 
 
 @login_required
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["POST"])
 def question_create_view(request, quiz_id):
     """
     Create a new question for a quiz.
     
-    GET: Returns question creation form
     POST: Creates question and returns JSON response or redirects
     """
     if request.user.role not in ["teacher", "admin"]:
-        if request.method == "GET":
-            return JsonResponse({'error': 'Permission denied'}, status=403)
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:quiz_list")
     
@@ -82,8 +79,6 @@ def question_create_view(request, quiz_id):
     # Teachers can only access their own quizzes, admins can access any quiz in their school
     if request.user.role == "teacher":
         if not request.user.teacher_profile:
-            if request.method == "GET":
-                return JsonResponse({'error': 'Teacher profile not found'}, status=404)
             messages.error(request, "Teacher profile not found. Please contact administrator.")
             return redirect("quiz_app:quiz_list")
         teacher = request.user.teacher_profile
@@ -92,23 +87,6 @@ def question_create_view(request, quiz_id):
         # Admin can access any quiz in their school
         quiz = get_object_or_404(Quiz, pk=quiz_id, school=school)
         teacher = quiz.teacher  # Use quiz's teacher for context
-    
-    if request.method == "GET":
-        return redirect(f"/app/teacher/quizzes/{quiz.pk}/questions/new")
-
-        # Check if this is an AJAX request for modal
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            html = render(request, 'quiz/question/partials/question_form.html', {
-                'quiz': quiz,
-                'question': None,
-            }).content.decode('utf-8')
-            return JsonResponse({'html': html})
-        
-        # Regular page request
-        return render(request, 'quiz/question/question_create.html', {
-            'quiz': quiz,
-        })
-    
     # POST - Create question
     try:
         with transaction.atomic():
@@ -247,17 +225,14 @@ def question_create_view(request, quiz_id):
 
 
 @login_required
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["POST"])
 def question_edit_view(request, quiz_id, question_id):
     """
     Edit an existing question.
     
-    GET: Returns question edit form
     POST: Updates question and returns JSON response or redirects
     """
     if request.user.role not in ["teacher", "admin"]:
-        if request.method == "GET":
-            return JsonResponse({'error': 'Permission denied'}, status=403)
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:quiz_list")
     
@@ -266,8 +241,6 @@ def question_edit_view(request, quiz_id, question_id):
     # Teachers can only access their own quizzes, admins can access any quiz in their school
     if request.user.role == "teacher":
         if not request.user.teacher_profile:
-            if request.method == "GET":
-                return JsonResponse({'error': 'Teacher profile not found'}, status=404)
             messages.error(request, "Teacher profile not found. Please contact administrator.")
             return redirect("quiz_app:quiz_list")
         teacher = request.user.teacher_profile
@@ -277,99 +250,6 @@ def question_edit_view(request, quiz_id, question_id):
         quiz = get_object_or_404(Quiz, pk=quiz_id, school=school)
         teacher = quiz.teacher  # Use quiz's teacher for context
     question = get_object_or_404(Question, pk=question_id, quiz=quiz, school=school)
-    
-    if request.method == "GET":
-        return redirect(
-            f"/app/teacher/quizzes/{quiz.pk}/questions/{question.pk}/edit"
-        )
-
-        # Get answer choices for multiple choice/true false
-        answer_choices = []
-        tf_correct_answer = 'true'  # Default for True/False
-        
-        if question.question_type in ['multiple_choice', 'true_false']:
-            answer_choices = list(question.answer_choices.all().order_by('order'))
-            
-            # For True/False questions, ensure we have both True and False choices
-            if question.question_type == 'true_false':
-                true_choice = None
-                false_choice = None
-                
-                # Find existing True/False choices
-                for choice in answer_choices:
-                    if choice.choice_text == 'True':
-                        true_choice = choice
-                        if choice.is_correct:
-                            tf_correct_answer = 'true'
-                    elif choice.choice_text == 'False':
-                        false_choice = choice
-                        if choice.is_correct:
-                            tf_correct_answer = 'false'
-                
-                # Create True choice if it doesn't exist
-                if not true_choice:
-                    true_choice = AnswerChoice.objects.create(
-                        question=question,
-                        choice_text='True',
-                        is_correct=False,  # Will be set based on existing correct answer
-                        order=1,
-                        school=school,
-                    )
-                    answer_choices.insert(0, true_choice)
-                
-                # Create False choice if it doesn't exist
-                if not false_choice:
-                    false_choice = AnswerChoice.objects.create(
-                        question=question,
-                        choice_text='False',
-                        is_correct=False,  # Will be set based on existing correct answer
-                        order=2,
-                        school=school,
-                    )
-                    answer_choices.append(false_choice)
-                
-                # Determine correct answer from existing choices
-                # If neither is correct, default to True
-                found_correct = False
-                for choice in answer_choices:
-                    if choice.is_correct:
-                        if choice.choice_text == 'True':
-                            tf_correct_answer = 'true'
-                        else:
-                            tf_correct_answer = 'false'
-                        found_correct = True
-                        break
-                
-                # If no correct answer found, ensure at least one is marked correct (default to True)
-                if not found_correct and true_choice:
-                    true_choice.is_correct = True
-                    true_choice.save()
-                    if false_choice:
-                        false_choice.is_correct = False
-                        false_choice.save()
-                    tf_correct_answer = 'true'
-                
-                # Re-order choices to ensure True is first, False is second
-                answer_choices.sort(key=lambda x: (x.choice_text != 'True', x.order))
-        
-        # Check if this is an AJAX request for modal
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            html = render(request, 'quiz/question/partials/question_form.html', {
-                'quiz': quiz,
-                'question': question,
-                'answer_choices': answer_choices,
-                'tf_correct_answer': tf_correct_answer if question.question_type == 'true_false' else None,
-            }).content.decode('utf-8')
-            return JsonResponse({'html': html})
-        
-        # Regular page request
-        return render(request, 'quiz/question/question_edit.html', {
-            'quiz': quiz,
-            'question': question,
-            'answer_choices': answer_choices,
-            'tf_correct_answer': tf_correct_answer if question.question_type == 'true_false' else None,
-        })
-    
     # POST - Update question
     try:
         with transaction.atomic():
@@ -830,17 +710,14 @@ def question_duplicate_view(request, quiz_id, question_id):
 
 
 @login_required
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["POST"])
 def question_bulk_import_view(request, quiz_id):
     """
     Bulk import questions from CSV/Excel file.
     
-    GET: Returns import form
     POST: Processes import file
     """
     if request.user.role not in ["teacher", "admin"]:
-        if request.method == "GET":
-            return JsonResponse({'error': 'Permission denied'}, status=403)
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:quiz_list")
     
@@ -849,8 +726,6 @@ def question_bulk_import_view(request, quiz_id):
     # Teachers can only access their own quizzes, admins can access any quiz in their school
     if request.user.role == "teacher":
         if not request.user.teacher_profile:
-            if request.method == "GET":
-                return JsonResponse({'error': 'Teacher profile not found'}, status=404)
             messages.error(request, "Teacher profile not found. Please contact administrator.")
             return redirect("quiz_app:quiz_list")
         teacher = request.user.teacher_profile
@@ -859,22 +734,6 @@ def question_bulk_import_view(request, quiz_id):
         # Admin can access any quiz in their school
         quiz = get_object_or_404(Quiz, pk=quiz_id, school=school)
         teacher = quiz.teacher  # Use quiz's teacher for context
-    
-    if request.method == "GET":
-        return redirect(f"/app/teacher/quizzes/{quiz.pk}/questions/import")
-
-        # Check if this is an AJAX request for modal
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            html = render(request, 'quiz/question/partials/bulk_import_modal.html', {
-                'quiz': quiz,
-            }).content.decode('utf-8')
-            return JsonResponse({'html': html})
-        
-        # Regular page request
-        return render(request, 'quiz/question/question_import.html', {
-            'quiz': quiz,
-        })
-    
     # POST - Process import
     try:
         if 'import_file' not in request.FILES:
@@ -1590,22 +1449,17 @@ def question_import_template_view(request, quiz_id, format_type='csv'):
 
 
 @login_required
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["POST"])
 def question_bulk_delete_view(request, quiz_id):
     """
     Bulk delete questions.
     
-    GET: Returns bulk delete modal
     POST: Deletes multiple questions by IDs
     """
     if request.user.role not in ["teacher", "admin"]:
-        if request.method == "GET":
-            return JsonResponse({'error': 'Permission denied'}, status=403)
         return JsonResponse({'error': 'Permission denied'}, status=403)
     
     if request.user.role == "teacher" and not request.user.teacher_profile:
-        if request.method == "GET":
-            return JsonResponse({'error': 'Teacher profile not found'}, status=404)
         return JsonResponse({'error': 'Teacher profile not found'}, status=404)
 
     school = request.user.school
@@ -1613,20 +1467,6 @@ def question_bulk_delete_view(request, quiz_id):
     if request.user.role == "teacher":
         quiz_filters['teacher'] = request.user.teacher_profile
     quiz = get_object_or_404(Quiz, **quiz_filters)
-    
-    if request.method == "GET":
-        return redirect(f"/app/teacher/quizzes/{quiz.pk}")
-
-        # Check if this is an AJAX request for modal
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            html = render(request, 'quiz/question/partials/bulk_delete_modal.html', {
-                'quiz': quiz,
-            }).content.decode('utf-8')
-            return JsonResponse({'html': html})
-        
-        # Regular page request
-        return redirect("quiz_app:quiz_detail", quiz_id=quiz_id)
-    
     # POST - Bulk delete
     try:
         data = json.loads(request.body)

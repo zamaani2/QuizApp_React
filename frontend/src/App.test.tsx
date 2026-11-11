@@ -180,7 +180,7 @@ describe('App Component (Phase 3 Routing & Integration)', () => {
     expect(await screen.findByTestId('superadmin-school-form')).toBeInTheDocument();
   });
 
-  it('renders components inventory route and opens modal', async () => {
+  it('does not expose the component inventory route', async () => {
     window.history.pushState({}, '', '/app/components');
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -219,25 +219,7 @@ describe('App Component (Phase 3 Routing & Integration)', () => {
 
     render(<App />);
 
-    await waitFor(() => {
-      expect(screen.getByText(/Shared UI Components Inventory/i)).toBeInTheDocument();
-    });
-
-    // Check DataTable renders items
-    expect(screen.getByText('DataTable Primitive')).toBeInTheDocument();
-    expect(screen.getByText('App Shell & Navigation')).toBeInTheDocument();
-
-    // Check Launch Modal interaction
-    const modalBtn = screen.getByRole('button', { name: /launch modal preview/i });
-    fireEvent.click(modalBtn);
-
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByText('Shared Modal Primitive')).toBeInTheDocument();
-
-    // Close modal
-    const dialog = screen.getByRole('dialog');
-    fireEvent.click(within(dialog).getByLabelText('Close'));
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(await screen.findByText('Page Not Found')).toBeInTheDocument();
   });
 
   it('blocks unauthorized access to admin route when role is student (RoleGuard)', async () => {

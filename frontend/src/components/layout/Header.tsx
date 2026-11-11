@@ -1,4 +1,5 @@
 import { AppIcon } from '../common/AppIcon';
+import { SignOutForm } from '../SignOutForm';
 import { useState, useRef, useEffect, type FC } from 'react';
 import { useAuth } from '../../auth/AuthContext';
 import { ThemeSelector } from './ThemeSelector';
@@ -121,12 +122,12 @@ export const Header: FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen }) => {
                       </a>
                   </>
                 )}
-                <a
-                    href={role === 'superadmin' ? '/superadmin/logout/' : '/logout/'}
-                  >
-                    <AppIcon name="logOut" aria-hidden="true" />{' '}
-                    Sign out
-                </a>
+                <SignOutForm
+                  action={role === 'superadmin' ? '/superadmin/logout/' : '/logout/'}
+                  className="core-user-menu__sign-out"
+                >
+                  <AppIcon name="logOut" aria-hidden="true" /> Sign out
+                </SignOutForm>
               </div>
             )}
           </div>

@@ -7,12 +7,12 @@ This module provides views for managing quiz results including:
 - Exporting results to Excel
 - Printing individual result reports
 """
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_http_methods
-from django.db.models import F, Q, Count, Avg, Max, Min, Prefetch
+from django.db.models import F, Q, Count, Avg, Max, Min, OuterRef, Prefetch, Subquery
 from django.utils import timezone
 from io import BytesIO
 from urllib.parse import urlencode
@@ -31,6 +31,18 @@ from ..models import (
     Teacher,
     AnswerChoice,
 )
+
+
+def _best_attempts_per_quiz_student(attempts):
+    best_attempt_id = (
+        attempts.filter(
+            quiz_id=OuterRef("quiz_id"),
+            student_id=OuterRef("student_id"),
+        )
+        .order_by("-score", "-percentage", "-submitted_at", "-pk")
+        .values("pk")[:1]
+    )
+    return attempts.filter(pk=Subquery(best_attempt_id))
 
 
 @login_required
@@ -131,37 +143,9 @@ def quiz_results_export_view(request):
         ).values_list('student_id', flat=True)
         all_attempts = all_attempts.filter(student_id__in=student_ids)
     
-    # Get only best attempts per student per quiz
-    from django.db.models import Max
-    
-    # Get the maximum score for each quiz-student combination
-    max_scores = all_attempts.values('quiz', 'student').annotate(
-        max_score=Max('score'),
-        max_percentage=Max('percentage')
-    )
-    
-    # Build a list of best attempt IDs
-    best_attempt_ids = []
-    for score_data in max_scores:
-        # Get attempts with max score for this quiz-student pair
-        student_quiz_attempts = all_attempts.filter(
-            quiz_id=score_data['quiz'],
-            student_id=score_data['student'],
-            score=score_data['max_score']
-        )
-        
-        # If multiple attempts have the same max score, pick the one with highest percentage, then most recent
-        best_attempt = student_quiz_attempts.order_by('-percentage', '-submitted_at').first()
-        if best_attempt:
-            best_attempt_ids.append(best_attempt.id)
-    
-    # Filter to only best attempts
-    attempts = QuizAttempt.objects.filter(
-        id__in=best_attempt_ids,
-        school=school,
-        quiz__school=school,
-        student__school=school,
-    ).select_related('quiz', 'student', 'academic_year', 'term').order_by('quiz__title', 'student__full_name', '-submitted_at')
+    attempts = _best_attempts_per_quiz_student(all_attempts).select_related(
+        "quiz", "quiz__subject", "student", "academic_year", "term"
+    ).order_by("quiz__title", "student__full_name", "-submitted_at")
     
     # Create workbook
     wb = Workbook()
@@ -238,7 +222,11 @@ def quiz_results_export_view(request):
             attempt.submitted_at.strftime('%Y-%m-%d %H:%M:%S') if attempt.submitted_at else '',
             time_taken_str,
             attempt.academic_year.name if attempt.academic_year else '',
-            attempt.term.name if attempt.term else '',
+            (
+                f"{attempt.academic_year.name} - Term {attempt.term.term_number}"
+                if attempt.academic_year and attempt.term
+                else ""
+            ),
         ]
         
         for col_num, value in enumerate(row_data, 1):
@@ -371,31 +359,9 @@ def quiz_results_bulk_print_view(request):
                 Q(quiz__title__icontains=search_query)
             )
         
-        # Get only best attempts per student per quiz
-        from django.db.models import Max
-        
-        max_scores = all_attempts.values('quiz', 'student').annotate(
-            max_score=Max('score'),
-            max_percentage=Max('percentage')
-        )
-        
-        best_attempt_ids = []
-        for score_data in max_scores:
-            student_quiz_attempts = all_attempts.filter(
-                quiz_id=score_data['quiz'],
-                student_id=score_data['student'],
-                score=score_data['max_score']
-            )
-            best_attempt = student_quiz_attempts.order_by('-percentage', '-submitted_at').first()
-            if best_attempt:
-                best_attempt_ids.append(best_attempt.id)
-        
-        attempts_queryset = QuizAttempt.objects.filter(
-            id__in=best_attempt_ids,
-            school=school,
-            quiz__school=school,
-            student__school=school,
-        ).select_related('quiz', 'student', 'academic_year', 'term').order_by('quiz__title', 'student__full_name')
+        attempts_queryset = _best_attempts_per_quiz_student(all_attempts).select_related(
+            "quiz", "student", "academic_year", "term"
+        ).order_by("quiz__title", "student__full_name")
     else:
         # Get specific attempts
         attempts_queryset = QuizAttempt.objects.filter(

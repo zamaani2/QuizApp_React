@@ -10,7 +10,7 @@ This module provides views for managing quizzes including:
 - Updating quiz status
 - Getting terms for academic year (AJAX)
 """
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
@@ -67,28 +67,19 @@ def quiz_list_view(request):
 
 
 @login_required
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["POST"])
 def quiz_create_view(request):
     """
     Create a new quiz.
     
-    GET: Returns quiz creation form
     POST: Creates quiz and returns JSON response or redirects
     
     - Teachers can create quizzes for subjects they teach
     - Admins can create quizzes for any subject and assign to any teacher
     """
     if request.user.role not in ["teacher", "admin"]:
-        if request.method == "GET":
-            return JsonResponse({'error': 'Permission denied'}, status=403)
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:quiz_list")
-
-    if request.method == "GET":
-        if request.user.role == "teacher" and not request.user.teacher_profile:
-            messages.error(request, "Teacher profile not found. Please contact administrator.")
-            return redirect("quiz_app:dashboard")
-        return redirect("/app/teacher/quizzes/new")
     
     school = request.user.school
     
@@ -96,90 +87,11 @@ def quiz_create_view(request):
     # For admins, show all subjects and allow teacher selection
     if request.user.role == "teacher":
         if not request.user.teacher_profile:
-            if request.method == "GET":
-                return JsonResponse({'error': 'Teacher profile not found'}, status=404)
             messages.error(request, "Teacher profile not found. Please contact administrator.")
             return redirect("quiz_app:quiz_list")
         teacher = request.user.teacher_profile
-        
-        if request.method == "GET":
-            # Get related models for form
-            # Only get subjects that the teacher is assigned to teach (TeacherSubjectAssignment)
-            teacher_assignments = TeacherSubjectAssignment.objects.filter(
-                teacher=teacher,
-                school=school,
-                is_active=True
-            ).select_related('subject').distinct()
-            
-            subjects = Subject.objects.filter(
-                id__in=teacher_assignments.values_list('subject_id', flat=True),
-                school=school
-            ).order_by('subject_name')
-            
-            categories = QuizCategory.objects.filter(school=school, is_active=True).order_by('name')
-            classes = Class.objects.filter(school=school).order_by('name')
-            academic_years = AcademicYear.objects.filter(school=school).order_by('-start_date')
-            
-            # Check if this is an AJAX request for modal
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                html = render(request, 'quiz/partials/quiz_form.html', {
-                    'subjects': subjects,
-                    'categories': categories,
-                    'classes': classes,
-                    'academic_years': academic_years,
-                    'teachers': None,
-                    'is_admin': False,
-                    'quiz': None,
-                }).content.decode('utf-8')
-                return JsonResponse({'html': html})
-            
-            # Regular page request
-            return render(request, 'quiz/quiz_create.html', {
-                'subjects': subjects,
-                'categories': categories,
-                'classes': classes,
-                'academic_years': academic_years,
-                'teachers': None,
-                'is_admin': False,
-            })
     else:
-        # Admin - show all subjects and teachers
         teacher = None
-        if request.method == "GET":
-            subjects = Subject.objects.filter(school=school).order_by('subject_name')
-        
-            categories = QuizCategory.objects.filter(school=school, is_active=True).order_by('name')
-            classes = Class.objects.filter(school=school).order_by('name')
-            academic_years = AcademicYear.objects.filter(school=school).order_by('-start_date')
-            
-            # For admins, also get teachers list
-            teachers = None
-            if request.user.role == "admin":
-                from ..models import Teacher
-                teachers = Teacher.objects.filter(school=school).order_by('full_name')
-            
-            # Check if this is an AJAX request for modal
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                html = render(request, 'quiz/partials/quiz_form.html', {
-                    'subjects': subjects,
-                    'categories': categories,
-                    'classes': classes,
-                    'academic_years': academic_years,
-                    'teachers': teachers,
-                    'is_admin': request.user.role == "admin",
-                    'quiz': None,
-                }).content.decode('utf-8')
-                return JsonResponse({'html': html})
-            
-            # Regular page request
-            return render(request, 'quiz/quiz_create.html', {
-                'subjects': subjects,
-                'categories': categories,
-                'classes': classes,
-                'academic_years': academic_years,
-                'teachers': teachers,
-                'is_admin': request.user.role == "admin",
-            })
     
     # POST - Create quiz
     try:
@@ -371,20 +283,17 @@ def quiz_create_view(request):
 
 
 @login_required
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["POST"])
 def quiz_edit_view(request, quiz_id):
     """
     Edit an existing quiz.
     
-    GET: Returns quiz edit form
     POST: Updates quiz and returns JSON response or redirects
     
     - Teachers can edit their own quizzes
     - Admins can edit any quiz in their school
     """
     if request.user.role not in ["teacher", "admin"]:
-        if request.method == "GET":
-            return JsonResponse({'error': 'Permission denied'}, status=403)
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:quiz_list")
     
@@ -393,8 +302,6 @@ def quiz_edit_view(request, quiz_id):
     # Teachers can only edit their own quizzes, admins can edit any quiz in their school
     if request.user.role == "teacher":
         if not request.user.teacher_profile:
-            if request.method == "GET":
-                return JsonResponse({'error': 'Teacher profile not found'}, status=404)
             messages.error(request, "Teacher profile not found. Please contact administrator.")
             return redirect("quiz_app:quiz_list")
         teacher = request.user.teacher_profile
@@ -403,73 +310,6 @@ def quiz_edit_view(request, quiz_id):
         # Admin can edit any quiz in their school
         quiz = get_object_or_404(Quiz, pk=quiz_id, school=school)
         teacher = quiz.teacher  # Use the quiz's teacher for context
-    
-    if request.method == "GET":
-        return redirect(f"/app/teacher/quizzes/{quiz.pk}/edit")
-
-        # Get related models for form
-        if request.user.role == "teacher":
-            # Only get subjects that the teacher is assigned to teach (TeacherSubjectAssignment)
-            # Include the current quiz's subject even if teacher is no longer assigned (for backwards compatibility)
-            teacher_assignments = TeacherSubjectAssignment.objects.filter(
-                teacher=teacher,
-                school=school,
-                is_active=True
-            ).select_related('subject').distinct()
-            
-            teacher_subject_ids = list(teacher_assignments.values_list('subject_id', flat=True))
-            
-            # Include current quiz's subject if it exists (for backwards compatibility)
-            if quiz.subject and quiz.subject.id not in teacher_subject_ids:
-                teacher_subject_ids.append(quiz.subject.id)
-            
-            subjects = Subject.objects.filter(
-                id__in=teacher_subject_ids,
-                school=school
-            ).order_by('subject_name')
-        else:
-            # Admin sees all subjects
-            subjects = Subject.objects.filter(school=school).order_by('subject_name')
-        
-        categories = QuizCategory.objects.filter(school=school, is_active=True).order_by('name')
-        classes = Class.objects.filter(school=school).order_by('name')
-        academic_years = AcademicYear.objects.filter(school=school).order_by('-start_date')
-        terms = []
-        if quiz.academic_year:
-            terms = Term.objects.filter(academic_year=quiz.academic_year).order_by('term_number')
-        
-        # For admins, also get teachers list
-        teachers = None
-        if request.user.role == "admin":
-            from ..models import Teacher
-            teachers = Teacher.objects.filter(school=school).order_by('full_name')
-        
-        # Check if this is an AJAX request for modal
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            html = render(request, 'quiz/partials/quiz_form.html', {
-                'subjects': subjects,
-                'categories': categories,
-                'classes': classes,
-                'academic_years': academic_years,
-                'terms': terms,
-                'teachers': teachers,
-                'is_admin': request.user.role == "admin",
-                'quiz': quiz,
-            }).content.decode('utf-8')
-            return JsonResponse({'html': html})
-        
-        # Regular page request
-        return render(request, 'quiz/quiz_edit.html', {
-            'quiz': quiz,
-            'subjects': subjects,
-            'categories': categories,
-            'classes': classes,
-            'academic_years': academic_years,
-            'terms': terms,
-            'teachers': teachers,
-            'is_admin': request.user.role == "admin",
-        })
-    
     # POST - Update quiz
     try:
         with transaction.atomic():

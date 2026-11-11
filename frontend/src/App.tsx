@@ -864,9 +864,6 @@ const AppShellWithRoutes: FC = () => {
             }
           />
 
-          {/* Development & UI Inventory */}
-          <Route path="/components" element={<ComponentInventoryPreview />} />
-
           {/* 404 Not Found Fallback */}
           <Route
             path="*"

@@ -9,7 +9,7 @@ This module provides views for managing classes including:
 - Viewing class details
 - Managing ClassSubjects (subjects assigned to classes)
 """
-from django.shortcuts import render, redirect
+from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
@@ -27,7 +27,6 @@ from ..models import (
     ClassTeacher,
     StudentClass,
     TeacherSubjectAssignment,
-    SchoolInformation,
 )
 from ..utils.tenant_utils import get_object_or_404_with_school, get_write_school
 
@@ -45,49 +44,16 @@ def class_list_view(request):
 
 
 @login_required
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["POST"])
 def class_create_view(request):
     """
     Create a new class.
     
-    GET: Returns form in modal
     POST: Creates class and returns JSON response
     """
     if request.user.role not in ["admin", "superadmin"]:
-        if request.method == "GET":
-            return JsonResponse({'error': 'Permission denied'}, status=403)
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:class_list")
-    
-    school = request.user.school
-    
-    if request.method == "GET":
-        # Get options for dropdowns
-        forms = Form.objects.all()
-        learning_areas = LearningArea.objects.all()
-        academic_years = AcademicYear.objects.all()
-        if school:
-            forms = forms.filter(school=school)
-            learning_areas = learning_areas.filter(school=school)
-            academic_years = academic_years.filter(school=school)
-        forms = forms.order_by('form_number')
-        learning_areas = learning_areas.order_by('name')
-        academic_years = academic_years.order_by('-start_date')
-        
-        # Return form for modal
-        html = render(request, 'class/partials/class_form.html', {
-            'class_obj': None,
-            'forms': forms,
-            'learning_areas': learning_areas,
-            'academic_years': academic_years,
-            'schools': (
-                SchoolInformation.objects.filter(is_active=True).order_by("name")
-                if request.user.role == "superadmin"
-                else SchoolInformation.objects.none()
-            ),
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
     
     # POST - Create class
     school = get_write_school(request)
@@ -195,46 +161,19 @@ def class_create_view(request):
 
 
 @login_required
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["POST"])
 def class_edit_view(request, class_id):
     """
     Edit an existing class.
     
-    GET: Returns form in modal
     POST: Updates class and returns JSON response
     """
     if request.user.role not in ["admin", "superadmin"]:
-        if request.method == "GET":
-            return JsonResponse({'error': 'Permission denied'}, status=403)
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:class_list")
     
     class_obj = get_object_or_404_with_school(Class, request, pk=class_id)
     school = class_obj.school
-    
-    if request.method == "GET":
-        # Get options for dropdowns
-        forms = Form.objects.all()
-        learning_areas = LearningArea.objects.all()
-        academic_years = AcademicYear.objects.all()
-        if school:
-            forms = forms.filter(school=school)
-            learning_areas = learning_areas.filter(school=school)
-            academic_years = academic_years.filter(school=school)
-        forms = forms.order_by('form_number')
-        learning_areas = learning_areas.order_by('name')
-        academic_years = academic_years.order_by('-start_date')
-        
-        # Return form for modal
-        html = render(request, 'class/partials/class_form.html', {
-            'class_obj': class_obj,
-            'forms': forms,
-            'learning_areas': learning_areas,
-            'academic_years': academic_years,
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
-    
     # POST - Update class
     try:
         with transaction.atomic():

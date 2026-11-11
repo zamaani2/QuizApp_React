@@ -8,12 +8,11 @@ This module provides views for managing teacher subject assignments including:
 - Editing assignments
 - Deleting assignments
 """
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
-from django.db.models import F, Q
 from django.db import IntegrityError, transaction
 from django.core.exceptions import ValidationError
 
@@ -41,51 +40,19 @@ def assignment_list_view(request):
 
 
 @login_required
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["POST"])
 def assignment_create_view(request):
     """
     Create a single teacher subject assignment.
     
-    GET: Returns form in modal
     POST: Creates assignment and returns JSON response
     """
     if request.user.role not in ["admin", "superadmin"]:
-        if request.method == "GET":
-            return JsonResponse({'error': 'Permission denied'}, status=403)
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:assignment_list")
     
     school = request.user.school
-    
-    if request.method == "GET":
-        # Get options for dropdowns
-        teachers = Teacher.objects.all()
-        classes = Class.objects.all()
-        academic_years = AcademicYear.objects.all()
-        
-        if school:
-            teachers = teachers.filter(school=school)
-            classes = classes.filter(school=school)
-            academic_years = academic_years.filter(school=school)
-        
-        teachers = teachers.order_by('full_name')
-        classes = classes.order_by('name')
-        academic_years = academic_years.order_by('-start_date')
-        
-        # For new assignments, don't show subjects initially (will be loaded via AJAX based on class selection)
-        subjects = Subject.objects.none()
-        
-        # Return form for modal
-        html = render(request, 'teacher_assignment/partials/assignment_form.html', {
-            'assignment': None,
-            'teachers': teachers,
-            'subjects': subjects,
-            'classes': classes,
-            'academic_years': academic_years,
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
-    
+
     # POST - Create assignment
     try:
         with transaction.atomic():
@@ -188,50 +155,19 @@ def assignment_create_view(request):
 
 
 @login_required
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["POST"])
 def assignment_bulk_create_view(request):
     """
     Create multiple teacher subject assignments in bulk.
     
-    GET: Returns bulk assignment form modal
     POST: Creates multiple assignments and returns JSON response
     """
     if request.user.role not in ["admin", "superadmin"]:
-        if request.method == "GET":
-            return JsonResponse({'error': 'Permission denied'}, status=403)
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:assignment_list")
     
     school = request.user.school
-    
-    if request.method == "GET":
-        # Get options for dropdowns
-        teachers = Teacher.objects.all()
-        classes = Class.objects.all()
-        academic_years = AcademicYear.objects.all()
-        
-        if school:
-            teachers = teachers.filter(school=school)
-            classes = classes.filter(school=school)
-            academic_years = academic_years.filter(school=school)
-        
-        teachers = teachers.order_by('full_name')
-        classes = classes.order_by('name')
-        academic_years = academic_years.order_by('-start_date')
-        
-        # For bulk assignment, subjects will be loaded dynamically based on selected classes
-        subjects = Subject.objects.none()
-        
-        # Return form for modal
-        html = render(request, 'teacher_assignment/partials/bulk_assignment_form.html', {
-            'teachers': teachers,
-            'subjects': subjects,
-            'classes': classes,
-            'academic_years': academic_years,
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
-    
+
     # POST - Create bulk assignments
     try:
         import json
@@ -403,17 +339,14 @@ def assignment_bulk_create_view(request):
 
 
 @login_required
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["POST"])
 def assignment_edit_view(request, assignment_id):
     """
     Edit an existing teacher subject assignment.
     
-    GET: Returns form in modal
     POST: Updates assignment and returns JSON response
     """
     if request.user.role not in ["admin", "superadmin"]:
-        if request.method == "GET":
-            return JsonResponse({'error': 'Permission denied'}, status=403)
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:assignment_list")
     
@@ -435,47 +368,6 @@ def assignment_edit_view(request, assignment_id):
         )
     ):
         return JsonResponse({'error': 'Assignment has an invalid school association.'}, status=404)
-    
-    if request.method == "GET":
-        # Get options for dropdowns
-        teachers = Teacher.objects.all()
-        classes = Class.objects.all()
-        academic_years = AcademicYear.objects.all()
-        
-        if school:
-            teachers = teachers.filter(school=school)
-            classes = classes.filter(school=school)
-            academic_years = academic_years.filter(school=school)
-        
-        teachers = teachers.order_by('full_name')
-        classes = classes.order_by('name')
-        academic_years = academic_years.order_by('-start_date')
-        
-        # Get subjects assigned to the assignment's class for the academic year
-        subjects = Subject.objects.none()
-        if assignment.class_assigned and assignment.academic_year:
-            class_subjects = ClassSubject.objects.filter(
-                class_name=assignment.class_assigned,
-                academic_year=assignment.academic_year,
-                school=school,
-                subject__school=school,
-            ).select_related('subject')
-            subjects = Subject.objects.filter(
-                pk__in=class_subjects.values_list('subject_id', flat=True),
-                school=school,
-            ).order_by('subject_name')
-        
-        # Return form for modal
-        html = render(request, 'teacher_assignment/partials/assignment_form.html', {
-            'assignment': assignment,
-            'teachers': teachers,
-            'subjects': subjects,
-            'classes': classes,
-            'academic_years': academic_years,
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
-    
     # POST - Update assignment
     try:
         with transaction.atomic():

@@ -14,7 +14,7 @@ import io
 from itertools import islice
 from xml.etree.ElementTree import ParseError
 from zipfile import BadZipFile
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import ValidationError
@@ -112,41 +112,16 @@ def teacher_export_view(request, format_type):
 
 
 @login_required
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["POST"])
 def teacher_create_view(request):
     """
     Create a new teacher.
     
-    GET: Returns form in modal
     POST: Creates teacher and returns JSON response
     """
     if request.user.role not in ["admin", "superadmin"]:
-        if request.method == "GET":
-            return JsonResponse({'error': 'Permission denied'}, status=403)
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:teacher_list")
-    
-    school = request.user.school
-    schools = (
-        SchoolInformation.objects.filter(is_active=True).order_by("name")
-        if request.user.role == "superadmin"
-        else SchoolInformation.objects.none()
-    )
-    
-    if request.method == "GET":
-        # Return form for modal
-        departments = Department.objects.all()
-        if school:
-            departments = departments.filter(school=school)
-        departments = departments.order_by('name')
-        
-        html = render(request, 'teacher/partials/teacher_form.html', {
-            'teacher': None,
-            'departments': departments,
-            'schools': schools,
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
     
     # POST - Create teacher
     school = get_write_school(request)
@@ -217,37 +192,19 @@ def teacher_create_view(request):
 
 
 @login_required
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["POST"])
 def teacher_edit_view(request, teacher_id):
     """
     Edit an existing teacher.
     
-    GET: Returns form in modal
     POST: Updates teacher and returns JSON response
     """
     if request.user.role not in ["admin", "superadmin"]:
-        if request.method == "GET":
-            return JsonResponse({'error': 'Permission denied'}, status=403)
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:teacher_list")
     
     teacher = get_object_or_404_with_school(Teacher, request, pk=teacher_id)
     school = teacher.school
-    
-    if request.method == "GET":
-        # Return form for modal
-        departments = Department.objects.all()
-        if school:
-            departments = departments.filter(school=school)
-        departments = departments.order_by('name')
-        
-        html = render(request, 'teacher/partials/teacher_form.html', {
-            'teacher': teacher,
-            'departments': departments,
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
-    
     # POST - Update teacher
     try:
         with transaction.atomic():
@@ -341,7 +298,7 @@ def _set_teacher_archive_state(request, teacher_id, *, is_active):
 
 
 @login_required
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["POST"])
 def teacher_bulk_delete_view(request):
     """
     Bulk archive or restore teachers.
@@ -349,22 +306,7 @@ def teacher_bulk_delete_view(request):
     POST: Updates profile and linked account state for selected teachers
     """
     if request.user.role not in ["admin", "superadmin"]:
-        if request.method == "GET":
-            return JsonResponse({'error': 'Permission denied'}, status=403)
         return JsonResponse({'error': 'Permission denied'}, status=403)
-    
-    if request.method == "GET":
-        html = render(request, 'teacher/partials/bulk_delete_modal.html', {
-            'archive_action': (
-                "restore" if request.GET.get("status") == "archived" else "archive"
-            ),
-            'schools': (
-                SchoolInformation.objects.filter(is_active=True).order_by("name")
-                if request.user.role == "superadmin"
-                else SchoolInformation.objects.none()
-            ),
-        }).content.decode('utf-8')
-        return JsonResponse({'html': html})
     
     # POST - Bulk delete
     try:
@@ -574,38 +516,16 @@ def teacher_bulk_import_preview_view(request):
 
 
 @login_required
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["POST"])
 def teacher_bulk_import_view(request):
     """
     Bulk import teachers from CSV or XLSX file.
     
-    GET: Returns import form modal
     POST: Processes CSV file and imports teachers
     """
     if request.user.role not in ["admin", "superadmin"]:
-        if request.method == "GET":
-            return JsonResponse({'error': 'Permission denied'}, status=403)
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:teacher_list")
-    
-    if request.method == "GET":
-        # Return import form for modal
-        departments = Department.objects.all()
-        school = request.user.school
-        if school:
-            departments = departments.filter(school=school)
-        departments = departments.order_by('name')
-        
-        html = render(request, 'teacher/partials/bulk_import_modal.html', {
-            'departments': departments,
-            'schools': (
-                SchoolInformation.objects.filter(is_active=True).order_by("name")
-                if request.user.role == "superadmin"
-                else SchoolInformation.objects.none()
-            ),
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
     
     # POST - Process import
     try:
@@ -863,20 +783,7 @@ def teacher_profile_view(request):
         messages.error(request, "Teacher profile not found. Please contact administrator.")
         return redirect("quiz_app:dashboard")
     
-    teacher = request.user.teacher_profile
-    
-    # Get teacher's assignments
-    assignments = teacher.teachersubjectassignment_set.filter(is_active=True).select_related(
-        'subject', 'class_assigned', 'academic_year'
-    ).order_by('-academic_year__start_date', 'subject__subject_name')
-    
-    context = {
-        'teacher': teacher,
-        'assignments': assignments,
-        'is_own_profile': True,
-    }
-    
-    return render(request, 'teacher/teacher_detail.html', context)
+    return redirect("/app/teacher/dashboard")
 
 
 @login_required
@@ -889,19 +796,5 @@ def teacher_detail_view(request, teacher_id):
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:dashboard")
     
-    school = request.user.school
-    
-    teacher = get_object_or_404_with_school(Teacher, request, pk=teacher_id)
-    
-    # Get teacher's assignments
-    assignments = teacher.teachersubjectassignment_set.filter(is_active=True).select_related(
-        'subject', 'class_assigned', 'academic_year'
-    ).order_by('-academic_year__start_date', 'subject__subject_name')
-    
-    context = {
-        'teacher': teacher,
-        'assignments': assignments,
-        'is_own_profile': False,
-    }
-    
-    return render(request, 'teacher/teacher_detail.html', context)
+    get_object_or_404_with_school(Teacher, request, pk=teacher_id)
+    return redirect("/app/admin/teachers")

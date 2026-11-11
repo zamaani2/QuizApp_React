@@ -14,7 +14,7 @@ import io
 from itertools import islice
 import os
 from datetime import date, datetime
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import ValidationError
@@ -244,7 +244,7 @@ def student_list_view(request):
     else:
         template = 'student/student_list.html'
     
-    return render(request, template, context)
+    return redirect("/app/admin/students")
 
 
 @login_required
@@ -355,43 +355,16 @@ def student_export_view(request, format_type):
 
 
 @login_required
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["POST"])
 def student_create_view(request):
     """
     Create a new student.
     
-    GET: Returns form in modal
     POST: Creates student and returns JSON response
     """
     if request.user.role not in ["admin", "superadmin"]:
-        if request.method == "GET":
-            return JsonResponse({'error': 'Permission denied'}, status=403)
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:student_list")
-    
-    school = request.user.school
-    schools = (
-        SchoolInformation.objects.filter(is_active=True).order_by("name")
-        if request.user.role == "superadmin"
-        else SchoolInformation.objects.none()
-    )
-    
-    if request.method == "GET":
-        # Return form for modal
-        forms = Form.objects.all()
-        learning_areas = LearningArea.objects.all()
-        if school:
-            forms = forms.filter(school=school)
-            learning_areas = learning_areas.filter(school=school)
-        
-        html = render(request, 'student/partials/student_form.html', {
-            'forms': forms,
-            'learning_areas': learning_areas,
-            'student': None,
-            'schools': schools,
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
     
     # POST - Create student
     school = get_write_school(request)
@@ -476,39 +449,19 @@ def student_create_view(request):
 
 
 @login_required
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["POST"])
 def student_edit_view(request, student_id):
     """
     Edit an existing student.
     
-    GET: Returns form in modal
     POST: Updates student and returns JSON response
     """
     if request.user.role not in ["admin", "superadmin"]:
-        if request.method == "GET":
-            return JsonResponse({'error': 'Permission denied'}, status=403)
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:student_list")
     
     student = get_object_or_404_with_school(Student, request, pk=student_id)
     school = student.school
-    
-    if request.method == "GET":
-        # Return form for modal
-        forms = Form.objects.all()
-        learning_areas = LearningArea.objects.all()
-        if school:
-            forms = forms.filter(school=school)
-            learning_areas = learning_areas.filter(school=school)
-        
-        html = render(request, 'student/partials/student_form.html', {
-            'forms': forms,
-            'learning_areas': learning_areas,
-            'student': student,
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
-    
     # POST - Update student
     try:
         with transaction.atomic():
@@ -616,31 +569,15 @@ def _set_student_archive_state(request, student_id, *, is_active):
 
 
 @login_required
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["POST"])
 def student_bulk_delete_view(request):
     """
     Bulk archive or restore students.
     
-    GET: Returns the archive/restore modal
     POST: Updates profile and linked account state for selected students
     """
     if request.user.role not in ["admin", "superadmin"]:
-        if request.method == "GET":
-            return JsonResponse({'error': 'Permission denied'}, status=403)
         return JsonResponse({'error': 'Permission denied'}, status=403)
-    
-    if request.method == "GET":
-        html = render(request, 'student/partials/bulk_delete_modal.html', {
-            'archive_action': (
-                "restore" if request.GET.get("status") == "archived" else "archive"
-            ),
-            'schools': (
-                SchoolInformation.objects.filter(is_active=True).order_by("name")
-                if request.user.role == "superadmin"
-                else SchoolInformation.objects.none()
-            ),
-        }).content.decode('utf-8')
-        return JsonResponse({'html': html})
     
     # POST - Bulk delete
     try:
@@ -966,43 +903,16 @@ def student_bulk_import_preview_headers_view(request):
 
 
 @login_required
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["POST"])
 def student_bulk_import_view(request):
     """
     Bulk import students from CSV or XLSX file.
     
-    GET: Returns import form modal
     POST: Processes CSV/XLSX file and imports students
     """
     if request.user.role not in ["admin", "superadmin"]:
-        if request.method == "GET":
-            return JsonResponse({'error': 'Permission denied'}, status=403)
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:student_list")
-    
-    if request.method == "GET":
-        # Return import form for modal
-        classes = Class.objects.all()
-        school = request.user.school
-        if school:
-            classes = classes.filter(school=school)
-        
-        classes = classes.order_by('name')
-        
-        # Get current academic year to display in template
-        current_academic_year = SchoolInformation.get_current_academic_year(school=school)
-        
-        html = render(request, 'student/partials/bulk_import_modal.html', {
-            'classes': classes,
-            'current_academic_year': current_academic_year,
-            'schools': (
-                SchoolInformation.objects.filter(is_active=True).order_by("name")
-                if request.user.role == "superadmin"
-                else SchoolInformation.objects.none()
-            ),
-        }).content.decode('utf-8')
-        
-        return JsonResponse({'html': html})
     
     # POST - Process import
     try:
@@ -1398,20 +1308,7 @@ def student_profile_view(request):
         messages.error(request, "Student profile not found. Please contact administrator.")
         return redirect("quiz_app:dashboard")
     
-    student = request.user.student_profile
-    
-    # Get student's enrollments
-    enrollments = student.studentclassenrollment_set.filter(is_active=True).select_related(
-        'assigned_class', 'academic_year', 'term'
-    ).order_by('-academic_year__start_date', 'assigned_class__name')
-    
-    context = {
-        'student': student,
-        'enrollments': enrollments,
-        'is_own_profile': True,
-    }
-    
-    return render(request, 'student/student_detail.html', context)
+    return redirect("/app/student/profile")
 
 
 @login_required
@@ -1471,8 +1368,4 @@ def student_detail_view(request, student_id):
         messages.error(request, "You don't have permission to access this page.")
         return redirect("quiz_app:dashboard")
     
-    context = {
-        'student': student,
-    }
-    
-    return render(request, 'student/student_detail.html', context)
+    return redirect("/app/admin/students")

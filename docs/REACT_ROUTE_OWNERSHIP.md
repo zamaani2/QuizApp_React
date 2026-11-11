@@ -26,11 +26,13 @@ Port `8000` is not the normal browser-facing app URL during Vite development.
 
 ## Legacy Django URLs
 
-Legacy page GET routes permanently redirect to the relevant React route; a
-`?classic=1` query does not restore Django presentation. Legacy mutation
-handlers remain where needed for compatibility, but React feature screens use
-the versioned JSON APIs. Password-reset links open the React auth shell, while
-Django validates the email request and one-time reset token and sends email.
+Retired page GET routes redirect to a React route; a `?classic=1` query does
+not restore Django presentation. Authentication pages redirect to the React
+auth shell, logout is POST-only, and API, utility, and download endpoints keep
+their backend responses. Legacy mutation handlers remain where needed for
+compatibility, but React feature screens use the versioned JSON APIs.
+Password-reset links open the React auth shell, while Django validates the
+email request and one-time reset token and sends email.
 
 The only Django templates retained are `react_app.html` and
 `auth_core_app.html`. They are mount shells, not feature UIs. See

@@ -7,7 +7,7 @@ This module provides views for managing quiz assignments to classes including:
 - Unassigning classes from quizzes
 - Bulk assignment operations
 """
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
@@ -44,54 +44,21 @@ def quiz_assignment_list_view(request, quiz_id):
             return redirect("quiz_app:dashboard")
         teacher = request.user.teacher_profile
         quiz = get_object_or_404(Quiz, pk=quiz_id, teacher=teacher, school=school)
-        
-        # Get classes where teacher is assigned to teach the quiz's subject
-        teacher_assignments = TeacherSubjectAssignment.objects.filter(
-            teacher=teacher,
-            subject=quiz.subject,
-            is_active=True,
-            school=school
-        )
-        available_class_ids = teacher_assignments.values_list('class_assigned_id', flat=True).distinct()
-        available_classes = Class.objects.filter(
-            id__in=available_class_ids,
-            school=school
-        ).order_by('name')
     else:
-        # Admin can access any quiz in their school and see all classes
         quiz = get_object_or_404(Quiz, pk=quiz_id, school=school)
-        available_classes = Class.objects.filter(school=school).order_by('name')
 
     return redirect(f"/app/teacher/quizzes/{quiz.pk}/assignments")
     
-    # Get assigned classes
-    assigned_classes = quiz.classes.filter(school=school).order_by('name')
-    
-    # Get unassigned classes (available but not yet assigned to quiz)
-    unassigned_classes = available_classes.exclude(id__in=assigned_classes.values_list('id', flat=True))
-    
-    context = {
-        'quiz': quiz,
-        'assigned_classes': assigned_classes,
-        'unassigned_classes': unassigned_classes,
-        'available_classes': available_classes,
-    }
-    
-    return render(request, 'quiz/assignment/quiz_assignment_list.html', context)
-
 
 @login_required
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["POST"])
 def quiz_assignment_create_view(request, quiz_id):
     """
     Assign classes to a quiz.
     
-    GET: Returns assignment form modal
     POST: Assigns classes and returns JSON response
     """
     if request.user.role not in ["teacher", "admin"]:
-        if request.method == "GET":
-            return JsonResponse({'error': 'Permission denied'}, status=403)
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:quiz_list")
     
@@ -100,8 +67,6 @@ def quiz_assignment_create_view(request, quiz_id):
     # Teachers can only access their own quizzes, admins can access any quiz in their school
     if request.user.role == "teacher":
         if not request.user.teacher_profile:
-            if request.method == "GET":
-                return JsonResponse({'error': 'Teacher profile not found'}, status=404)
             messages.error(request, "Teacher profile not found. Please contact administrator.")
             return redirect("quiz_app:quiz_list")
         teacher = request.user.teacher_profile
@@ -111,101 +76,11 @@ def quiz_assignment_create_view(request, quiz_id):
         quiz = get_object_or_404(Quiz, pk=quiz_id, school=school)
         teacher = quiz.teacher  # Use quiz's teacher for context
 
-    if request.method == "GET":
-        return redirect(f"/app/teacher/quizzes/{quiz.pk}/assignments")
-    
     # Validate quiz has a subject
     if not quiz.subject:
-        if request.method == "GET" and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({
-                'error': 'Quiz must have a subject assigned before assigning classes.'
-            }, status=400)
         messages.error(request, 'Quiz must have a subject assigned before assigning classes.')
         return redirect("quiz_app:quiz_assignment_list", quiz_id=quiz_id)
-    
-    if request.method == "GET":
-        # Initialize variables
-        unassigned_classes = Class.objects.none()
-        assigned_classes = quiz.classes.filter(school=school)
-        
-        try:
-            # Get available classes
-            if request.user.role == "teacher":
-                # Get classes where teacher is assigned to teach the quiz's subject
-                teacher_assignments = TeacherSubjectAssignment.objects.filter(
-                    teacher=teacher,
-                    subject=quiz.subject,
-                    is_active=True,
-                    school=school
-                )
-                available_class_ids = list(teacher_assignments.values_list('class_assigned_id', flat=True).distinct())
-                
-                # Handle empty list case - if no assignments, return empty queryset
-                if available_class_ids:
-                    available_classes = Class.objects.filter(
-                        id__in=available_class_ids,
-                        school=school
-                    ).order_by('name')
-                else:
-                    available_classes = Class.objects.none()
-            else:
-                # Admin sees all classes in their school
-                available_classes = Class.objects.filter(school=school).order_by('name')
-                available_class_ids = list(available_classes.values_list('id', flat=True))
-            
-            # Get already assigned classes
-            assigned_class_ids = list(
-                quiz.classes.filter(school=school).values_list('id', flat=True)
-            )
-            
-            # Get unassigned classes (available but not yet assigned to quiz)
-            if assigned_class_ids and available_class_ids:
-                unassigned_classes = available_classes.exclude(id__in=assigned_class_ids)
-            elif available_class_ids:
-                unassigned_classes = available_classes
-            else:
-                unassigned_classes = Class.objects.none()
-            
-            # Get assigned classes queryset
-            assigned_classes = quiz.classes.filter(school=school)
-            
-        except Exception as e:
-            # Log the error and return a proper error response
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Error loading assignment form: {str(e)}", exc_info=True)
-            
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({
-                    'error': f'Error loading assignment form: {str(e)}'
-                }, status=500)
-            messages.error(request, f'Error loading assignment form: {str(e)}')
-            return redirect("quiz_app:quiz_assignment_list", quiz_id=quiz_id)
-        
-        # Check if this is an AJAX request for modal
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            try:
-                html = render(request, 'quiz/assignment/partials/assignment_form.html', {
-                    'quiz': quiz,
-                    'unassigned_classes': unassigned_classes,
-                    'assigned_classes': assigned_classes,
-                }).content.decode('utf-8')
-                return JsonResponse({'html': html})
-            except Exception as template_error:
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.error(f"Template rendering error: {str(template_error)}", exc_info=True)
-                return JsonResponse({
-                    'error': f'Error rendering form: {str(template_error)}'
-                }, status=500)
-        
-        # Regular page request
-        return render(request, 'quiz/assignment/quiz_assignment_create.html', {
-            'quiz': quiz,
-            'unassigned_classes': unassigned_classes,
-            'assigned_classes': assigned_classes,
-        })
-    
+
     # POST - Assign classes
     try:
         class_ids = request.POST.getlist('classes')
@@ -332,22 +207,17 @@ def quiz_assignment_delete_view(request, quiz_id, class_id):
 
 
 @login_required
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["POST"])
 def quiz_assignment_bulk_delete_view(request, quiz_id):
     """
     Bulk unassign classes from a quiz.
     
-    GET: Returns bulk unassign modal
     POST: Unassigns multiple classes
     """
     if request.user.role not in ["teacher", "admin"]:
-        if request.method == "GET":
-            return JsonResponse({'error': 'Permission denied'}, status=403)
         return JsonResponse({'error': 'Permission denied'}, status=403)
     
     if request.user.role == "teacher" and not request.user.teacher_profile:
-        if request.method == "GET":
-            return JsonResponse({'error': 'Teacher profile not found'}, status=404)
         return JsonResponse({'error': 'Teacher profile not found'}, status=404)
 
     school = request.user.school
@@ -355,20 +225,6 @@ def quiz_assignment_bulk_delete_view(request, quiz_id):
     if request.user.role == "teacher":
         quiz_filters['teacher'] = request.user.teacher_profile
     quiz = get_object_or_404(Quiz, **quiz_filters)
-    
-    if request.method == "GET":
-        return redirect(f"/app/teacher/quizzes/{quiz.pk}/assignments")
-
-        # Check if this is an AJAX request for modal
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            html = render(request, 'quiz/assignment/partials/bulk_unassign_modal.html', {
-                'quiz': quiz,
-            }).content.decode('utf-8')
-            return JsonResponse({'html': html})
-        
-        # Regular page request
-        return redirect("quiz_app:quiz_assignment_list", quiz_id=quiz_id)
-    
     # POST - Bulk unassign
     try:
         import json

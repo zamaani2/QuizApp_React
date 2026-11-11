@@ -152,6 +152,15 @@
   position: relative;
 }
 
+button.portal-sidebar__link {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 .portal-sidebar--collapsed .portal-sidebar__link {
   justify-content: center;
   padding: 0.55rem;
@@ -347,6 +356,11 @@
   cursor: pointer;
   text-decoration: none;
   transition: all 0.15s ease;
+}
+
+button.portal-header__btn {
+  padding: 0;
+  font: inherit;
 }
 
 .portal-header__btn:hover {
@@ -549,6 +563,13 @@
   background-color: var(--qa-surface-alt, #f8fafc);
   border: 1px solid var(--qa-border-light, #edf2f7);
   transition: all 0.12s ease;
+}
+
+button.portal-more-sheet__item {
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .portal-more-sheet__item:hover,
