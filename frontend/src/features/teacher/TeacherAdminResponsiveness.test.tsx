@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter, MemoryRouter, Routes, Route } from 'react-router-dom';
 import { TeacherDashboard } from './TeacherDashboard';
 import { QuestionEditor } from './QuestionEditor';
@@ -148,6 +148,9 @@ describe('Teacher and Admin Responsive Verification', () => {
         if (url.includes('/api/v1/teacher/quizzes/1/')) {
           return Promise.resolve({ ok: true, status: 200, json: async () => mockQuizDetail });
         }
+        if (url.includes('/api/v1/teacher/quizzes/') && !url.includes('/api/v1/teacher/quizzes/1/')) {
+          return Promise.resolve({ ok: true, status: 201, json: async () => ({ success: true, quiz_id: 99 }) });
+        }
       }
       return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
     });
@@ -225,6 +228,7 @@ describe('Teacher and Admin Responsive Verification', () => {
                 </TeacherAppLayout>
               }
             />
+            <Route path="/teacher/quizzes/:id" element={<div data-testid="saved-quiz-route" />} />
           </Routes>
         </MemoryRouter>
       );
@@ -232,7 +236,46 @@ describe('Teacher and Admin Responsive Verification', () => {
       expect(await screen.findByText('Create Quiz')).toBeInTheDocument();
       expect(screen.getByLabelText('Title *')).toBeInTheDocument();
       expect(screen.getByLabelText('Subject *')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+      expect(await screen.findByText('Enter a quiz title before continuing.')).toBeInTheDocument();
+
+      fireEvent.change(screen.getByLabelText('Title *'), { target: { value: 'Midterm' } });
+      fireEvent.change(screen.getByLabelText('Subject *'), { target: { value: '1' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+      expect(await screen.findByText('Select a teacher before continuing.')).toBeInTheDocument();
+
+      fireEvent.change(screen.getByLabelText('Teacher *'), { target: { value: '2' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+      expect(await screen.findByRole('region', { name: 'Academic year and classes' })).toBeInTheDocument();
+      fireEvent.change(screen.getByLabelText('Category'), { target: { value: '1' } });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+      expect(await screen.findByRole('region', { name: 'Schedule and scoring' })).toBeInTheDocument();
+      fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'published' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+      expect(await screen.findByRole('region', { name: 'Results and behavior' })).toBeInTheDocument();
+      fireEvent.click(screen.getByLabelText('Show results immediately'));
       expect(screen.getByRole('button', { name: 'Create Quiz' })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Create Quiz' }));
+      expect(await screen.findByTestId('saved-quiz-route')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(vi.mocked(global.fetch).mock.calls.some(([url, options]) =>
+          typeof url === 'string' && url === '/api/v1/teacher/quizzes/' && options?.method === 'POST'
+        )).toBe(true);
+      });
+      const saveCall = vi.mocked(global.fetch).mock.calls.find(([url, options]) =>
+        typeof url === 'string' && url === '/api/v1/teacher/quizzes/' && options?.method === 'POST'
+      );
+      const body = JSON.parse(String(saveCall?.[1]?.body));
+      expect(body.title).toBe('Midterm');
+      expect(body.subject).toBe('1');
+      expect(body.teacher).toBe('2');
+      expect(body.category).toBe('1');
+      expect(body.status).toBe('published');
+      expect(body.show_results_immediately).toBe(true);
     });
   });
 });

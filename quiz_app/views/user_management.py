@@ -26,6 +26,7 @@ User = get_user_model()
 
 from ..models import SchoolInformation
 from ..utils.tenant_utils import get_object_or_404_with_school, get_write_school
+from ..utils.legacy_api import legacy_write_gone
 
 
 @login_required
@@ -48,6 +49,7 @@ def user_create_view(request):
     
     POST: Creates user and returns JSON response
     """
+    return legacy_write_gone("/api/v1/users/")
     if request.user.role not in ["admin", "superadmin"]:
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:user_list")
@@ -159,6 +161,7 @@ def user_edit_view(request, user_id):
     
     POST: Updates user and returns JSON response
     """
+    return legacy_write_gone("/api/v1/users/")
     if request.user.role not in ["admin", "superadmin"]:
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:user_list")
@@ -279,8 +282,7 @@ def user_delete_view(request, user_id):
     """
     Delete a user.
     """
-    if request.user.role not in ["admin", "superadmin"]:
-        return JsonResponse({'error': 'Permission denied'}, status=403)
+    return legacy_write_gone(f"/api/v1/users/{user_id}/")
     
     school = request.user.school
     
@@ -319,6 +321,7 @@ def user_bulk_password_reset_view(request):
     
     POST: Sends one-time password reset links to selected users
     """
+    return legacy_write_gone("/api/v1/users/bulk-password-reset/")
     if request.user.role not in ["admin", "superadmin"]:
         return JsonResponse({'error': 'Permission denied'}, status=403)
     

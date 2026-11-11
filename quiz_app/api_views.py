@@ -959,6 +959,13 @@ def teachers_api_view(request):
     if not is_authorized_superadmin(user) and school is None:
         return JsonResponse({"code": "FORBIDDEN", "message": "A valid school association is required."}, status=403)
 
+    if is_authorized_superadmin(user) and request.GET.get("school_id"):
+        school = SchoolInformation.objects.filter(
+            pk=request.GET.get("school_id"), is_active=True
+        ).first()
+        if school is None:
+            return JsonResponse({"code": "VALIDATION_ERROR", "message": "Select an active school."}, status=400)
+
     teachers = (Teacher.objects.filter(school=school) if school else Teacher.objects.all()).annotate(
         assigned_classes_count=Count(
             "teachersubjectassignment__class_assigned",
@@ -1001,6 +1008,7 @@ def teachers_api_view(request):
             "department_id": t.department_id,
             "assigned_classes_count": t.assigned_classes_count,
             "is_active": getattr(t, "is_active", True),
+            "school_id": t.school_id,
         })
 
     return JsonResponse({"count": len(results), "results": results})
@@ -1329,6 +1337,7 @@ def teacher_quiz_detail_api_view(request, quiz_id):
             "order": q.order,
             "explanation": q.explanation or "",
             "correct_answer_text": q.correct_answer_text or "",
+            "config": q.config or {},
             "difficulty": q.difficulty,
             "negative_marks": q.negative_marks,
             "is_required": q.is_required,
@@ -1579,30 +1588,46 @@ def teacher_result_detail_api_view(request, attempt_id):
         Prefetch("selected_choices", queryset=AnswerChoice.objects.filter(school=school)),
         Prefetch("question__answer_choices", queryset=AnswerChoice.objects.filter(school=school)),
     ).order_by("question__order")
-    responses_by_question = {item.question_id: item for item in responses}
     questions = attempt.quiz.questions.filter(school=school).prefetch_related(
         Prefetch("answer_choices", queryset=AnswerChoice.objects.filter(school=school))
     ).order_by("order")
+    _, questions, responses = _attempt_review_snapshot(
+        attempt, attempt.quiz, questions, responses
+    )
+    responses_by_question = {item.question_id: item for item in responses}
     response_data = []
+    from .question_types import serialize_for_review
+
     for question in questions:
+        question_snapshot = attempt.configuration_snapshot.get(
+            "questions", {}
+        ).get(str(question.pk), {})
+        choice_snapshots = question_snapshot.get("choices", {})
+        question_text = question_snapshot.get("question_text", question.question_text)
+        question_type = question_snapshot.get("question_type", question.question_type)
+        question_marks = question_snapshot.get("marks", question.marks)
         item = responses_by_question.get(question.pk)
         if item is None:
             response_data.append({
                 "id": -question.pk,
-                "question_text": question.question_text,
-                "question_type": question.question_type,
-                "marks": question.marks,
+                "question_text": question_text,
+                "question_type": question_type,
+                "marks": question_marks,
                 "marks_awarded": 0,
                 "text_answer": "",
                 "selected_choice": "",
                 "selected_choices": [],
+                "answer_data": {},
+                "review_data": {"student_answer": "", "correct_answer": None},
                 "is_correct": False,
                 "is_answered": False,
-                "answer_key": question.correct_answer_text or "",
+                "answer_key": question_snapshot.get(
+                    "correct_answer_text", question.correct_answer_text or ""
+                ),
                 "correct_choices": [
-                    choice.choice_text
-                    for choice in question.answer_choices.all()
-                    if choice.is_correct
+                    choice.get("text", "")
+                    for choice in choice_snapshots.values()
+                    if choice.get("is_correct")
                 ],
                 "grading_notes": "",
             })
@@ -1612,22 +1637,31 @@ def teacher_result_detail_api_view(request, attempt_id):
             for choice in item.selected_choices.all()
             if choice.school_id == school.pk
         ]
+        review_data = serialize_for_review(
+            question, item, question_snapshot, show_correct_answers=True
+        )
         response_data.append({
             "id": item.pk,
-            "question_text": item.question.question_text,
-            "question_type": item.question.question_type,
-            "marks": item.question.marks,
+            "question_text": question_text,
+            "question_type": question_type,
+            "marks": question_marks,
             "marks_awarded": item.marks_awarded,
             "text_answer": item.text_answer or "",
             "selected_choice": item.selected_choice.choice_text if item.selected_choice else "",
             "selected_choices": selected_choices,
+            "answer_data": item.answer_data or {},
+            "review_data": review_data,
             "is_correct": item.is_correct,
-            "is_answered": bool(item.text_answer or item.selected_choice_id or selected_choices),
-            "answer_key": item.question.correct_answer_text or "",
+            "is_answered": bool(
+                item.text_answer or item.selected_choice_id or selected_choices or item.answer_data
+            ),
+            "answer_key": question_snapshot.get(
+                "correct_answer_text", item.question.correct_answer_text or ""
+            ),
             "correct_choices": [
-                choice.choice_text
-                for choice in item.question.answer_choices.all()
-                if choice.is_correct
+                choice.get("text", "")
+                for choice in choice_snapshots.values()
+                if choice.get("is_correct")
             ],
             "grading_notes": item.grading_notes or "",
         })
@@ -2292,49 +2326,13 @@ def student_quiz_take_api_view(request, attempt_id):
 
     for position, q in enumerate(questions, start=1):
         q_snapshot = attempt.configuration_snapshot.get("questions", {}).get(str(q.pk), {})
-        q_text = q_snapshot.get("question_text", q.question_text)
-        q_marks = q_snapshot.get("marks", q.marks)
-        q_type = q_snapshot.get("question_type", q.question_type)
+        from .question_types import serialize_for_student
 
-        choices = list(q.answer_choices.filter(school=school))
-        choice_snapshots = q_snapshot.get("choices", {})
-        if attempt.configuration_snapshot:
-            choices = [c for c in choices if str(c.pk) in choice_snapshots]
-
-        for c in choices:
-            c_snap = choice_snapshots.get(str(c.pk), {})
-            c.choice_text = c_snap.get("text", c.choice_text)
-
-        choice_positions = {
-            choice_id: c_pos
-            for c_pos, choice_id in enumerate(answer_order.get(str(q.pk), []), start=1)
-        }
-        sorted_choices = sorted(
-            choices,
-            key=lambda c: (
-                choice_positions.get(c.pk, len(choice_positions)),
-                c.order,
-                c.pk,
-            ),
+        question_data = serialize_for_student(
+            q, q_snapshot, answer_order.get(str(q.pk), [])
         )
-
-        # STRICT RULE: is_correct is NEVER sent to client in take view
-        choices_data = [
-            {
-                "id": c.pk,
-                "choice_text": c.choice_text,
-            }
-            for c in sorted_choices
-        ]
-
-        questions_data.append({
-            "id": q.pk,
-            "order": position,
-            "question_type": q_type,
-            "question_text": q_text,
-            "marks": q_marks,
-            "choices": choices_data,
-        })
+        question_data["order"] = position
+        questions_data.append(question_data)
 
     # Existing responses
     existing_responses = {}
@@ -2346,6 +2344,7 @@ def student_quiz_take_api_view(request, attempt_id):
             "selected_choice_id": r.selected_choice_id,
             "selected_choice_ids": selected_ids,
             "text_answer": r.text_answer or "",
+            "answer_data": r.answer_data or {},
         }
 
     # Time remaining
@@ -2444,27 +2443,56 @@ def student_quiz_save_api_view(request, attempt_id):
 
             question_type = question_snapshot.get("question_type", question.question_type)
             choices = []
-
+            submitted_answer_data = data.get("answer_data")
+            if isinstance(submitted_answer_data, str):
+                try:
+                    submitted_answer_data = json.loads(submitted_answer_data)
+                except json.JSONDecodeError:
+                    return JsonResponse(
+                        {"code": "INVALID_ANSWER", "message": "answer_data must be valid JSON."},
+                        status=400,
+                    )
+            if submitted_answer_data is not None and not isinstance(
+                submitted_answer_data, dict
+            ):
+                return JsonResponse(
+                    {"code": "INVALID_ANSWER", "message": "answer_data must be an object."},
+                    status=400,
+                )
             if question_type in ["multiple_choice", "true_false"]:
-                raw_ids = data.get("choice_ids")
+                question_config = question_snapshot.get("config", {})
+                if submitted_answer_data is not None:
+                    try:
+                        from .question_types import validate_answer_data
+
+                        submitted_answer_data = validate_answer_data(
+                            question_type, question_config, submitted_answer_data
+                        )
+                    except (TypeError, ValueError) as error:
+                        return JsonResponse(
+                            {"code": "INVALID_ANSWER", "message": str(error)},
+                            status=400,
+                        )
+                raw_ids = (
+                    submitted_answer_data.get("choice_ids")
+                    if submitted_answer_data is not None
+                    else data.get("choice_ids")
+                )
                 if raw_ids is None and data.get("choice_id") is not None:
                     raw_ids = [data.get("choice_id")]
-                elif raw_ids is None:
+                if raw_ids is None:
                     raw_ids = []
                 elif not isinstance(raw_ids, list):
                     raw_ids = [raw_ids]
-
                 try:
-                    choice_ids = [int(c) for c in raw_ids]
+                    choice_ids = [int(choice_id) for choice_id in raw_ids]
                 except (TypeError, ValueError):
                     return JsonResponse(
                         {"code": "INVALID_CHOICE", "message": "Invalid choice ID."},
                         status=400,
                     )
-
                 allowed_choice_ids = set(question_snapshot.get("choices", {}))
                 choices = list(question.answer_choices.filter(id__in=choice_ids, school=school))
-
                 if (
                     len({c.pk for c in choices}) != len(set(choice_ids))
                     or len(choice_ids) != len(set(choice_ids))
@@ -2479,6 +2507,82 @@ def student_quiz_save_api_view(request, attempt_id):
                         {"code": "INVALID_CHOICE", "message": "Select only one answer."},
                         status=400,
                     )
+                if (
+                    question_type == "multiple_choice"
+                    and len(choice_ids) > 1
+                    and not question_config.get(
+                        "allow_multiple",
+                        sum(
+                            choice.get("is_correct", False)
+                            for choice in question_snapshot.get("choices", {}).values()
+                        ) > 1,
+                    )
+                ):
+                    return JsonResponse(
+                        {"code": "INVALID_CHOICE", "message": "Select only one answer."},
+                        status=400,
+                    )
+                submitted_answer_data = {"choice_ids": choice_ids}
+            else:
+                if submitted_answer_data is None:
+                    if question_type in ["matching", "ordering"]:
+                        submitted_answer_data = {}
+                    else:
+                        submitted_answer_data = {
+                            "text": data.get("text_answer", "")
+                        }
+                question_config = question_snapshot.get("config", {})
+                try:
+                    from .question_types import validate_answer_data
+
+                    submitted_answer_data = validate_answer_data(
+                        question_type, question_config, submitted_answer_data
+                    )
+                except (TypeError, ValueError) as error:
+                    return JsonResponse(
+                        {"code": "INVALID_ANSWER", "message": str(error)},
+                        status=400,
+                    )
+                if question_type == "matching":
+                    matches = submitted_answer_data.get("matches", {})
+                    from .question_types import get_question_type
+
+                    pair_config = get_question_type("matching").pairs(
+                        question, question_snapshot
+                    )
+                    allowed_left_ids = {
+                        f"left:{pair['left_id']}" for pair in pair_config
+                    }
+                    allowed_right_ids = {
+                        f"right:{pair['right_id']}" for pair in pair_config
+                    }
+                    if any(
+                        left_id not in allowed_left_ids
+                        or right_id not in allowed_right_ids
+                        for left_id, right_id in matches.items()
+                    ) or len(set(matches.values())) != len(matches):
+                        return JsonResponse(
+                            {"code": "INVALID_ANSWER", "message": "Invalid matching answer."},
+                            status=400,
+                        )
+                elif question_type == "ordering":
+                    from .question_types import get_question_type
+
+                    ordering_handler = get_question_type("ordering")
+                    allowed_ids = {
+                        f"item:{item_id}"
+                        for item_id in ordering_handler.item_ids(
+                            question, question_snapshot
+                        )
+                    }
+                    submitted_items = submitted_answer_data.get("items", [])
+                    if any(item_id not in allowed_ids for item_id in submitted_items) or (
+                        len(submitted_items) != len(set(submitted_items))
+                    ):
+                        return JsonResponse(
+                            {"code": "INVALID_ANSWER", "message": "Invalid ordering answer."},
+                            status=400,
+                        )
 
             response, _ = QuizResponse.objects.get_or_create(
                 attempt=attempt,
@@ -2491,7 +2595,21 @@ def student_quiz_save_api_view(request, attempt_id):
                 response.selected_choices.set(choices)
             else:
                 text_answer = str(data.get("text_answer", "")).strip()
+                if question_type == "matching" and submitted_answer_data.get("matches"):
+                    text_answer = "; ".join(
+                        f"{left}={right}"
+                        for left, right in submitted_answer_data.get("matches", {}).items()
+                    )
+                elif question_type == "ordering" and submitted_answer_data.get("items"):
+                    text_answer = "; ".join(
+                        submitted_answer_data.get("items", [])
+                    )
+                elif not text_answer and isinstance(
+                    submitted_answer_data.get("text"), str
+                ):
+                    text_answer = submitted_answer_data["text"]
                 response.text_answer = text_answer
+            response.answer_data = submitted_answer_data
 
             response.save()
 
@@ -2648,10 +2766,15 @@ def student_quiz_result_api_view(request, attempt_id):
     questions_data = []
 
     if allow_review:
+        from .question_types import serialize_for_review
+
         for q in review_questions:
             resp = responses_by_q.get(q.pk)
             marks_obtained = getattr(resp, "score", 0) or 0
             is_correct = getattr(resp, "is_correct", False) if resp else False
+            question_snapshot = attempt.configuration_snapshot.get(
+                "questions", {}
+            ).get(str(q.pk), {})
 
             student_ans = ""
             if resp:
@@ -2695,6 +2818,16 @@ def student_quiz_result_api_view(request, attempt_id):
                 "is_correct": is_correct,
                 "student_answer": student_ans,
                 "choices": choices_data,
+                "review_data": (
+                    serialize_for_review(
+                        q, resp, question_snapshot, show_correct_answers
+                    )
+                    if resp
+                    else {
+                        "student_answer": "",
+                        "correct_answer": None,
+                    }
+                ),
             }
             if show_correct_answers:
                 q_item["correct_answer"] = correct_ans
@@ -3789,7 +3922,11 @@ def class_detail_api_view(request, class_id):
 
     subjects = ClassSubject.objects.filter(
         class_name=cls_obj,
-    ).select_related("subject", "subject__department").order_by("subject__subject_name")
+    ).select_related(
+        "subject",
+        "subject__department",
+        "subject__learning_area",
+    ).order_by("subject__subject_name")
 
     return JsonResponse({
         "class": {
@@ -3826,6 +3963,11 @@ def class_detail_api_view(request, class_id):
                 "subject_name": cs.subject.subject_name if cs.subject else None,
                 "subject_code": cs.subject.subject_code if cs.subject else None,
                 "department_name": cs.subject.department.name if cs.subject and cs.subject.department else None,
+                "learning_area_name": (
+                    cs.subject.learning_area.name
+                    if cs.subject and cs.subject.learning_area
+                    else None
+                ),
             }
             for cs in subjects
         ]

@@ -35,6 +35,7 @@ from ..models import (
 from ..utils.tenant_utils import get_object_or_404_with_school, get_write_school
 from ..utils.export_utils import build_tabular_export
 from ..utils.import_utils import read_tabular_upload
+from ..utils.legacy_api import legacy_write_gone
 
 MAX_IMPORT_FILE_SIZE = 5 * 1024 * 1024
 MAX_IMPORT_ROWS = 5000
@@ -119,6 +120,7 @@ def teacher_create_view(request):
     
     POST: Creates teacher and returns JSON response
     """
+    return legacy_write_gone("/api/v1/teachers/")
     if request.user.role not in ["admin", "superadmin"]:
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:teacher_list")
@@ -199,6 +201,7 @@ def teacher_edit_view(request, teacher_id):
     
     POST: Updates teacher and returns JSON response
     """
+    return legacy_write_gone("/api/v1/teachers/")
     if request.user.role not in ["admin", "superadmin"]:
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:teacher_list")
@@ -257,14 +260,14 @@ def teacher_delete_view(request, teacher_id):
     """
     Archive a teacher without deleting assignment history.
     """
-    return _set_teacher_archive_state(request, teacher_id, is_active=False)
+    return legacy_write_gone(f"/api/v1/teachers/{teacher_id}/archive/")
 
 
 @login_required
 @require_http_methods(["POST"])
 def teacher_restore_view(request, teacher_id):
     """Restore a previously archived teacher profile."""
-    return _set_teacher_archive_state(request, teacher_id, is_active=True)
+    return legacy_write_gone(f"/api/v1/teachers/{teacher_id}/restore/")
 
 
 def _set_teacher_archive_state(request, teacher_id, *, is_active):
@@ -305,6 +308,7 @@ def teacher_bulk_delete_view(request):
     
     POST: Updates profile and linked account state for selected teachers
     """
+    return legacy_write_gone("/api/v1/teachers/bulk-archive/")
     if request.user.role not in ["admin", "superadmin"]:
         return JsonResponse({'error': 'Permission denied'}, status=403)
     
@@ -381,45 +385,8 @@ def teacher_bulk_delete_view(request):
 
 
 def _set_teacher_archive_state_for_record(teacher, *, is_active):
-    account = User.objects.select_for_update().filter(
-        teacher_profile=teacher
-    ).first()
-    if is_active and not teacher.is_active:
-        teacher.is_active = True
-        teacher.save(update_fields=["is_active", "updated_at"])
-        if account and teacher.account_active_before_archive is not None:
-            account.is_active = teacher.account_active_before_archive
-            account.save(update_fields=["is_active"])
-        teacher.account_active_before_archive = None
-        teacher.save(update_fields=["account_active_before_archive", "updated_at"])
-        return True
-    elif not is_active and teacher.is_active:
-        teacher.account_active_before_archive = account.is_active if account else None
-        teacher.is_active = False
-        teacher.save(
-            update_fields=["is_active", "account_active_before_archive", "updated_at"]
-        )
-        if teacher.school_id is not None:
-            TeacherSubjectAssignment.objects.filter(
-                teacher=teacher,
-                school_id=teacher.school_id,
-                class_assigned__school_id=teacher.school_id,
-                subject__school_id=teacher.school_id,
-                academic_year__school_id=teacher.school_id,
-                is_active=True,
-            ).update(is_active=False)
-            ClassTeacher.objects.filter(
-                teacher=teacher,
-                school_id=teacher.school_id,
-                class_assigned__school_id=teacher.school_id,
-                academic_year__school_id=teacher.school_id,
-                is_active=True,
-            ).update(is_active=False)
-        if account:
-            account.is_active = False
-            account.save(update_fields=["is_active"])
-        return True
-    return False
+    from ..services.directory_management import set_teacher_archive_state
+    return set_teacher_archive_state(teacher, is_active=is_active)
 
 
 @login_required
@@ -476,6 +443,7 @@ def teacher_bulk_import_template_view(request, format_type):
 @login_required
 @require_http_methods(["POST"])
 def teacher_bulk_import_preview_view(request):
+    return legacy_write_gone("/api/v1/teachers/import/preview/")
     if request.user.role not in ["admin", "superadmin"]:
         return JsonResponse({"success": False, "error": "Permission denied."}, status=403)
     uploaded_file = request.FILES.get("csv_file")
@@ -523,6 +491,7 @@ def teacher_bulk_import_view(request):
     
     POST: Processes CSV file and imports teachers
     """
+    return legacy_write_gone("/api/v1/teachers/import/")
     if request.user.role not in ["admin", "superadmin"]:
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:teacher_list")

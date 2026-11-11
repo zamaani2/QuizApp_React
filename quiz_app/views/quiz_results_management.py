@@ -12,7 +12,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_http_methods
-from django.db.models import F, Q, Count, Avg, Max, Min, OuterRef, Prefetch, Subquery
+from django.db.models import OuterRef, Q, Subquery
 from django.utils import timezone
 from io import BytesIO
 from urllib.parse import urlencode
@@ -45,6 +45,14 @@ def _best_attempts_per_quiz_student(attempts):
     return attempts.filter(pk=Subquery(best_attempt_id))
 
 
+def _dashboard_url(user):
+    return {
+        "superadmin": "/app/superadmin/dashboard",
+        "teacher": "/app/teacher/dashboard",
+        "student": "/app/student/dashboard",
+    }.get(user.role, "/app/admin/dashboard")
+
+
 @login_required
 @require_http_methods(["GET"])
 def quiz_results_list_view(request):
@@ -53,12 +61,12 @@ def quiz_results_list_view(request):
     """
     if request.user.role not in ["teacher", "admin"]:
         messages.error(request, "You don't have permission to access this page.")
-        return redirect("quiz_app:dashboard")
+        return redirect(_dashboard_url(request.user))
     
     if request.user.role == "teacher":
         if not request.user.teacher_profile:
             messages.error(request, "Teacher profile not found. Please contact administrator.")
-            return redirect("quiz_app:dashboard")
+            return redirect(_dashboard_url(request.user))
     return redirect("/app/teacher/results")
 
 
@@ -70,7 +78,7 @@ def quiz_result_detail_view(request, attempt_id):
     """
     if request.user.role not in ["teacher", "admin"]:
         messages.error(request, "You don't have permission to access this page.")
-        return redirect("quiz_app:dashboard")
+        return redirect(_dashboard_url(request.user))
     
     school = request.user.school
     attempts = QuizAttempt.objects.filter(
@@ -84,7 +92,7 @@ def quiz_result_detail_view(request, attempt_id):
         teacher = request.user.teacher_profile
         if not teacher:
             messages.error(request, "Teacher profile not found. Please contact administrator.")
-            return redirect("quiz_app:dashboard")
+            return redirect(_dashboard_url(request.user))
         attempts = attempts.filter(quiz__teacher=teacher)
     attempt = get_object_or_404(attempts)
 
@@ -101,11 +109,11 @@ def quiz_results_export_view(request):
     """
     if request.user.role not in ["teacher", "admin"]:
         messages.error(request, "You don't have permission to perform this action.")
-        return redirect("quiz_app:dashboard")
+        return redirect(_dashboard_url(request.user))
     
     if not OPENPYXL_AVAILABLE:
         messages.error(request, "Excel export requires openpyxl. Please install it.")
-        return redirect("quiz_app:quiz_results_list")
+        return redirect("/app/teacher/results")
 
     school = request.user.school
     quizzes = Quiz.objects.filter(school=school)
@@ -113,7 +121,7 @@ def quiz_results_export_view(request):
         teacher = request.user.teacher_profile
         if not teacher:
             messages.error(request, "Teacher profile not found. Please contact administrator.")
-            return redirect("quiz_app:dashboard")
+            return redirect(_dashboard_url(request.user))
         quizzes = quizzes.filter(teacher=teacher)
     
     # Get filter parameters
@@ -144,7 +152,12 @@ def quiz_results_export_view(request):
         all_attempts = all_attempts.filter(student_id__in=student_ids)
     
     attempts = _best_attempts_per_quiz_student(all_attempts).select_related(
-        "quiz", "quiz__subject", "student", "academic_year", "term"
+        "quiz",
+        "quiz__subject",
+        "student",
+        "academic_year",
+        "term",
+        "term__academic_year",
     ).order_by("quiz__title", "student__full_name", "-submitted_at")
     
     # Create workbook
@@ -223,8 +236,8 @@ def quiz_results_export_view(request):
             time_taken_str,
             attempt.academic_year.name if attempt.academic_year else '',
             (
-                f"{attempt.academic_year.name} - Term {attempt.term.term_number}"
-                if attempt.academic_year and attempt.term
+                f"{attempt.term.academic_year.name} - Term {attempt.term.term_number}"
+                if attempt.term
                 else ""
             ),
         ]
@@ -275,7 +288,7 @@ def quiz_result_print_view(request, attempt_id):
     """
     if request.user.role not in ["teacher", "admin"]:
         messages.error(request, "You don't have permission to access this page.")
-        return redirect("quiz_app:dashboard")
+        return redirect(_dashboard_url(request.user))
     
     school = request.user.school
     attempts_queryset = QuizAttempt.objects.filter(
@@ -289,7 +302,7 @@ def quiz_result_print_view(request, attempt_id):
         teacher = request.user.teacher_profile
         if not teacher:
             messages.error(request, "Teacher profile not found. Please contact administrator.")
-            return redirect("quiz_app:dashboard")
+            return redirect(_dashboard_url(request.user))
         attempts_queryset = attempts_queryset.filter(quiz__teacher=teacher)
     attempt = get_object_or_404(attempts_queryset)
     return redirect(f"/app/teacher/results/{attempt.pk}/print")
@@ -304,7 +317,7 @@ def quiz_results_bulk_print_view(request):
     """
     if request.user.role not in ["teacher", "admin"]:
         messages.error(request, "You don't have permission to access this page.")
-        return redirect("quiz_app:dashboard")
+        return redirect(_dashboard_url(request.user))
     
     school = request.user.school
     
@@ -312,7 +325,7 @@ def quiz_results_bulk_print_view(request):
     if request.user.role == "teacher":
         if not request.user.teacher_profile:
             messages.error(request, "Teacher profile not found. Please contact administrator.")
-            return redirect("quiz_app:dashboard")
+            return redirect(_dashboard_url(request.user))
         teacher = request.user.teacher_profile
         teacher_quizzes = Quiz.objects.filter(teacher=teacher, school=school)
     else:
@@ -376,7 +389,7 @@ def quiz_results_bulk_print_view(request):
     selected_attempt_ids = list(attempts_queryset.values_list('pk', flat=True))
     if not selected_attempt_ids:
         messages.warning(request, "No results found to print.")
-        return redirect("quiz_app:quiz_results_list")
+        return redirect("/app/teacher/results")
 
     query_string = urlencode(
         {'attempt_ids': selected_attempt_ids},

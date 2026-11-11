@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from django.template.loader import get_template
@@ -281,7 +282,7 @@ class AuthenticatedWorkflowTests(TestCase):
         self.assertEqual(edit_response.status_code, 200, edit_response.content)
         self.assertEqual(created_admin.full_name, "Updated Admin")
 
-        logout_response = self.client.get(reverse("quiz_app:superadmin_logout"))
+        logout_response = self.client.post(reverse("quiz_app:superadmin_logout"))
         self.assertEqual(logout_response.status_code, 302)
 
         self.client.force_login(self.admin)
@@ -324,44 +325,42 @@ class AuthenticatedWorkflowTests(TestCase):
         )
 
         create_response = self.client.post(
-            reverse("quiz_app:student_create"),
-            {
+            reverse("quiz_app:api_students"),
+            data=json.dumps({
                 "full_name": "Phase 22 New Student",
                 "date_of_birth": "2011-02-02",
                 "gender": "M",
                 "parent_contact": "5550199",
                 "admission_date": "2026-01-02",
-            },
-            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            }),
+            content_type="application/json",
         )
-        self.assertEqual(create_response.status_code, 200, create_response.content)
-        self.assertTrue(create_response.json()["success"])
+        self.assertEqual(create_response.status_code, 201, create_response.content)
         new_student = Student.objects.get(full_name="Phase 22 New Student")
 
-        edit_response = self.client.post(
-            reverse("quiz_app:student_edit", args=[new_student.pk]),
-            {
+        edit_response = self.client.patch(
+            reverse("quiz_app:api_student_detail", args=[new_student.pk]),
+            data=json.dumps({
                 "full_name": "Phase 22 Edited Student",
                 "date_of_birth": "2011-02-02",
                 "gender": "M",
                 "parent_contact": "5550199",
                 "admission_date": "2026-01-02",
-            },
-            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            }),
+            content_type="application/json",
         )
         new_student.refresh_from_db()
         self.assertEqual(edit_response.status_code, 200, edit_response.content)
         self.assertEqual(new_student.full_name, "Phase 22 Edited Student")
 
         delete_response = self.client.post(
-            reverse("quiz_app:student_delete", args=[new_student.pk]),
-            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            reverse("quiz_app:api_student_archive", args=[new_student.pk]),
         )
         new_student.refresh_from_db()
         self.assertEqual(delete_response.status_code, 200, delete_response.content)
         self.assertFalse(new_student.is_active)
 
-        logout_response = self.client.get(reverse("quiz_app:logout"))
+        logout_response = self.client.post(reverse("quiz_app:logout"))
         self.assertEqual(logout_response.status_code, 302)
 
     def test_teacher_question_and_assignment_workflows(self):
@@ -394,16 +393,17 @@ class AuthenticatedWorkflowTests(TestCase):
         )
 
         create_response = self.client.post(
-            reverse("quiz_app:question_create", args=[self.quiz.pk]),
-            {
+            reverse("quiz_app:api_teacher_questions", args=[self.quiz.pk]),
+            data=json.dumps({
                 "question_type": "short_answer",
                 "question_text": "Name the capital of France.",
-                "marks": "2",
+                "marks": 2,
                 "correct_answer": "Paris",
                 "difficulty": "easy",
-            },
+            }),
+            content_type="application/json",
         )
-        self.assertEqual(create_response.status_code, 302)
+        self.assertEqual(create_response.status_code, 201)
         question = Question.objects.get(question_text="Name the capital of France.")
         edit_page = self.client.get(
             reverse("quiz_app:question_edit", args=[self.quiz.pk, question.pk])
@@ -413,27 +413,31 @@ class AuthenticatedWorkflowTests(TestCase):
             f"/app/teacher/quizzes/{self.quiz.pk}/questions/{question.pk}/edit",
             fetch_redirect_response=False,
         )
-        edit_response = self.client.post(
-            reverse("quiz_app:question_edit", args=[self.quiz.pk, question.pk]),
-            {
+        edit_response = self.client.patch(
+            reverse("quiz_app:api_teacher_question_detail", args=[self.quiz.pk, question.pk]),
+            data=json.dumps({
                 "question_type": "short_answer",
                 "question_text": "Name the capital of France.",
-                "marks": "3",
+                "marks": 3,
                 "correct_answer": "Paris",
                 "difficulty": "easy",
-            },
+            }),
+            content_type="application/json",
         )
         question.refresh_from_db()
-        self.assertEqual(edit_response.status_code, 302)
+        self.assertEqual(edit_response.status_code, 200)
         self.assertEqual(question.marks, 3)
 
         delete_page = self.client.get(
             reverse("quiz_app:question_delete", args=[self.quiz.pk, question.pk])
         )
-        self.assertEqual(delete_page.status_code, 405)
-        ajax_delete = self.client.post(
-            reverse("quiz_app:question_delete", args=[self.quiz.pk, question.pk]),
-            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        self.assertRedirects(
+            delete_page,
+            f"/app/teacher/quizzes/{self.quiz.pk}",
+            fetch_redirect_response=False,
+        )
+        ajax_delete = self.client.delete(
+            reverse("quiz_app:api_teacher_question_detail", args=[self.quiz.pk, question.pk]),
         )
         self.quiz.refresh_from_db()
         self.assertEqual(ajax_delete.status_code, 200, ajax_delete.content)
@@ -441,9 +445,8 @@ class AuthenticatedWorkflowTests(TestCase):
         self.assertFalse(Question.objects.filter(pk=question.pk).exists())
         self.assertEqual(self.quiz.total_marks, self.question.marks)
 
-        duplicate_delete = self.client.post(
-            reverse("quiz_app:question_delete", args=[self.quiz.pk, question.pk]),
-            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        duplicate_delete = self.client.delete(
+            reverse("quiz_app:api_teacher_question_detail", args=[self.quiz.pk, question.pk]),
         )
         self.assertEqual(duplicate_delete.status_code, 404)
 
@@ -479,7 +482,7 @@ class AuthenticatedWorkflowTests(TestCase):
         )
         self.assertEqual(other_admin_page.status_code, 302)
 
-        logout_response = self.client.get(reverse("quiz_app:logout"))
+        logout_response = self.client.post(reverse("quiz_app:logout"))
         self.assertEqual(logout_response.status_code, 302)
 
     def test_student_complete_quiz_attempt_and_duplicate_submit(self):
@@ -571,18 +574,16 @@ class AuthenticatedWorkflowTests(TestCase):
             fetch_redirect_response=False,
         )
 
-        logout_response = self.client.get(reverse("quiz_app:logout"))
+        logout_response = self.client.post(reverse("quiz_app:logout"))
         self.assertEqual(logout_response.status_code, 302)
 
     def test_question_delete_requires_csrf_and_blocks_attempt_history(self):
         csrf_client = Client(enforce_csrf_checks=True)
         csrf_client.force_login(self.teacher_user)
         url = reverse(
-            "quiz_app:question_delete", args=[self.quiz.pk, self.question.pk]
+            "quiz_app:api_teacher_question_detail", args=[self.quiz.pk, self.question.pk]
         )
-        missing_csrf = csrf_client.post(
-            url, HTTP_X_REQUESTED_WITH="XMLHttpRequest"
-        )
+        missing_csrf = csrf_client.delete(url)
         self.assertEqual(missing_csrf.status_code, 403)
         self.assertTrue(Question.objects.filter(pk=self.question.pk).exists())
 
@@ -593,13 +594,13 @@ class AuthenticatedWorkflowTests(TestCase):
             school=self.school,
             attempt_number=1,
         )
-        blocked = self.client.post(url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
-        self.assertEqual(blocked.status_code, 400)
-        self.assertFalse(blocked.json()["success"])
-        self.assertIn("attempts", blocked.json()["error"].lower())
+        blocked = self.client.delete(url)
+        self.assertEqual(blocked.status_code, 409)
+        self.assertEqual(blocked.json()["code"], "QUESTION_HAS_ATTEMPTS")
+        self.assertIn("attempts", blocked.json()["message"].lower())
         self.assertTrue(Question.objects.filter(pk=self.question.pk).exists())
 
         student_client = Client()
         student_client.force_login(self.student_user)
-        denied = student_client.post(url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        denied = student_client.delete(url)
         self.assertEqual(denied.status_code, 403)

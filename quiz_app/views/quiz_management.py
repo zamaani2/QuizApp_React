@@ -1,576 +1,61 @@
-"""
-Quiz management views for teachers.
-
-This module provides views for managing quizzes including:
-- Listing quizzes
-- Creating new quizzes
-- Editing existing quizzes
-- Deleting quizzes
-- Viewing quiz details
-- Updating quiz status
-- Getting terms for academic year (AJAX)
-"""
-from django.shortcuts import redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
+"""GET redirects for retired quiz pages. Writes live on /api/v1/teacher/quizzes/."""
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, redirect
 from django.views.decorators.http import require_http_methods
-from django.db.models import Q, Max
-from django.db import transaction
-from django.core.exceptions import ValidationError
-from django.utils import timezone
-from datetime import datetime
-import json
 
-from ..models import (
-    Quiz,
-    QuizCategory,
-    Question,
-    Teacher,
-    Subject,
-    Class,
-    AcademicYear,
-    Term,
-    SchoolInformation,
-    ClassSubject,
-    TeacherSubjectAssignment,
-)
+from ..models import AcademicYear, Quiz, Term
+from ..utils.legacy_api import legacy_write_gone
 
 
-def _quiz_form_error(request, error, quiz_id=None):
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return JsonResponse({'success': False, 'error': error}, status=400)
-
-    messages.error(request, error)
-    if quiz_id is not None:
-        return redirect("quiz_app:quiz_edit", quiz_id=quiz_id)
-    return redirect("quiz_app:quiz_create")
+def _staff_or_dashboard(request):
+    if request.user.role not in ["teacher", "admin"]:
+        messages.error(request, "You don't have permission to access this page.")
+        return redirect("quiz_app:dashboard")
+    if request.user.role == "teacher" and not request.user.teacher_profile:
+        messages.error(request, "Teacher profile not found. Please contact administrator.")
+        return redirect("quiz_app:dashboard")
+    return None
 
 
 @login_required
 @require_http_methods(["GET"])
 def quiz_list_view(request):
-    """
-    Redirect the legacy quiz catalog to the React quiz catalog.
-    - Teachers see only their own quizzes
-    - Admins see all quizzes in their school
-    """
-    if request.user.role not in ["teacher", "admin"]:
-        messages.error(request, "You don't have permission to access this page.")
-        return redirect("quiz_app:dashboard")
-    
-    if request.user.role == "teacher":
-        if not request.user.teacher_profile:
-            messages.error(request, "Teacher profile not found. Please contact administrator.")
-            return redirect("quiz_app:dashboard")
+    denied = _staff_or_dashboard(request)
+    if denied:
+        return denied
     return redirect("/app/teacher/quizzes")
 
 
 @login_required
 @require_http_methods(["POST"])
 def quiz_create_view(request):
-    """
-    Create a new quiz.
-    
-    POST: Creates quiz and returns JSON response or redirects
-    
-    - Teachers can create quizzes for subjects they teach
-    - Admins can create quizzes for any subject and assign to any teacher
-    """
-    if request.user.role not in ["teacher", "admin"]:
-        messages.error(request, "You don't have permission to perform this action.")
-        return redirect("quiz_app:quiz_list")
-    
-    school = request.user.school
-    
-    # For teachers, get their profile and filter subjects
-    # For admins, show all subjects and allow teacher selection
-    if request.user.role == "teacher":
-        if not request.user.teacher_profile:
-            messages.error(request, "Teacher profile not found. Please contact administrator.")
-            return redirect("quiz_app:quiz_list")
-        teacher = request.user.teacher_profile
-    else:
-        teacher = None
-    
-    # POST - Create quiz
-    try:
-        with transaction.atomic():
-            # Get form data
-            title = request.POST.get('title', '').strip()
-            description = request.POST.get('description', '').strip() or None
-            instructions = request.POST.get('instructions', '').strip() or None
-            subject_id = request.POST.get('subject')
-            category_id = request.POST.get('category') or None
-            difficulty = request.POST.get('difficulty', 'medium')
-            status = request.POST.get('status', 'draft')
-            time_limit = request.POST.get('time_limit', '0')
-            passing_marks = request.POST.get('passing_marks', '0')
-            max_attempts = request.POST.get('max_attempts', '1')
-            
-            # Availability dates
-            available_from = request.POST.get('available_from', '').strip()
-            available_until = request.POST.get('available_until', '').strip()
-            
-            # Parse datetime
-            available_from_dt = None
-            if available_from:
-                try:
-                    # Parse datetime-local format (YYYY-MM-DDTHH:mm)
-                    available_from_dt = datetime.strptime(available_from, '%Y-%m-%dT%H:%M')
-                    available_from_dt = timezone.make_aware(available_from_dt)
-                except:
-                    pass
-            
-            available_until_dt = None
-            if available_until:
-                try:
-                    available_until_dt = datetime.strptime(available_until, '%Y-%m-%dT%H:%M')
-                    available_until_dt = timezone.make_aware(available_until_dt)
-                except:
-                    pass
-            
-            # Quiz settings
-            randomize_questions = request.POST.get('randomize_questions') == 'on'
-            randomize_answers = request.POST.get('randomize_answers') == 'on'
-            show_results_immediately = request.POST.get('show_results_immediately') == 'on'
-            show_correct_answers = request.POST.get('show_correct_answers') == 'on'
-            allow_review = request.POST.get('allow_review') == 'on'
-            require_password = request.POST.get('require_password') == 'on'
-            quiz_password = request.POST.get('quiz_password', '').strip() or None
-            
-            # Validation
-            if not title:
-                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return JsonResponse({
-                        'success': False,
-                        'error': 'Quiz title is required.'
-                    }, status=400)
-                messages.error(request, 'Quiz title is required.')
-                return redirect("quiz_app:quiz_create")
-            
-            if not subject_id:
-                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return JsonResponse({
-                        'success': False,
-                        'error': 'Subject is required.'
-                    }, status=400)
-                messages.error(request, 'Subject is required.')
-                return redirect("quiz_app:quiz_create")
-            
-            # Validate subject
-            subject = get_object_or_404(Subject, pk=subject_id, school=school)
-            
-            # For admins, allow selecting a teacher
-            if request.user.role == "admin":
-                teacher_id = request.POST.get('teacher')
-                if not teacher_id:
-                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                        return JsonResponse({
-                            'success': False,
-                            'error': 'Teacher is required.'
-                        }, status=400)
-                    messages.error(request, 'Teacher is required.')
-                    return redirect("quiz_app:quiz_create")
-                from ..models import Teacher
-                teacher = get_object_or_404(Teacher, pk=teacher_id, school=school)
-            else:
-                # For teachers, validate they are assigned to teach this subject
-                teacher_assignment_exists = TeacherSubjectAssignment.objects.filter(
-                    teacher=teacher,
-                    subject=subject,
-                    school=school,
-                    is_active=True
-                ).exists()
-                
-                if not teacher_assignment_exists:
-                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                        return JsonResponse({
-                            'success': False,
-                            'error': f'You are not assigned to teach "{subject.subject_name}". Please contact administrator to assign you to this subject.'
-                        }, status=400)
-                    messages.error(request, f'You are not assigned to teach "{subject.subject_name}". Please contact administrator to assign you to this subject.')
-                    return redirect("quiz_app:quiz_create")
-            category = None
-            if category_id:
-                category = get_object_or_404(QuizCategory, pk=category_id, school=school)
-
-            class_ids = request.POST.getlist('classes')
-            classes = Class.objects.filter(pk__in=class_ids, school=school)
-            if len(set(class_ids)) != classes.count():
-                return _quiz_form_error(
-                    request, 'One or more selected classes are invalid.'
-                )
-
-            academic_year = None
-            term = None
-            academic_year_id = request.POST.get('academic_year')
-            term_id = request.POST.get('term')
-            if term_id and not academic_year_id:
-                return _quiz_form_error(
-                    request, 'Select an academic year for the selected term.'
-                )
-            if academic_year_id:
-                academic_year = AcademicYear.objects.filter(
-                    pk=academic_year_id, school=school
-                ).first()
-                if not academic_year:
-                    return _quiz_form_error(request, 'Invalid academic year selected.')
-                if term_id:
-                    term = Term.objects.filter(
-                        pk=term_id,
-                        academic_year=academic_year,
-                        school=school,
-                    ).first()
-                    if not term:
-                        return _quiz_form_error(request, 'Invalid term selected.')
-            
-            # Generate unique quiz_id
-            quiz_id = f"QZ-{school.id:03d}{Quiz.objects.filter(school=school).count() + 1:05d}"
-            
-            # Create quiz
-            quiz = Quiz(
-                quiz_id=quiz_id,
-                title=title,
-                description=description,
-                instructions=instructions,
-                subject=subject,
-                category=category,
-                teacher=teacher,
-                academic_year=academic_year,
-                term=term,
-                difficulty=difficulty,
-                status=status,
-                time_limit=int(time_limit) if time_limit else 0,
-                passing_marks=int(passing_marks) if passing_marks else 0,
-                max_attempts=int(max_attempts) if max_attempts else 1,
-                available_from=available_from_dt,
-                available_until=available_until_dt,
-                randomize_questions=randomize_questions,
-                randomize_answers=randomize_answers,
-                show_results_immediately=show_results_immediately,
-                show_correct_answers=show_correct_answers,
-                allow_review=allow_review,
-                require_password=require_password,
-                quiz_password=quiz_password,
-                school=school,
-            )
-            quiz.save()
-            
-            # Assign classes
-            if class_ids:
-                quiz.classes.set(classes)
-            
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({
-                    'success': True,
-                    'message': 'Quiz created successfully.',
-                    'quiz_id': quiz.id,
-                    'redirect': f'/quizzes/{quiz.id}/detail/',
-                })
-            
-            messages.success(request, 'Quiz created successfully.')
-            return redirect("quiz_app:quiz_detail", quiz_id=quiz.id)
-    
-    except Exception as e:
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({
-                'success': False,
-                'error': f'Error creating quiz: {str(e)}'
-            }, status=500)
-        messages.error(request, f'Error creating quiz: {str(e)}')
-        return redirect("quiz_app:quiz_create")
+    return legacy_write_gone("/api/v1/teacher/quizzes/")
 
 
 @login_required
 @require_http_methods(["POST"])
 def quiz_edit_view(request, quiz_id):
-    """
-    Edit an existing quiz.
-    
-    POST: Updates quiz and returns JSON response or redirects
-    
-    - Teachers can edit their own quizzes
-    - Admins can edit any quiz in their school
-    """
-    if request.user.role not in ["teacher", "admin"]:
-        messages.error(request, "You don't have permission to perform this action.")
-        return redirect("quiz_app:quiz_list")
-    
-    school = request.user.school
-    
-    # Teachers can only edit their own quizzes, admins can edit any quiz in their school
-    if request.user.role == "teacher":
-        if not request.user.teacher_profile:
-            messages.error(request, "Teacher profile not found. Please contact administrator.")
-            return redirect("quiz_app:quiz_list")
-        teacher = request.user.teacher_profile
-        quiz = get_object_or_404(Quiz, pk=quiz_id, teacher=teacher, school=school)
-    else:
-        # Admin can edit any quiz in their school
-        quiz = get_object_or_404(Quiz, pk=quiz_id, school=school)
-        teacher = quiz.teacher  # Use the quiz's teacher for context
-    # POST - Update quiz
-    try:
-        with transaction.atomic():
-            # Get form data
-            quiz.title = request.POST.get('title', '').strip()
-            quiz.description = request.POST.get('description', '').strip() or None
-            quiz.instructions = request.POST.get('instructions', '').strip() or None
-            subject_id = request.POST.get('subject')
-            category_id = request.POST.get('category') or None
-            
-            # Validate and update subject if changed
-            if subject_id:
-                subject = get_object_or_404(Subject, pk=subject_id, school=school)
-                
-                # For teachers, validate they are assigned to teach this subject (only validate if changing)
-                if request.user.role == "teacher":
-                    if subject_id != str(quiz.subject.id):
-                        teacher_assignment_exists = TeacherSubjectAssignment.objects.filter(
-                            teacher=teacher,
-                            subject=subject,
-                            school=school,
-                            is_active=True
-                        ).exists()
-                        
-                        if not teacher_assignment_exists:
-                            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                                return JsonResponse({
-                                    'success': False,
-                                    'error': f'You are not assigned to teach "{subject.subject_name}". Please contact administrator to assign you to this subject.'
-                                }, status=400)
-                            messages.error(request, f'You are not assigned to teach "{subject.subject_name}". Please contact administrator to assign you to this subject.')
-                            return redirect("quiz_app:quiz_edit", quiz_id=quiz_id)
-                
-                # Update subject
-                quiz.subject = subject
-            
-            # For admins, allow changing the teacher
-            if request.user.role == "admin":
-                teacher_id = request.POST.get('teacher')
-                if teacher_id:
-                    from ..models import Teacher
-                    new_teacher = get_object_or_404(Teacher, pk=teacher_id, school=school)
-                    quiz.teacher = new_teacher
-                    teacher = new_teacher  # Update teacher variable for context
-            
-            quiz.difficulty = request.POST.get('difficulty', 'medium')
-            quiz.status = request.POST.get('status', 'draft')
-            quiz.time_limit = int(request.POST.get('time_limit', '0')) if request.POST.get('time_limit') else 0
-            quiz.passing_marks = int(request.POST.get('passing_marks', '0')) if request.POST.get('passing_marks') else 0
-            quiz.max_attempts = int(request.POST.get('max_attempts', '1')) if request.POST.get('max_attempts') else 1
-            
-            # Availability dates
-            available_from = request.POST.get('available_from', '').strip()
-            available_until = request.POST.get('available_until', '').strip()
-            
-            # Parse datetime
-            if available_from:
-                try:
-                    available_from_dt = datetime.strptime(available_from, '%Y-%m-%dT%H:%M')
-                    quiz.available_from = timezone.make_aware(available_from_dt)
-                except:
-                    pass
-            else:
-                quiz.available_from = None
-            
-            if available_until:
-                try:
-                    available_until_dt = datetime.strptime(available_until, '%Y-%m-%dT%H:%M')
-                    quiz.available_until = timezone.make_aware(available_until_dt)
-                except:
-                    pass
-            else:
-                quiz.available_until = None
-            
-            # Quiz settings
-            quiz.randomize_questions = request.POST.get('randomize_questions') == 'on'
-            quiz.randomize_answers = request.POST.get('randomize_answers') == 'on'
-            quiz.show_results_immediately = request.POST.get('show_results_immediately') == 'on'
-            quiz.show_correct_answers = request.POST.get('show_correct_answers') == 'on'
-            quiz.allow_review = request.POST.get('allow_review') == 'on'
-            quiz.require_password = request.POST.get('require_password') == 'on'
-            quiz.quiz_password = request.POST.get('quiz_password', '').strip() or None
-            
-            # Validation
-            if not quiz.title:
-                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return JsonResponse({
-                        'success': False,
-                        'error': 'Quiz title is required.'
-                    }, status=400)
-                messages.error(request, 'Quiz title is required.')
-                return redirect("quiz_app:quiz_edit", quiz_id=quiz_id)
-            
-            if subject_id:
-                subject = get_object_or_404(Subject, pk=subject_id, school=school)
-                quiz.subject = subject
-            
-            if category_id:
-                category = get_object_or_404(QuizCategory, pk=category_id, school=school)
-                quiz.category = category
-            else:
-                quiz.category = None
-
-            class_ids = request.POST.getlist('classes')
-            classes = Class.objects.filter(pk__in=class_ids, school=school)
-            if len(set(class_ids)) != classes.count():
-                return _quiz_form_error(
-                    request,
-                    'One or more selected classes are invalid.',
-                    quiz_id=quiz_id,
-                )
-
-            academic_year = None
-            term = None
-            academic_year_id = request.POST.get('academic_year')
-            term_id = request.POST.get('term')
-            if term_id and not academic_year_id:
-                return _quiz_form_error(
-                    request,
-                    'Select an academic year for the selected term.',
-                    quiz_id=quiz_id,
-                )
-            if academic_year_id:
-                academic_year = AcademicYear.objects.filter(
-                    pk=academic_year_id, school=school
-                ).first()
-                if not academic_year:
-                    return _quiz_form_error(
-                        request, 'Invalid academic year selected.', quiz_id=quiz_id
-                    )
-                if term_id:
-                    term = Term.objects.filter(
-                        pk=term_id,
-                        academic_year=academic_year,
-                        school=school,
-                    ).first()
-                    if not term:
-                        return _quiz_form_error(
-                            request, 'Invalid term selected.', quiz_id=quiz_id
-                        )
-
-            quiz.academic_year = academic_year
-            quiz.term = term
-            
-            quiz.save()
-            
-            # Assign classes
-            if class_ids:
-                quiz.classes.set(classes)
-            else:
-                quiz.classes.clear()
-            
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({
-                    'success': True,
-                    'message': 'Quiz updated successfully.',
-                    'quiz_id': quiz.id,
-                })
-            
-            messages.success(request, 'Quiz updated successfully.')
-            return redirect("quiz_app:quiz_detail", quiz_id=quiz_id)
-    
-    except Exception as e:
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({
-                'success': False,
-                'error': f'Error updating quiz: {str(e)}'
-            }, status=500)
-        messages.error(request, f'Error updating quiz: {str(e)}')
-        return redirect("quiz_app:quiz_edit", quiz_id=quiz_id)
+    return legacy_write_gone(f"/api/v1/teacher/quizzes/{quiz_id}/")
 
 
 @login_required
 @require_http_methods(["POST"])
 def quiz_delete_view(request, quiz_id):
-    """
-    Delete a quiz.
-    
-    - Teachers can delete their own quizzes
-    - Admins can delete any quiz in their school
-    """
-    if request.user.role not in ["teacher", "admin"]:
-        return JsonResponse({'error': 'Permission denied'}, status=403)
-    
-    school = request.user.school
-    
-    # Teachers can only delete their own quizzes, admins can delete any quiz in their school
-    if request.user.role == "teacher":
-        if not request.user.teacher_profile:
-            return JsonResponse({'error': 'Teacher profile not found'}, status=404)
-        teacher = request.user.teacher_profile
-        quiz = get_object_or_404(Quiz, pk=quiz_id, teacher=teacher, school=school)
-    else:
-        # Admin can delete any quiz in their school
-        quiz = get_object_or_404(Quiz, pk=quiz_id, school=school)
-    
-    try:
-        with transaction.atomic():
-            quiz = Quiz.objects.select_for_update().get(
-                pk=quiz.pk,
-                school=school,
-            )
-            if quiz.attempts.exists():
-                error = (
-                    'This quiz has recorded attempts and cannot be deleted '
-                    'without erasing assessment history.'
-                )
-                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return JsonResponse({
-                        'success': False,
-                        'error': error,
-                    }, status=400)
-                messages.error(request, error)
-                return redirect("quiz_app:quiz_list")
-
-            quiz_title = quiz.title
-            quiz.delete()
-        
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({
-                'success': True,
-                'message': f'Quiz "{quiz_title}" deleted successfully.'
-            })
-        
-        messages.success(request, f'Quiz "{quiz_title}" deleted successfully.')
-        return redirect("quiz_app:quiz_list")
-    
-    except Exception as e:
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({
-                'success': False,
-                'error': f'Error deleting quiz: {str(e)}'
-            }, status=500)
-        messages.error(request, f'Error deleting quiz: {str(e)}')
-        return redirect("quiz_app:quiz_list")
+    return legacy_write_gone(f"/api/v1/teacher/quizzes/{quiz_id}/")
 
 
 @login_required
 @require_http_methods(["GET"])
 def quiz_detail_view(request, quiz_id):
-    """
-    Display detailed information about a quiz.
-    
-    - Teachers can view their own quizzes
-    - Admins can view any quiz in their school
-    """
-    if request.user.role not in ["teacher", "admin"]:
-        messages.error(request, "You don't have permission to access this page.")
-        return redirect("quiz_app:dashboard")
-    
+    denied = _staff_or_dashboard(request)
+    if denied:
+        return denied
     school = request.user.school
-    
-    # Teachers can only view their own quizzes, admins can view any quiz in their school
     if request.user.role == "teacher":
-        if not request.user.teacher_profile:
-            messages.error(request, "Teacher profile not found. Please contact administrator.")
-            return redirect("quiz_app:dashboard")
-        teacher = request.user.teacher_profile
-        quiz = get_object_or_404(Quiz, pk=quiz_id, teacher=teacher, school=school)
+        quiz = get_object_or_404(Quiz, pk=quiz_id, teacher=request.user.teacher_profile, school=school)
     else:
-        # Admin can view any quiz in their school
         quiz = get_object_or_404(Quiz, pk=quiz_id, school=school)
     return redirect(f"/app/teacher/quizzes/{quiz.pk}")
 
@@ -578,83 +63,24 @@ def quiz_detail_view(request, quiz_id):
 @login_required
 @require_http_methods(["POST"])
 def quiz_update_status_view(request, quiz_id):
-    """
-    Update quiz status (draft, published, archived).
-    
-    - Teachers can update their own quizzes
-    - Admins can update any quiz in their school
-    """
-    if request.user.role not in ["teacher", "admin"]:
-        return JsonResponse({'error': 'Permission denied'}, status=403)
-    
-    school = request.user.school
-    
-    # Teachers can only update their own quizzes, admins can update any quiz in their school
-    if request.user.role == "teacher":
-        if not request.user.teacher_profile:
-            return JsonResponse({'error': 'Teacher profile not found'}, status=404)
-        teacher = request.user.teacher_profile
-        quiz = get_object_or_404(Quiz, pk=quiz_id, teacher=teacher, school=school)
-    else:
-        # Admin can update any quiz in their school
-        quiz = get_object_or_404(Quiz, pk=quiz_id, school=school)
-    
-    try:
-        new_status = request.POST.get('status')
-        if new_status not in ['draft', 'published', 'archived']:
-            return JsonResponse({
-                'success': False,
-                'error': 'Invalid status.'
-            }, status=400)
-        
-        quiz.status = new_status
-        quiz.save()
-        
-        return JsonResponse({
-            'success': True,
-            'message': f'Quiz status updated to {new_status}.',
-            'status': new_status,
-        })
-    
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': f'Error updating status: {str(e)}'
-        }, status=500)
+    return legacy_write_gone(f"/api/v1/teacher/quizzes/{quiz_id}/status/")
 
 
 @login_required
 @require_http_methods(["GET"])
 def get_terms_for_academic_year_view(request):
-    """
-    AJAX endpoint to get terms for a selected academic year.
-    """
-    if request.user.role != "teacher":
-        return JsonResponse({'error': 'Permission denied'}, status=403)
-    
+    if request.user.role not in ["teacher", "admin"]:
+        return JsonResponse({"error": "Permission denied"}, status=403)
     school = request.user.school
-    academic_year_id = request.GET.get('academic_year_id')
-    
+    academic_year_id = request.GET.get("academic_year_id")
     if not academic_year_id:
-        return JsonResponse({'error': 'Academic year ID is required.'}, status=400)
-    
-    academic_year = get_object_or_404(
-        AcademicYear,
-        pk=academic_year_id,
-        school=school,
-    )
-    terms = Term.objects.filter(
-        academic_year=academic_year,
-        school=school,
-    ).order_by('term_number')
-
-    terms_data = [{
-        'id': term.id,
-        'name': term.get_term_number_display(),
-        'term_number': term.term_number,
-    } for term in terms]
-
+        return JsonResponse({"error": "Academic year ID is required."}, status=400)
+    academic_year = get_object_or_404(AcademicYear, pk=academic_year_id, school=school)
+    terms = Term.objects.filter(academic_year=academic_year, school=school).order_by("term_number")
     return JsonResponse({
-        'success': True,
-        'terms': terms_data,
+        "success": True,
+        "terms": [
+            {"id": term.id, "name": term.get_term_number_display(), "term_number": term.term_number}
+            for term in terms
+        ],
     })

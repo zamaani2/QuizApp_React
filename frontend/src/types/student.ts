@@ -132,16 +132,25 @@ export interface StudentTakeChoice {
 export interface StudentTakeQuestion {
   id: number;
   order: number;
-  question_type: 'multiple_choice' | 'true_false' | 'short_answer' | 'fill_blank' | 'essay';
+  question_type: string;
   question_text: string;
   marks: number;
   choices: StudentTakeChoice[];
+  config?: Record<string, unknown>;
+}
+
+export interface StudentAnswerData {
+  choice_ids?: number[];
+  text?: string | string[];
+  matches?: Record<string, string>;
+  items?: string[];
 }
 
 export interface StudentQuestionResponse {
   selected_choice_id: number | null;
   selected_choice_ids: number[];
   text_answer: string;
+  answer_data?: StudentAnswerData;
 }
 
 export interface StudentQuizTakeData {
@@ -200,6 +209,11 @@ export interface StudentReviewQuestion {
   is_correct: boolean;
   student_answer: string;
   correct_answer?: string;
+  review_data?: {
+    student_answer: unknown;
+    correct_answer: unknown;
+    correct_choice_ids?: number[];
+  };
   explanation?: string;
   choices: StudentReviewChoice[];
 }

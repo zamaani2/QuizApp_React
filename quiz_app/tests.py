@@ -507,11 +507,6 @@ class SchoolScopedManagementEndpointTests(TestCase):
         skipped_names = {
             "logout",
             "superadmin_logout",
-            "extend_session",
-            "get_class_subjects",
-            "get_terms_for_academic_year",
-            "student_bulk_import_preview_headers",
-            "quiz_response_grade",
         }
         route_values = {
             "admin_id": self.admin_a.pk,
@@ -545,10 +540,6 @@ class SchoolScopedManagementEndpointTests(TestCase):
                 or any(part in name for part in ("_export", "_template"))
             ):
                 continue
-            if name in {"student_bulk_import", "teacher_bulk_import"}:
-                # Import preview is a backend utility rather than a retired page.
-                continue
-
             def replace_parameter(match):
                 converter, parameter = match.groups()
                 if parameter == "uidb64":
@@ -568,9 +559,9 @@ class SchoolScopedManagementEndpointTests(TestCase):
 
         self.assertTrue(routes, "Expected to audit legacy page URL patterns.")
         for user in users:
-            self.client.force_login(user)
             for name, path in routes:
                 with self.subTest(role=user.role, route=name, path=path):
+                    self.client.force_login(user)
                     response = self.client.get(path)
                     self.assertEqual(response.status_code, 302)
                     self.assertTrue(
@@ -603,8 +594,8 @@ class SchoolScopedManagementEndpointTests(TestCase):
         self.assertEqual(response.status_code, 405)
         self.assertTrue(self.client.session.get("_auth_user_id"))
 
-    def test_terms_endpoint_scopes_academic_year_and_returns_display_label(self):
-        term_a = Term.objects.create(
+    def test_legacy_terms_endpoint_redirects_to_react(self):
+        Term.objects.create(
             academic_year=self.academic_year_a,
             term_number=1,
             start_date="2026-01-01",
@@ -617,17 +608,11 @@ class SchoolScopedManagementEndpointTests(TestCase):
             {"academic_year_id": self.academic_year_a.pk},
         )
 
-        self.assertEqual(response.status_code, 200, response.content)
-        self.assertEqual(
-            response.json()["terms"],
-            [{"id": term_a.pk, "name": "First Term", "term_number": 1}],
+        self.assertRedirects(
+            response,
+            "/app/teacher/quizzes",
+            fetch_redirect_response=False,
         )
-
-        foreign_year_response = self.client.get(
-            reverse("quiz_app:get_terms_for_academic_year"),
-            {"academic_year_id": self.academic_year_b.pk},
-        )
-        self.assertEqual(foreign_year_response.status_code, 404)
 
     def test_enrollment_endpoints_reject_records_with_foreign_relationships(self):
         invalid_enrollment = StudentClass.objects.create(
@@ -1107,10 +1092,9 @@ class SchoolScopedManagementEndpointTests(TestCase):
             reverse("quiz_app:quiz_attempt_grading", args=[self.attempt_a.pk])
         )
         foreign_grade_response = self.client.post(
-            reverse("quiz_app:quiz_response_grade", args=[foreign_response.pk]),
+            reverse("quiz_app:api_teacher_response_grade", args=[foreign_response.pk]),
             data=json.dumps({"marks_awarded": 1}),
             content_type="application/json",
-            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
 
         self.assertEqual(result_response.status_code, 302)
@@ -1122,7 +1106,7 @@ class SchoolScopedManagementEndpointTests(TestCase):
 
     def test_admin_can_bulk_grade_in_school_essay_response(self):
         response = self.client.post(
-            reverse("quiz_app:quiz_attempt_bulk_grade", args=[self.attempt_a.pk]),
+            reverse("quiz_app:api_teacher_grading_bulk", args=[self.attempt_a.pk]),
             data=json.dumps({
                 "grades": [{
                     "response_id": self.response_a.pk,
@@ -1131,7 +1115,6 @@ class SchoolScopedManagementEndpointTests(TestCase):
                 }],
             }),
             content_type="application/json",
-            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
 
         self.assertEqual(response.status_code, 200, response.content)
@@ -1185,6 +1168,7 @@ class SchoolScopedManagementEndpointTests(TestCase):
             values
             for values in worksheet.iter_rows(min_row=2, values_only=True)
             if values[1] == self.student_a.admission_number
+            and values[2] == self.quiz_a.title
         )
         self.assertEqual(row[2], self.quiz_a.title)
         self.assertEqual(row[14], self.academic_year_a.name)
@@ -1338,24 +1322,29 @@ class SchoolScopedManagementEndpointTests(TestCase):
             full_name="Superadmin Class Subjects",
         )
         self.client.force_login(superadmin)
-        url = reverse("quiz_app:get_class_subjects")
+        query = {"class_id": self.class_a.pk}
+        legacy_url = reverse("quiz_app:get_class_subjects")
 
+        legacy_response = self.client.get(
+            legacy_url,
+            {**query, "academic_year_id": self.academic_year_a.pk},
+        )
         foreign_year_response = self.client.get(
-            url,
-            {
-                "class_id": self.class_a.pk,
-                "academic_year_id": self.academic_year_b.pk,
-            },
+            reverse("quiz_app:api_teacher_assignment_class_subjects"),
+            {**query, "academic_year_id": self.academic_year_b.pk},
         )
         same_school_response = self.client.get(
-            url,
-            {
-                "class_id": self.class_a.pk,
-                "academic_year_id": self.academic_year_a.pk,
-            },
+            reverse("quiz_app:api_teacher_assignment_class_subjects"),
+            {**query, "academic_year_id": self.academic_year_a.pk},
         )
 
-        self.assertEqual(foreign_year_response.status_code, 400)
+        self.assertRedirects(
+            legacy_response,
+            "/app/admin/assignments",
+            fetch_redirect_response=False,
+        )
+        self.assertEqual(foreign_year_response.status_code, 200)
+        self.assertEqual(foreign_year_response.json()["subjects"], [])
         self.assertEqual(same_school_response.status_code, 200)
         self.assertEqual(same_school_response.json()["subjects"], [])
 
@@ -1604,12 +1593,11 @@ class SchoolScopedManagementEndpointTests(TestCase):
         self.assertEqual(self.attempt_a.academic_year, self.academic_year_a)
 
     def test_quiz_with_attempts_cannot_be_deleted(self):
-        response = self.client.post(
-            reverse("quiz_app:quiz_delete", args=[self.quiz_a.pk]),
-            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        response = self.client.delete(
+            reverse("quiz_app:api_teacher_quiz_detail", args=[self.quiz_a.pk]),
         )
 
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 409)
         self.assertTrue(Quiz.objects.filter(pk=self.quiz_a.pk).exists())
         self.assertTrue(QuizAttempt.objects.filter(pk=self.attempt_a.pk).exists())
         self.assertTrue(QuizResponse.objects.filter(pk=self.response_a.pk).exists())
@@ -1804,18 +1792,21 @@ class SchoolScopedManagementEndpointTests(TestCase):
 
     def test_school_admin_can_open_in_school_response_for_grading(self):
         response = self.client.get(
-            reverse("quiz_app:quiz_response_grade", args=[self.response_a.pk]),
-            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            reverse(
+                "quiz_app:api_teacher_grading_detail",
+                args=[self.attempt_a.pk],
+            ),
         )
 
-        self.assertEqual(response.status_code, 302)
-        self.assertTrue(response.url.startswith("/app/"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["responses"][0]["id"], self.response_a.pk)
 
     def test_school_admin_cannot_grade_response_from_another_school(self):
-        foreign_response = self.attempt_b.responses.first()
         response = self.client.get(
-            reverse("quiz_app:quiz_response_grade", args=[foreign_response.pk]),
-            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            reverse(
+                "quiz_app:api_teacher_grading_detail",
+                args=[self.attempt_b.pk],
+            ),
         )
 
         self.assertEqual(response.status_code, 404)
@@ -1844,10 +1835,9 @@ class SchoolScopedManagementEndpointTests(TestCase):
     def test_school_admin_can_duplicate_question_without_teacher_profile(self):
         response = self.client.post(
             reverse(
-                "quiz_app:question_duplicate",
+                "quiz_app:api_teacher_question_duplicate",
                 args=[self.quiz_a.pk, self.question_a.pk],
             ),
-            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
 
         self.assertEqual(response.status_code, 200)
@@ -1862,15 +1852,14 @@ class SchoolScopedManagementEndpointTests(TestCase):
         )
 
     def test_school_admin_cannot_delete_question_with_attempt_history(self):
-        response = self.client.post(
+        response = self.client.delete(
             reverse(
-                "quiz_app:question_delete",
+                "quiz_app:api_teacher_question_detail",
                 args=[self.quiz_a.pk, self.question_a.pk],
             ),
-            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
 
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 409)
         self.assertTrue(Question.objects.filter(pk=self.question_a.pk).exists())
         self.assertTrue(
             QuizResponse.objects.filter(
@@ -1882,13 +1871,12 @@ class SchoolScopedManagementEndpointTests(TestCase):
 
     def test_bulk_delete_preserves_questions_with_attempt_history(self):
         response = self.client.post(
-            reverse("quiz_app:question_bulk_delete", args=[self.quiz_a.pk]),
+            reverse("quiz_app:api_teacher_question_bulk_delete", args=[self.quiz_a.pk]),
             data=json.dumps({"question_ids": [self.question_a.pk]}),
             content_type="application/json",
-            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
 
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 409)
         self.assertTrue(Question.objects.filter(pk=self.question_a.pk).exists())
         self.assertTrue(
             QuizResponse.objects.filter(
@@ -1944,24 +1932,22 @@ class SchoolScopedManagementEndpointTests(TestCase):
         )
         answer.selected_choices.set([selected_choice])
 
-        response = self.client.post(
+        response = self.client.patch(
             reverse(
-                "quiz_app:question_edit",
+                "quiz_app:api_teacher_question_detail",
                 args=[self.quiz_a.pk, question.pk],
             ),
-            {
+            data=json.dumps({
                 "question_text": "Edited question",
-                "marks": "1",
-                "order": "1",
-                "negative_marks": "0",
-                "choice_id": [retained_choice.pk],
-                "choice_text": ["Retained choice"],
-                "is_correct": ["0"],
-            },
-            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+                "marks": 1,
+                "order": 1,
+                "negative_marks": 0,
+                "choices": [{"id": retained_choice.pk, "text": "Retained choice", "is_correct": True}],
+            }),
+            content_type="application/json",
         )
 
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 409)
         question.refresh_from_db()
         self.assertEqual(question.question_text, "Select an answer")
         self.assertTrue(
@@ -1973,24 +1959,22 @@ class SchoolScopedManagementEndpointTests(TestCase):
     def test_teacher_cannot_delete_question_from_another_teachers_quiz(self):
         self.client.force_login(self.teacher_user_a)
 
-        response = self.client.post(
+        response = self.client.delete(
             reverse(
-                "quiz_app:question_delete",
+                "quiz_app:api_teacher_question_detail",
                 args=[self.quiz_a_other_teacher.pk, self.attempt_a_other_teacher.responses.first().question.pk],
             ),
-            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
 
         self.assertEqual(response.status_code, 404)
 
     def test_bulk_delete_rejects_mixed_quiz_question_ids_without_deleting(self):
         response = self.client.post(
-            reverse("quiz_app:question_bulk_delete", args=[self.quiz_a.pk]),
+            reverse("quiz_app:api_teacher_question_bulk_delete", args=[self.quiz_a.pk]),
             data=json.dumps(
                 {"question_ids": [self.question_a.pk, self.question_b.pk]}
             ),
             content_type="application/json",
-            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
 
         self.assertEqual(response.status_code, 400)
@@ -2000,27 +1984,25 @@ class SchoolScopedManagementEndpointTests(TestCase):
 
     def test_question_reorder_rejects_question_from_another_quiz(self):
         response = self.client.post(
-            reverse("quiz_app:question_reorder", args=[self.quiz_a.pk]),
+            reverse("quiz_app:api_teacher_question_reorder", args=[self.quiz_a.pk]),
             data=json.dumps(
                 {
-                    "question_orders": [
+                    "question_ids": [
                         {"question_id": self.question_b.pk, "order": 1}
                     ]
                 }
             ),
             content_type="application/json",
-            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
 
         self.assertEqual(response.status_code, 400)
 
     def test_school_admin_can_unassign_class_without_teacher_profile(self):
-        response = self.client.post(
+        response = self.client.delete(
             reverse(
-                "quiz_app:quiz_assignment_delete",
+                "quiz_app:api_teacher_quiz_assignment_delete",
                 args=[self.quiz_a.pk, self.class_a.pk],
             ),
-            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
 
         self.assertEqual(response.status_code, 200)
@@ -2035,14 +2017,14 @@ class SchoolScopedManagementEndpointTests(TestCase):
         self.client.force_login(self.teacher_user_a)
 
         foreign_quiz_response = self.client.post(
-            reverse("quiz_app:quiz_assignment_create", args=[self.quiz_a_other_teacher.pk]),
-            {"classes": [extra_class.pk]},
-            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            reverse("quiz_app:api_teacher_quiz_assignments", args=[self.quiz_a_other_teacher.pk]),
+            data=json.dumps({"class_ids": [extra_class.pk]}),
+            content_type="application/json",
         )
         unauthorized_class_response = self.client.post(
-            reverse("quiz_app:quiz_assignment_create", args=[self.quiz_a.pk]),
-            {"classes": [extra_class.pk]},
-            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            reverse("quiz_app:api_teacher_quiz_assignments", args=[self.quiz_a.pk]),
+            data=json.dumps({"class_ids": [extra_class.pk]}),
+            content_type="application/json",
         )
 
         self.assertEqual(foreign_quiz_response.status_code, 404)
@@ -2051,14 +2033,14 @@ class SchoolScopedManagementEndpointTests(TestCase):
 
         self.client.force_login(self.admin_a)
         valid_response = self.client.post(
-            reverse("quiz_app:quiz_assignment_create", args=[self.quiz_a_other_teacher.pk]),
-            {"classes": [extra_class.pk]},
-            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            reverse("quiz_app:api_teacher_quiz_assignments", args=[self.quiz_a_other_teacher.pk]),
+            data=json.dumps({"class_ids": [extra_class.pk]}),
+            content_type="application/json",
         )
         mixed_school_response = self.client.post(
-            reverse("quiz_app:quiz_assignment_create", args=[self.quiz_a_other_teacher.pk]),
-            {"classes": [extra_class.pk, self.class_b.pk]},
-            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            reverse("quiz_app:api_teacher_quiz_assignments", args=[self.quiz_a_other_teacher.pk]),
+            data=json.dumps({"class_ids": [extra_class.pk, self.class_b.pk]}),
+            content_type="application/json",
         )
 
         self.assertEqual(valid_response.status_code, 200, valid_response.content)
@@ -2072,10 +2054,9 @@ class SchoolScopedManagementEndpointTests(TestCase):
 
     def test_school_admin_bulk_unassign_rejects_unassigned_class_ids(self):
         response = self.client.post(
-            reverse("quiz_app:quiz_assignment_bulk_delete", args=[self.quiz_a.pk]),
+            reverse("quiz_app:api_teacher_quiz_assignment_bulk_delete", args=[self.quiz_a.pk]),
             data=json.dumps({"class_ids": [self.class_a.pk, self.class_b.pk]}),
             content_type="application/json",
-            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
 
         self.assertEqual(response.status_code, 400)
@@ -2164,7 +2145,7 @@ class SchoolScopedManagementEndpointTests(TestCase):
                     "quiz_app:student_quiz_take",
                     args=[self.attempt_a.pk],
                 ),
-                f"/app/student/attempts/{self.attempt_a.pk}/result",
+                f"/app/student/take/{self.attempt_a.pk}",
             ),
             (
                 reverse(
@@ -2226,14 +2207,18 @@ class SchoolScopedManagementEndpointTests(TestCase):
         self.assertEqual(grading_response.json()["responses"][0]["id"], self.response_a.pk)
         self.assertEqual(result_response.json()["responses"][0]["id"], self.response_a.pk)
 
-    def test_teacher_cannot_redirect_to_another_teachers_quiz(self):
+    def test_teacher_legacy_quiz_route_redirects_to_react(self):
         self.client.force_login(self.teacher_user_a)
 
         response = self.client.get(
             reverse("quiz_app:quiz_detail", args=[self.quiz_a_other_teacher.pk])
         )
 
-        self.assertEqual(response.status_code, 404)
+        self.assertRedirects(
+            response,
+            f"/app/teacher/quizzes/{self.quiz_a_other_teacher.pk}",
+            fetch_redirect_response=False,
+        )
 
     def test_legacy_dashboard_urls_redirect_to_react_routes(self):
         admin_response = self.client.get(reverse("quiz_app:admin_dashboard"))
@@ -3075,9 +3060,9 @@ class SchoolScopedManagementEndpointTests(TestCase):
 
     def test_question_import_rejects_row_limit_overflow_without_writes(self):
         question_count = self.quiz_a.questions.count()
-        with patch("quiz_app.views.question_management.MAX_IMPORT_ROWS", 1):
+        with patch("quiz_app.services.assessment_management.MAX_IMPORT_ROWS", 1):
             response = self.client.post(
-                reverse("quiz_app:question_bulk_import", args=[self.quiz_a.pk]),
+                reverse("quiz_app:api_teacher_question_import", args=[self.quiz_a.pk]),
                 {
                     "import_file": SimpleUploadedFile(
                         "questions.csv",
@@ -3087,7 +3072,6 @@ class SchoolScopedManagementEndpointTests(TestCase):
                         content_type="text/csv",
                     )
                 },
-                HTTP_X_REQUESTED_WITH="XMLHttpRequest",
             )
 
         self.assertEqual(response.status_code, 200)
@@ -3480,7 +3464,7 @@ class SchoolScopedManagementEndpointTests(TestCase):
         self.client.force_login(self.student_user_a)
 
         response = self.client.get(
-            reverse("quiz_app:student_quiz_take", args=[self.attempt_b.pk])
+            reverse("quiz_app:api_student_quiz_take", args=[self.attempt_b.pk])
         )
 
         self.assertEqual(response.status_code, 404)
@@ -4066,6 +4050,289 @@ class SchoolScopedManagementEndpointTests(TestCase):
             6,
         )
 
+    def test_registered_question_types_cover_correct_wrong_partial_blank_and_penalty(self):
+        from .question_types import get_question_type
+
+        grading_cases = [
+            (
+                "multiple_choice",
+                {"allow_multiple": True},
+                {"1": {"text": "A", "is_correct": True}, "2": {"text": "B", "is_correct": True}, "3": {"text": "C", "is_correct": False}},
+                {"choice_ids": [1, 2]},
+                {"choice_ids": [3]},
+                {"choice_ids": [1]},
+                {},
+                (4, -1, 2, 0),
+            ),
+            (
+                "true_false",
+                {},
+                {"1": {"text": "True", "is_correct": True}, "2": {"text": "False", "is_correct": False}},
+                {"choice_ids": [1]},
+                {"choice_ids": [2]},
+                {"choice_ids": []},
+                {},
+                (4, -1, 0, 0),
+            ),
+            (
+                "short_answer",
+                {"accepted_answers": ["accepted"]},
+                {},
+                {"text": "ACCEPTED"},
+                {"text": "wrong"},
+                {"text": "wrong"},
+                {"text": ""},
+                (4, -1, -1, 0),
+            ),
+            (
+                "fill_blank",
+                {"blanks": [["first"], ["second"]]},
+                {},
+                {"text": ["first", "second"]},
+                {"text": ["wrong", "wrong"]},
+                {"text": ["first", "wrong"]},
+                {"text": ["", ""]},
+                (4, -1, 1.5, 0),
+            ),
+            (
+                "matching",
+                {"pairs": [{"id": "p1", "left_id": "left-one", "right_id": "right-one", "left": "one", "right": "1"}, {"id": "p2", "left_id": "left-two", "right_id": "right-two", "left": "two", "right": "2"}]},
+                {},
+                {"matches": {"left:left-one": "right:right-one", "left:left-two": "right:right-two"}},
+                {"matches": {"left:left-one": "right:right-two", "left:left-two": "right:right-one"}},
+                {"matches": {"left:left-one": "right:right-one"}},
+                {"matches": {}},
+                (4, -1, 1.5, 0),
+            ),
+            (
+                "ordering",
+                {"items": ["first", "second", "third"], "item_ids": ["a", "b", "c"]},
+                {},
+                {"items": ["item:a", "item:b", "item:c"]},
+                {"items": ["item:b", "item:c", "item:a"]},
+                {"items": ["item:a", "item:c", "item:b"]},
+                {"items": []},
+                (4, -1, 2 / 3, 0),
+            ),
+            (
+                "essay",
+                {"rubric": "Explain clearly"},
+                {},
+                {"text": "A detailed response"},
+                {"text": "A different response"},
+                {"text": ""},
+                {"text": ""},
+                (0, 0, 0, 0),
+            ),
+        ]
+
+        for question_type, config, choices, correct, wrong, partial, blank, expected in grading_cases:
+            question = SimpleNamespace(
+                question_type=question_type,
+                marks=4,
+                negative_marks=1,
+                partial_credit=True,
+                correct_answer_text="",
+            )
+            snapshot = {
+                "question_type": question_type,
+                "marks": 4,
+                "negative_marks": 1,
+                "partial_credit": True,
+                "config": config,
+                "choices": choices,
+                "correct_answer_text": "",
+            }
+            results = []
+            for answer_data in (correct, wrong, partial, blank):
+                response = SimpleNamespace(
+                    pk=None,
+                    selected_choice_id=None,
+                    answer_data=answer_data,
+                    text_answer="",
+                    is_graded=False,
+                    is_correct=False,
+                    marks_awarded=0,
+                    _selected_choice_ids_for_score=set(),
+                )
+                result = get_question_type(question_type).grade(
+                    question, response, snapshot
+                )
+                results.append(result.marks_awarded)
+            for actual, expected_score in zip(results, expected):
+                self.assertAlmostEqual(
+                    actual,
+                    expected_score,
+                    msg=f"{question_type} scoring matrix: {results}",
+                )
+
+    def test_question_configuration_snapshot_is_immutable_and_student_safe(self):
+        quiz = self.quiz_a
+        question = Question.objects.create(
+            quiz=quiz,
+            question_text="Choose all correct options",
+            question_type="multiple_choice",
+            correct_answer_text="private-answer-key",
+            config={"allow_multiple": True},
+            school=self.school_a,
+        )
+        correct_choice = AnswerChoice.objects.create(
+            question=question,
+            choice_text="Correct option",
+            is_correct=True,
+            school=self.school_a,
+        )
+        AnswerChoice.objects.create(
+            question=question,
+            choice_text="Incorrect option",
+            school=self.school_a,
+        )
+        attempt = QuizAttempt.objects.create(
+            quiz=quiz,
+            student=self.student_a,
+            school=self.school_a,
+            attempt_number=30,
+        )
+        attempt.capture_configuration()
+        original_config = attempt.configuration_snapshot["questions"][
+            str(question.pk)
+        ]["config"]
+
+        question.config = {"allow_multiple": False}
+        question.save(update_fields=["config"])
+        attempt.capture_configuration()
+        attempt.refresh_from_db()
+        self.assertEqual(original_config, {"allow_multiple": True})
+        self.assertEqual(
+            attempt.configuration_snapshot["questions"][str(question.pk)]["config"],
+            {"allow_multiple": True},
+        )
+
+        response = QuizResponse.objects.create(
+            attempt=attempt,
+            question=question,
+            selected_choice=correct_choice,
+            school=self.school_a,
+        )
+        self.assertTrue(response.is_correct)
+
+        self.client.force_login(self.student_user_a)
+        take_response = self.client.get(
+            reverse("quiz_app:api_student_quiz_take", args=[attempt.pk])
+        )
+        self.assertEqual(take_response.status_code, 200)
+        payload = take_response.json()
+        serialized = next(
+            item for item in payload["questions"] if item["id"] == question.pk
+        )
+        self.assertEqual(serialized["config"], {"allow_multiple": True})
+        self.assertNotIn("is_correct", serialized)
+        self.assertNotIn("private-answer-key", take_response.content.decode())
+
+    def test_structured_matching_and_ordering_answers_save_and_grade_end_to_end(self):
+        quiz = Quiz.objects.create(
+            title="Structured question quiz",
+            slug="structured-question-quiz",
+            subject=self.subject_a,
+            teacher=self.teacher_a,
+            school=self.school_a,
+            total_marks=5,
+            randomize_answers=False,
+        )
+        matching = Question.objects.create(
+            quiz=quiz,
+            question_text="Match terms",
+            question_type="matching",
+            marks=2,
+            config={
+                "pairs": [
+                    {"id": "p1", "left": "one", "right": "1"},
+                    {"id": "p2", "left": "two", "right": "2"},
+                ]
+            },
+            school=self.school_a,
+        )
+        ordering = Question.objects.create(
+            quiz=quiz,
+            question_text="Order items",
+            question_type="ordering",
+            marks=3,
+            config={"items": ["first", "second", "third"]},
+            school=self.school_a,
+        )
+        attempt = QuizAttempt.objects.create(
+            quiz=quiz,
+            student=self.student_a,
+            school=self.school_a,
+            attempt_number=1,
+        )
+        attempt.capture_configuration()
+        self.client.force_login(self.student_user_a)
+
+        take_response = self.client.get(
+            reverse("quiz_app:api_student_quiz_take", args=[attempt.pk])
+        )
+        self.assertEqual(take_response.status_code, 200)
+        matching_data = next(
+            item for item in take_response.json()["questions"] if item["id"] == matching.pk
+        )
+        ordering_data = next(
+            item for item in take_response.json()["questions"] if item["id"] == ordering.pk
+        )
+        left_ids = {pair["id"] for pair in matching_data["config"]["pairs"]}
+        right_ids = {option["id"] for option in matching_data["config"]["right_options"]}
+        self.assertTrue(left_ids.isdisjoint(right_ids))
+        self.assertNotIn("right_id", matching_data["config"]["pairs"][0])
+        self.assertTrue(all(
+            len(pair_id.split(":", 1)[1]) == 32
+            for pair_id in left_ids | right_ids
+        ))
+        self.assertNotIn("item_ids", ordering_data["config"])
+        self.assertTrue(all(
+            len(item["id"].removeprefix("item:")) == 32
+            for item in ordering_data["config"]["items"]
+        ))
+
+        matching_save = self.client.post(
+            reverse("quiz_app:api_student_quiz_save", args=[attempt.pk]),
+            data=json.dumps({
+                "question_id": matching.pk,
+                "answer_data": {
+                    "matches": {
+                        f"left:{pair['left_id']}": f"right:{pair['right_id']}"
+                        for pair in attempt.configuration_snapshot["questions"][
+                            str(matching.pk)
+                        ]["config"]["pairs"]
+                    }
+                },
+            }),
+            content_type="application/json",
+        )
+        ordering_save = self.client.post(
+            reverse("quiz_app:api_student_quiz_save", args=[attempt.pk]),
+            data=json.dumps({
+                "question_id": ordering.pk,
+                "answer_data": {
+                    "items": [
+                        f"item:{item_id}"
+                        for item_id in attempt.configuration_snapshot["questions"][
+                            str(ordering.pk)
+                        ]["config"]["item_ids"]
+                    ]
+                },
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(matching_save.status_code, 200, matching_save.content)
+        self.assertEqual(ordering_save.status_code, 200, ordering_save.content)
+        attempt.submit()
+        matching_response = attempt.responses.get(question=matching)
+        ordering_response = attempt.responses.get(question=ordering)
+        self.assertTrue(matching_response.is_correct)
+        self.assertTrue(ordering_response.is_correct)
+        self.assertEqual(attempt.score, 5)
+
     def test_manual_grade_records_audit_history(self):
         attempt = QuizAttempt.objects.create(
             quiz=self.quiz_a,
@@ -4114,16 +4381,25 @@ class SchoolScopedManagementEndpointTests(TestCase):
             started_at=timezone.now() - timedelta(minutes=2)
         )
 
-        response = self.client.get(
+        legacy_response = self.client.get(
             reverse("quiz_app:student_quiz_resume", args=[self.quiz_a.pk])
+        )
+        attempt.refresh_from_db()
+        self.assertFalse(attempt.is_submitted)
+        self.assertRedirects(
+            legacy_response,
+            f"/app/student/quizzes/{self.quiz_a.pk}",
+            fetch_redirect_response=False,
+        )
+
+        response = self.client.get(
+            reverse("quiz_app:api_student_quiz_take", args=[attempt.pk])
         )
 
         attempt.refresh_from_db()
         self.assertTrue(attempt.is_submitted)
-        self.assertEqual(
-            response.url,
-            f"/app/student/attempts/{attempt.pk}/result",
-        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["time_expired"])
 
     def test_quiz_submission_is_idempotent(self):
         self.client.force_login(self.student_user_a)
@@ -4297,36 +4573,36 @@ class SchoolScopedManagementEndpointTests(TestCase):
 
     def test_quiz_creation_rejects_foreign_school_class(self):
         response = self.client.post(
-            reverse("quiz_app:quiz_create"),
-            {
+            reverse("quiz_app:api_teacher_quizzes"),
+            data=json.dumps({
                 "title": "Invalid A Quiz",
                 "subject": self.subject_a.pk,
                 "teacher": self.teacher_a.pk,
                 "academic_year": self.academic_year_a.pk,
                 "classes": [self.class_b.pk],
-            },
-            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            }),
+            content_type="application/json",
         )
 
         self.assertEqual(response.status_code, 400)
-        self.assertFalse(response.json()["success"])
+        self.assertEqual(response.json()["code"], "VALIDATION_ERROR")
         self.assertEqual(
-            response.json()["error"],
+            response.json()["fields"]["classes"][0],
             "One or more selected classes are invalid.",
         )
         self.assertFalse(Quiz.objects.filter(title="Invalid A Quiz").exists())
 
     def test_quiz_edit_rejects_foreign_school_class_without_changing_quiz(self):
-        response = self.client.post(
-            reverse("quiz_app:quiz_edit", args=[self.quiz_a.pk]),
-            {
+        response = self.client.patch(
+            reverse("quiz_app:api_teacher_quiz_detail", args=[self.quiz_a.pk]),
+            data=json.dumps({
                 "title": "Changed Title",
                 "subject": self.subject_a.pk,
                 "teacher": self.teacher_a.pk,
                 "academic_year": self.academic_year_a.pk,
                 "classes": [self.class_b.pk],
-            },
-            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            }),
+            content_type="application/json",
         )
 
         self.quiz_a.refresh_from_db()
@@ -4336,19 +4612,19 @@ class SchoolScopedManagementEndpointTests(TestCase):
 
     def test_quiz_creation_rejects_foreign_school_term(self):
         response = self.client.post(
-            reverse("quiz_app:quiz_create"),
-            {
+            reverse("quiz_app:api_teacher_quizzes"),
+            data=json.dumps({
                 "title": "Invalid Term Quiz",
                 "subject": self.subject_a.pk,
                 "teacher": self.teacher_a.pk,
                 "academic_year": self.academic_year_a.pk,
                 "term": self.term_b.pk,
-            },
-            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            }),
+            content_type="application/json",
         )
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["error"], "Invalid term selected.")
+        self.assertEqual(response.json()["fields"]["term"][0], "Invalid term selected.")
         self.assertFalse(Quiz.objects.filter(title="Invalid Term Quiz").exists())
 
     def test_school_a_cannot_open_school_b_subject_edit_endpoint(self):

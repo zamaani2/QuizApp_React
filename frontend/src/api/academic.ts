@@ -7,6 +7,8 @@ import type {
   ClassItem,
   ClassInput,
   ClassDetailData,
+  EnrolledStudent,
+  AssignedSubject,
   SubjectItem,
   SubjectInput,
   SchoolSettingsData,
@@ -40,6 +42,26 @@ export interface SchoolStructureResponse {
   departments?: SchoolStructureItem[];
   schools?: SchoolStructureSchool[];
   teachers?: SchoolStructureTeacher[];
+}
+
+interface ClassDetailApiResponse {
+  class: Omit<ClassItem, 'form_name' | 'learning_area_name' | 'student_count' | 'subject_count'> & {
+    form_name: string | null;
+    learning_area_name: string | null;
+    students_count: number;
+    subjects_count: number;
+  };
+  enrolled_students: Array<Omit<EnrolledStudent, 'is_active'> & {
+    student_id: number;
+    date_assigned: string | null;
+  }>;
+  assigned_subjects: Array<Omit<AssignedSubject, 'learning_area_name'> & {
+    class_subject_id: number;
+    subject_name: string | null;
+    subject_code: string | null;
+    department_name: string | null;
+    learning_area_name?: string | null;
+  }>;
 }
 
 export const academicApi = {
@@ -129,7 +151,29 @@ export const academicApi = {
   },
 
   getClassDetail: async (id: number): Promise<ClassDetailData> => {
-    return apiClient<ClassDetailData>(`/api/v1/classes/${id}/`);
+    const response = await apiClient<ClassDetailApiResponse>(`/api/v1/classes/${id}/`);
+    const { students_count, subjects_count, ...classData } = response.class;
+
+    return {
+      class: {
+        ...classData,
+        form_name: classData.form_name ?? '',
+        learning_area_name: classData.learning_area_name ?? '',
+        student_count: students_count,
+        subject_count: subjects_count,
+      },
+      students: response.enrolled_students.map((student) => ({
+        ...student,
+        is_active: true,
+      })),
+      subjects: response.assigned_subjects.map((subject) => ({
+        ...subject,
+        subject_name: subject.subject_name ?? '',
+        subject_code: subject.subject_code ?? '',
+        department_name: subject.department_name ?? '',
+        learning_area_name: subject.learning_area_name ?? '',
+      })),
+    };
   },
 
   createClass: async (data: ClassInput): Promise<{ success: boolean; message: string; class: ClassItem }> => {

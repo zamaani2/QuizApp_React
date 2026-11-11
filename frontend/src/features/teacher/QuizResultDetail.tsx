@@ -5,6 +5,7 @@ import type { TeacherResultDetail } from '../../types';
 import { Alert } from '../../components/common/Alert';
 import { Button } from '../../components/common/Button';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
+import { getQuestionType } from '../../question-types';
 
 export const QuizResultDetail: React.FC = () => {
   const { attemptId } = useParams<{ attemptId: string }>();
@@ -57,11 +58,21 @@ export const QuizResultDetail: React.FC = () => {
               </div>
               <div className="core-card__body">
                 <p className="core-type--weight-semibold">{response.question_text}</p>
-                <p><strong>Student answer: </strong>
-                  {response.selected_choices.length
-                    ? response.selected_choices.join(', ')
-                    : response.selected_choice || response.text_answer || 'No answer'}
-                </p>
+                {response.question_type === 'multiple_choice' || response.question_type === 'true_false' ? (
+                  <p><strong>Student answer: </strong>
+                    {response.selected_choices.length
+                      ? response.selected_choices.join(', ')
+                      : response.selected_choice || 'No answer'}
+                  </p>
+                ) : (() => {
+                  const Review = getQuestionType(response.question_type).Review;
+                  return (
+                    <Review
+                      answer={response.review_data?.student_answer ?? response.text_answer}
+                      correctAnswer={response.review_data?.correct_answer ?? response.answer_key}
+                    />
+                  );
+                })()}
                 {response.correct_choices.length > 0 && <p><strong>Correct choice(s): </strong>{response.correct_choices.join(', ')}</p>}
                 {response.answer_key && <p><strong>Answer key: </strong>{response.answer_key}</p>}
                 <p className={`core-space--margin-bottom-1 ${response.is_correct ? 'core-text--success' : 'core-text--danger'}`}>{response.is_correct ? 'Correct' : 'Incorrect'}</p>

@@ -236,21 +236,23 @@ describe('Academic Structure & School Setup Feature Components', () => {
                 academic_year_name: '2026/2027',
                 maximum_students: 45,
                 is_active: true,
-                student_count: 2,
-                subject_count: 1,
+                students_count: 2,
+                subjects_count: 1,
               },
-              students: [
+              enrolled_students: [
                 {
                   id: 101,
+                  student_id: 101,
                   admission_number: 'ADM-101',
                   full_name: 'Jane Doe',
                   gender: 'F',
-                  is_active: true,
+                  date_assigned: '2026-01-10',
                 },
               ],
-              subjects: [
+              assigned_subjects: [
                 {
                   id: 1,
+                  class_subject_id: 1,
                   subject_id: 10,
                   subject_code: 'BIO',
                   subject_name: 'Biology',

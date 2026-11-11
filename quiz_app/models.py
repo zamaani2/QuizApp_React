@@ -13,6 +13,7 @@ from django.db.models.signals import post_save, pre_delete, post_delete
 from django.dispatch import receiver
 from django.contrib.auth.hashers import make_password
 import secrets
+import copy
 from django.apps import apps
 
 from django.core.exceptions import ValidationError
@@ -2064,6 +2065,11 @@ class Question(models.Model):
         null=True,
         help_text="Correct answer for short answer/fill in blank questions (can be multiple answers separated by semicolons)",
     )
+    config = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Question-type configuration, including answer keys and type-specific settings",
+    )
 
     # Scoring
     marks = models.PositiveIntegerField(
@@ -2167,6 +2173,15 @@ class Question(models.Model):
 
     def clean(self):
         errors = {}
+        if self.config:
+            try:
+                from .question_types import get_question_type
+
+                self.config = get_question_type(self.question_type).validate_config(
+                    self.config
+                )
+            except (TypeError, ValueError) as error:
+                errors["config"] = ValidationError(str(error))
 
         # Validate answer choices for multiple choice and true/false
         if self.question_type in ["multiple_choice", "true_false"]:
@@ -2518,6 +2533,8 @@ class QuizAttempt(models.Model):
 
     def capture_configuration(self):
         """Persist the quiz and question configuration used by this attempt."""
+        if self.configuration_snapshot:
+            return
         questions = list(
             self.quiz.questions.filter(school_id=self.school_id)
             .prefetch_related("answer_choices")
@@ -2530,15 +2547,87 @@ class QuizAttempt(models.Model):
         answer_order = {}
         question_snapshots = {}
         for question in questions:
+            config = copy.deepcopy(question.config) if isinstance(question.config, dict) else {}
             choices = list(
                 question.answer_choices.filter(school_id=self.school_id)
                 .order_by("order", "pk")
             )
-            if question.question_type == "ordering" and question.correct_answer_text:
+            from .question_types import get_question_type
+
+            question_type_handler = get_question_type(question.question_type)
+            if (
+                question.question_type == "matching"
+                and not config.get("pairs")
+                and question.correct_answer_text
+            ):
+                config = question_type_handler.validate_config({
+                    "pairs": [
+                        {
+                            "id": f"legacy-{index}",
+                            "left": left.strip(),
+                            "right": right.strip(),
+                        }
+                        for index, pair in enumerate(
+                            question.correct_answer_text.split(";")
+                        )
+                        if "=" in pair
+                        for left, right in [pair.split("=", 1)]
+                    ]
+                })
+            elif (
+                question.question_type == "ordering"
+                and not config.get("items")
+                and question.correct_answer_text
+            ):
+                config = question_type_handler.validate_config({
+                    "items": [
+                        item.strip()
+                        for item in question.correct_answer_text.split(";")
+                        if item.strip()
+                    ]
+                })
+            elif (
+                question.question_type in ["short_answer", "fill_blank"]
+                and not config.get("accepted_answers")
+                and not config.get("blanks")
+                and question.correct_answer_text
+            ):
+                config = question_type_handler.validate_config({
+                    "accepted_answers": [
+                        answer.strip()
+                        for answer in question.correct_answer_text.split(";")
+                        if answer.strip()
+                    ]
+                })
+            elif question.question_type == "true_false" and not config:
+                config = {"allow_multiple": False}
+            elif question.question_type == "multiple_choice" and (
+                "allow_multiple" not in config
+            ):
+                config = {
+                    "allow_multiple": sum(choice.is_correct for choice in choices) > 1
+                }
+            if config:
+                config = question_type_handler.validate_config(config)
+
+            if question.question_type == "ordering" and config.get("items"):
                 choice_ids = [
-                    item.strip()
-                    for item in question.correct_answer_text.split(";")
-                    if item.strip()
+                    f"item:{item_id}" for item_id in config["item_ids"]
+                ]
+                secrets.SystemRandom().shuffle(choice_ids)
+            elif question.question_type == "matching" and config.get("pairs"):
+                choice_ids = [
+                    f"right:{pair['right_id']}" for pair in config["pairs"]
+                ]
+                secrets.SystemRandom().shuffle(choice_ids)
+            elif question.question_type == "ordering" and question.correct_answer_text:
+                choice_ids = [
+                    f"item:{index}"
+                    for index, item in enumerate(
+                        item.strip()
+                        for item in question.correct_answer_text.split(";")
+                        if item.strip()
+                    )
                 ]
                 secrets.SystemRandom().shuffle(choice_ids)
             else:
@@ -2555,6 +2644,7 @@ class QuizAttempt(models.Model):
                 "negative_marks": question.negative_marks,
                 "partial_credit": question.partial_credit,
                 "correct_answer_text": question.correct_answer_text or "",
+                "config": config,
                 "explanation": question.explanation or "",
                 "choices": {
                     str(choice.pk): {
@@ -2654,6 +2744,7 @@ class QuizAttempt(models.Model):
             for response in responses
             if response.selected_choice_id
             or response.text_answer
+            or response.answer_data
             or response._selected_choice_ids_for_score
         }
         self.unanswered = max(0, self.total_questions - len(answered_question_ids))
@@ -2791,6 +2882,11 @@ class QuizResponse(models.Model):
     text_answer = models.TextField(
         blank=True, null=True, help_text="Text answer (for short answer/essay questions)"
     )
+    answer_data = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Structured answer for any registered question type",
+    )
     is_correct = models.BooleanField(
         default=False, help_text="Whether the response is correct"
     )
@@ -2884,122 +2980,9 @@ class QuizResponse(models.Model):
         question_type = snapshot.get("question_type", self.question.question_type)
         if question_type == "essay" and self.is_graded:
             return
-        marks = snapshot.get("marks", self.question.marks)
-        negative_marks = snapshot.get(
-            "negative_marks", self.question.negative_marks
-        )
+        from .question_types import grade_response
 
-        if question_type in ["multiple_choice", "true_false"]:
-            choice_snapshot = snapshot.get("choices", {})
-            selected_ids = (
-                self._selected_choice_ids_for_score
-                if hasattr(self, "_selected_choice_ids_for_score")
-                else (
-                    {choice.pk for choice in self.selected_choices.all()}
-                    if self.pk
-                    else set()
-                )
-            )
-            if self.selected_choice_id:
-                selected_ids = set(selected_ids) | {self.selected_choice_id}
-            else:
-                selected_ids = set(selected_ids)
-
-            correct_ids = {
-                int(choice_id)
-                for choice_id, choice in choice_snapshot.items()
-                if choice.get("is_correct")
-            }
-            if not snapshot:
-                choices = list(self.question.answer_choices.all())
-                correct_ids = {choice.pk for choice in choices if choice.is_correct}
-                choice_snapshot = {
-                    str(choice.pk): {
-                        "partial_credit": choice.partial_credit,
-                    }
-                    for choice in choices
-                }
-
-            if not selected_ids:
-                self.is_correct = False
-                self.marks_awarded = 0
-                return
-
-            self.is_correct = selected_ids == correct_ids
-            if self.is_correct:
-                self.marks_awarded = marks
-            elif snapshot.get("partial_credit", self.question.partial_credit):
-                correct_selected = len(selected_ids & correct_ids)
-                incorrect_selected = len(selected_ids - correct_ids)
-                incorrect_total = max(0, len(choice_snapshot) - len(correct_ids))
-                earned = (
-                    marks * correct_selected / len(correct_ids)
-                    if correct_ids
-                    else 0
-                )
-                penalty = (
-                    negative_marks * incorrect_selected / incorrect_total
-                    if incorrect_total
-                    else 0
-                )
-                self.marks_awarded = min(marks, max(-negative_marks, earned - penalty))
-            else:
-                self.marks_awarded = -negative_marks
-
-        elif question_type in ["short_answer", "fill_blank", "matching", "ordering"]:
-            correct_answer_text = snapshot.get(
-                "correct_answer_text", self.question.correct_answer_text or ""
-            )
-            correct_answers = [
-                answer.strip().casefold()
-                for answer in correct_answer_text.split(";")
-                if answer.strip()
-            ]
-            student_answer = (self.text_answer or "").strip().casefold()
-            if question_type == "matching":
-                expected = set(correct_answers)
-                submitted = {
-                    answer.strip()
-                    for answer in student_answer.split(";")
-                    if answer.strip()
-                }
-                self.is_correct = bool(expected) and submitted == expected
-                partial_ratio = (
-                    len(expected & submitted) / len(expected) if expected else 0
-                )
-            elif question_type == "ordering":
-                expected = correct_answers
-                submitted = [
-                    answer.strip()
-                    for answer in student_answer.split(";")
-                    if answer.strip()
-                ]
-                self.is_correct = bool(expected) and submitted == expected
-                matching_positions = sum(
-                    1
-                    for index, expected_item in enumerate(expected)
-                    if index < len(submitted) and submitted[index] == expected_item
-                )
-                partial_ratio = matching_positions / len(expected) if expected else 0
-            else:
-                self.is_correct = bool(student_answer and student_answer in correct_answers)
-                partial_ratio = 1 if self.is_correct else 0
-
-            if not student_answer:
-                self.marks_awarded = 0
-            elif self.is_correct:
-                self.marks_awarded = marks
-            elif snapshot.get("partial_credit", self.question.partial_credit):
-                self.marks_awarded = max(
-                    -negative_marks,
-                    marks * partial_ratio - negative_marks * (1 - partial_ratio),
-                )
-            else:
-                self.marks_awarded = -negative_marks
-
-        elif question_type == "essay":
-            self.is_correct = False
-            self.marks_awarded = 0
+        grade_response(self.question, self, snapshot)
 
     def grade(self, marks, grader, notes=None):
         """Manually grade this response (for essay questions)"""

@@ -62,6 +62,7 @@ export interface TeacherFilters {
   search?: string;
   page?: number;
   is_active?: boolean;
+  school_id?: number;
 }
 
 export async function fetchSuperadminSchools(): Promise<PaginatedResponse<SuperadminSchool>> {
@@ -139,36 +140,28 @@ export async function fetchUsers(filters: UserFilters = {}): Promise<PaginatedRe
   return apiClient<PaginatedResponse<UserAdminRecord>>(url);
 }
 
-function toUserFormBody(values: UserAdminInput): URLSearchParams {
-  const body = new URLSearchParams();
-  for (const [key, value] of Object.entries(values)) {
-    if (value !== undefined) body.set(key, String(value));
-  }
-  return body;
-}
-
 export async function createUser(data: UserAdminInput) {
-  return apiClient<{ success: boolean; message: string; user_id: number }>('/users/create/', {
+  return apiClient<{ message: string; user_id: number }>('/api/v1/users/', {
     method: 'POST',
-    body: toUserFormBody(data),
+    body: data,
   });
 }
 
 export async function updateUser(id: number, data: UserAdminInput) {
-  return apiClient<{ success: boolean; message: string }>(`/users/${id}/edit/`, {
-    method: 'POST',
-    body: toUserFormBody(data),
+  return apiClient<{ message: string }>(`/api/v1/users/${id}/`, {
+    method: 'PATCH',
+    body: { ...data, id },
   });
 }
 
 export async function deleteUser(id: number) {
-  return apiClient<{ success: boolean; message: string }>(`/users/${id}/delete/`, {
-    method: 'POST',
+  return apiClient<{ message: string }>(`/api/v1/users/${id}/`, {
+    method: 'DELETE',
   });
 }
 
 export async function bulkResetUserPasswords(userIds: number[], schoolId?: number) {
-  return apiClient<{ success: boolean; message: string }>('/users/bulk-password-reset/', {
+  return apiClient<{ message: string }>('/api/v1/users/bulk-password-reset/', {
     method: 'POST',
     body: { user_ids: userIds, school_id: schoolId ?? null },
   });
@@ -200,6 +193,7 @@ export async function fetchTeachers(
   if (filters.search) params.set('search', filters.search);
   if (filters.page) params.set('page', String(filters.page));
   if (filters.is_active !== undefined) params.set('is_active', String(filters.is_active));
+  if (filters.school_id) params.set('school_id', String(filters.school_id));
 
   const queryString = params.toString();
   const url = queryString ? `/api/v1/teachers/?${queryString}` : '/api/v1/teachers/';
@@ -210,38 +204,30 @@ export async function fetchAdminDashboard(): Promise<AdminDashboardOverview> {
   return apiClient<AdminDashboardOverview>('/api/v1/dashboard/admin/');
 }
 
-function toFormBody(values: StudentAdminInput | TeacherAdminInput): URLSearchParams {
-  const body = new URLSearchParams();
-  for (const [key, value] of Object.entries(values)) {
-    if (value !== undefined) body.set(key, String(value));
-  }
-  return body;
-}
-
 export async function createStudent(data: StudentAdminInput) {
-  return apiClient<{ success: boolean; message: string; student_id: number; admission_number: string }>(
-    '/students/create/',
-    { method: 'POST', body: toFormBody(data) }
+  return apiClient<{ message: string; student_id: number; admission_number: string }>(
+    '/api/v1/students/',
+    { method: 'POST', body: data }
   );
 }
 
 export async function updateStudent(id: number, data: StudentAdminInput) {
-  return apiClient<{ success: boolean; message: string; student_id: number }>(
-    `/students/${id}/edit/`,
-    { method: 'POST', body: toFormBody(data) }
+  return apiClient<{ message: string; student_id: number }>(
+    '/api/v1/students/',
+    { method: 'PATCH', body: { ...data, id } }
   );
 }
 
 export async function archiveStudent(id: number) {
-  return apiClient<{ success: boolean; message: string }>(`/students/${id}/delete/`, { method: 'POST' });
+  return apiClient<{ message: string }>(`/api/v1/students/${id}/archive/`, { method: 'POST' });
 }
 
 export async function restoreStudent(id: number) {
-  return apiClient<{ success: boolean; message: string }>(`/students/${id}/restore/`, { method: 'POST' });
+  return apiClient<{ message: string }>(`/api/v1/students/${id}/restore/`, { method: 'POST' });
 }
 
 export async function bulkArchiveStudents(studentIds: number[], action: 'archive' | 'restore', schoolId?: number) {
-  return apiClient<{ success: boolean; updated: number; message: string }>('/students/bulk-delete/', {
+  return apiClient<{ updated: number; message: string }>('/api/v1/students/bulk-archive/', {
     method: 'POST',
     body: { student_ids: studentIds, action, ...(schoolId ? { school_id: schoolId } : {}) },
   });
@@ -266,8 +252,8 @@ export interface StudentImportResult {
 
 export async function previewStudentImport(file: File): Promise<StudentImportPreview> {
   const body = new FormData();
-  body.set('csv_file', file);
-  return apiClient<StudentImportPreview>('/students/bulk-import/preview-headers/', {
+  body.set('file', file);
+  return apiClient<StudentImportPreview>('/api/v1/students/import/preview/', {
     method: 'POST',
     body,
   });
@@ -280,34 +266,61 @@ export async function bulkImportStudents(
   schoolId?: number
 ): Promise<StudentImportResult> {
   const body = new FormData();
-  body.set('csv_file', file);
+  body.set('file', file);
   body.set('column_mappings', JSON.stringify(mappings));
   if (classId) body.set('assign_class', String(classId));
   if (schoolId) body.set('school_id', String(schoolId));
-  return apiClient<StudentImportResult>('/students/bulk-import/', {
+  return apiClient<StudentImportResult>('/api/v1/students/import/', {
     method: 'POST',
     body,
   });
 }
 
 export async function createTeacher(data: TeacherAdminInput) {
-  return apiClient<{ success: boolean; message: string; teacher_id: number; staff_id: string }>(
-    '/teachers/create/',
-    { method: 'POST', body: toFormBody(data) }
+  return apiClient<{ message: string; teacher_id: number; staff_id: string }>(
+    '/api/v1/teachers/',
+    { method: 'POST', body: data }
   );
 }
 
 export async function updateTeacher(id: number, data: TeacherAdminInput) {
-  return apiClient<{ success: boolean; message: string; teacher_id: number }>(
-    `/teachers/${id}/edit/`,
-    { method: 'POST', body: toFormBody(data) }
+  return apiClient<{ message: string; teacher_id: number }>(
+    '/api/v1/teachers/',
+    { method: 'PATCH', body: { ...data, id } }
   );
 }
 
 export async function archiveTeacher(id: number) {
-  return apiClient<{ success: boolean; message: string }>(`/teachers/${id}/delete/`, { method: 'POST' });
+  return apiClient<{ message: string }>(`/api/v1/teachers/${id}/archive/`, { method: 'POST' });
 }
 
 export async function restoreTeacher(id: number) {
-  return apiClient<{ success: boolean; message: string }>(`/teachers/${id}/restore/`, { method: 'POST' });
+  return apiClient<{ message: string }>(`/api/v1/teachers/${id}/restore/`, { method: 'POST' });
+}
+
+export async function bulkArchiveTeachers(teacherIds: number[], schoolId?: number) {
+  return apiClient<{ updated: number; message: string }>('/api/v1/teachers/bulk-archive/', {
+    method: 'POST',
+    body: { teacher_ids: teacherIds, ...(schoolId ? { school_id: schoolId } : {}) },
+  });
+}
+
+export async function previewTeacherImport(file: File) {
+  const body = new FormData();
+  body.set('file', file);
+  return apiClient<{ headers: string[]; preview_rows: Array<Record<string, string>> }>(
+    '/api/v1/teachers/import/preview/',
+    { method: 'POST', body }
+  );
+}
+
+export async function bulkImportTeachers(file: File, schoolId?: number, defaultDepartment?: number) {
+  const body = new FormData();
+  body.set('file', file);
+  if (schoolId) body.set('school_id', String(schoolId));
+  if (defaultDepartment) body.set('default_department', String(defaultDepartment));
+  return apiClient<{ imported: number; errors: string[]; message: string; partial_success: boolean }>(
+    '/api/v1/teachers/import/',
+    { method: 'POST', body }
+  );
 }

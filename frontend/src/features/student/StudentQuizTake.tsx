@@ -10,6 +10,7 @@ import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { Alert } from '../../components/common/Alert';
 import { Button } from '../../components/common/Button';
 import { Modal } from '../../components/common/Modal';
+import { getQuestionType, isQuestionAnswered } from '../../question-types';
 import './student.css';
 
 export const StudentQuizTake: React.FC = () => {
@@ -44,6 +45,7 @@ export const StudentQuizTake: React.FC = () => {
 
   // Ref to prevent double submission
   const isSubmittingRef = useRef<boolean>(false);
+  const pendingSavesRef = useRef<Set<Promise<void>>>(new Set());
 
   // Load quiz attempt data
   const loadAttempt = useCallback(async () => {
@@ -97,6 +99,7 @@ export const StudentQuizTake: React.FC = () => {
       setSubmitting(true);
       setSubmitError(null);
 
+      await Promise.all([...pendingSavesRef.current]);
       const res = await studentApi.submitStudentQuiz(Number(attemptId));
       if (res.success) {
         // Clean up local draft
@@ -141,7 +144,8 @@ export const StudentQuizTake: React.FC = () => {
   // Save response to backend and sync with localStorage
   const saveAnswer = async (
     questionId: number,
-    newResponse: Partial<StudentQuestionResponse>
+    newResponse: Partial<StudentQuestionResponse>,
+    persist = true
   ) => {
     if (!attemptId) return;
 
@@ -149,6 +153,7 @@ export const StudentQuizTake: React.FC = () => {
       selected_choice_id: null,
       selected_choice_ids: [],
       text_answer: '',
+      answer_data: {},
     };
     const updated: StudentQuestionResponse = {
       ...base,
@@ -168,29 +173,40 @@ export const StudentQuizTake: React.FC = () => {
       // ignore
     }
 
-    try {
-      setSaveStatus('saving');
-      setSaveErrorMessage(null);
+    if (!persist) return;
 
-      const savePayload = {
-        question_id: questionId,
-        choice_id: updated.selected_choice_id,
-        choice_ids: updated.selected_choice_ids,
-        text_answer: updated.text_answer,
-      };
+    const pendingSave = (async () => {
+      try {
+        setSaveStatus('saving');
+        setSaveErrorMessage(null);
 
-      const result = await studentApi.saveStudentResponse(Number(attemptId), savePayload);
-      if (result.submitted) {
-        setTimeExpiredModal(true);
-        navigate(`/student/attempts/${attemptId}/result`, { replace: true });
-        return;
+        const savePayload = {
+          question_id: questionId,
+          choice_id: updated.selected_choice_id,
+          choice_ids: updated.selected_choice_ids,
+          text_answer: updated.text_answer,
+          answer_data: updated.answer_data,
+        };
+
+        const result = await studentApi.saveStudentResponse(Number(attemptId), savePayload);
+        if (result.submitted) {
+          setTimeExpiredModal(true);
+          navigate(`/student/attempts/${attemptId}/result`, { replace: true });
+          return;
+        }
+        setSaveStatus('saved');
+      } catch (err) {
+        setSaveStatus('error');
+        setSaveErrorMessage(
+          err instanceof Error ? err.message : 'Response saved locally. Reconnecting...'
+        );
       }
-      setSaveStatus('saved');
-    } catch (err) {
-      setSaveStatus('error');
-      setSaveErrorMessage(
-        err instanceof Error ? err.message : 'Response saved locally. Reconnecting...'
-      );
+    })();
+    pendingSavesRef.current.add(pendingSave);
+    try {
+      await pendingSave;
+    } finally {
+      pendingSavesRef.current.delete(pendingSave);
     }
   };
 
@@ -230,12 +246,14 @@ export const StudentQuizTake: React.FC = () => {
         selected_choice_id: null,
         selected_choice_ids: [],
         text_answer: '',
+        answer_data: {},
       }
     : null;
 
-  const answeredCount = Object.values(responses).filter((r) =>
-    r.selected_choice_id !== null || (r.text_answer && r.text_answer.trim() !== '')
-  ).length;
+  const answeredCount = data.questions.filter((question) => {
+    const answer = responses[String(question.id)];
+    return answer ? isQuestionAnswered(question.question_type, answer) : false;
+  }).length;
 
   const progressPercent = data.total_questions > 0 ? (answeredCount / data.total_questions) * 100 : 0;
 
@@ -345,79 +363,16 @@ export const StudentQuizTake: React.FC = () => {
               {currentQuestion.question_text}
             </div>
 
-            {/* Multiple Choice & True/False Choices */}
-            {(currentQuestion.question_type === 'multiple_choice' ||
-              currentQuestion.question_type === 'true_false') && (
-              <div className="core-display-flex core-layout--column" role="radiogroup" aria-label="Answer options">
-                {currentQuestion.choices.map((choice) => {
-                  const isSelected = currentAnswer?.selected_choice_id === choice.id;
-                  return (
-                    <label
-                      key={choice.id}
-                      className={`stu-exam-choice ${isSelected ? 'stu-exam-choice--selected' : ''}`}
-                    >
-                      <input
-                        type="radio"
-                        name={`question_${currentQuestion.id}`}
-                        value={choice.id}
-                        checked={isSelected}
-                        onChange={() =>
-                          saveAnswer(currentQuestion.id, { selected_choice_id: choice.id })
-                        }
-                        className="stu-exam-choice__input"
-                        aria-label={choice.choice_text}
-                      />
-                      <span className="stu-exam-choice__label">{choice.choice_text}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Text / Essay Input */}
-            {(currentQuestion.question_type === 'essay' ||
-              currentQuestion.question_type === 'short_answer' ||
-              currentQuestion.question_type === 'fill_blank') && (
-              <div className="core-space--margin-bottom-3">
-                <label
-                  htmlFor="essay-answer"
-                  className="core-field__label core-type--small core-type--weight-bold"
-                  style={{ color: 'var(--stu-navy)' }}
-                >
-                  Type your response below:
-                </label>
-                <textarea
-                  id="essay-answer"
-                  className="core-field__input"
-                  rows={6}
-                  placeholder="Write your answer clearly..."
-                  style={{
-                    borderColor: 'var(--stu-border)',
-                    borderRadius: 'var(--stu-radius-md)',
-                    fontSize: '0.95rem',
-                    lineHeight: '1.5',
-                  }}
-                  value={currentAnswer?.text_answer || ''}
-                  onChange={(e) =>
-                    setResponses((prev) => ({
-                      ...prev,
-                      [String(currentQuestion.id)]: {
-                        selected_choice_id: null,
-                        selected_choice_ids: [],
-                        text_answer: e.target.value,
-                      },
-                    }))
-                  }
-                  onBlur={(e) =>
-                    saveAnswer(currentQuestion.id, { text_answer: e.target.value })
-                  }
+            {currentAnswer && (() => {
+              const Player = getQuestionType(currentQuestion.question_type).Player;
+              return (
+                <Player
+                  question={currentQuestion}
+                  response={currentAnswer}
+                  onChange={(answer, persist) => saveAnswer(currentQuestion.id, answer, persist)}
                 />
-                <div className="core-type--small core-text--muted core-space--margin-top-2">
-                  <AppIcon name="info" className="core-space--margin-end-1" />
-                  Your answer saves automatically when you navigate or finish typing.
-                </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         )}
       </main>
@@ -501,10 +456,9 @@ export const StudentQuizTake: React.FC = () => {
           <div className="stu-palette-grid core-space--margin-bottom-3">
             {data.questions.map((q, idx) => {
               const ans = responses[String(q.id)];
-              const isAnswered =
-                ans &&
-                (ans.selected_choice_id !== null ||
-                  (ans.text_answer && ans.text_answer.trim() !== ''));
+              const isAnswered = ans
+                ? isQuestionAnswered(q.question_type, ans)
+                : false;
               const isCurrent = idx === currentIndex;
 
               let btnModifier = 'stu-palette-btn--unanswered';
