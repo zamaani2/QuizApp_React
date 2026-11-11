@@ -10,6 +10,7 @@ import type {
   SaveResponseResult,
   SubmitQuizResponse,
   StudentProfileData,
+  StudentAnswerData,
 } from '../types/student';
 
 export const studentApi = {
@@ -58,6 +59,7 @@ export const studentApi = {
       choice_id?: number | null;
       choice_ids?: number[];
       text_answer?: string;
+      answer_data?: StudentAnswerData;
     }
   ): Promise<SaveResponseResult> {
     return apiClient<SaveResponseResult>(`/api/v1/student/attempts/${attemptId}/save/`, {
@@ -71,6 +73,17 @@ export const studentApi = {
       method: 'POST',
       body: {},
     });
+  },
+
+  submitStudentSection(attemptId: number, sectionId: number): Promise<{
+    success: boolean;
+    active_section_id: number | null;
+    section_timing_enabled: boolean;
+  }> {
+    return apiClient(
+      `/api/v1/student/attempts/${attemptId}/sections/${sectionId}/submit/`,
+      { method: 'POST', body: {} }
+    );
   },
 
   getStudentAttempts(params?: {

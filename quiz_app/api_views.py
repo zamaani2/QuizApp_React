@@ -4,6 +4,7 @@ API views and React Shell view for the React frontend migration.
 Governed by REACT_FRONTEND_MIGRATION_PLAN.md and docs/REACT_API_CONTRACTS.md.
 """
 import json
+from datetime import datetime
 from urllib.parse import urlencode
 
 from django.http import JsonResponse
@@ -959,6 +960,13 @@ def teachers_api_view(request):
     if not is_authorized_superadmin(user) and school is None:
         return JsonResponse({"code": "FORBIDDEN", "message": "A valid school association is required."}, status=403)
 
+    if is_authorized_superadmin(user) and request.GET.get("school_id"):
+        school = SchoolInformation.objects.filter(
+            pk=request.GET.get("school_id"), is_active=True
+        ).first()
+        if school is None:
+            return JsonResponse({"code": "VALIDATION_ERROR", "message": "Select an active school."}, status=400)
+
     teachers = (Teacher.objects.filter(school=school) if school else Teacher.objects.all()).annotate(
         assigned_classes_count=Count(
             "teachersubjectassignment__class_assigned",
@@ -1001,6 +1009,7 @@ def teachers_api_view(request):
             "department_id": t.department_id,
             "assigned_classes_count": t.assigned_classes_count,
             "is_active": getattr(t, "is_active", True),
+            "school_id": t.school_id,
         })
 
     return JsonResponse({"count": len(results), "results": results})
@@ -1329,13 +1338,38 @@ def teacher_quiz_detail_api_view(request, quiz_id):
             "order": q.order,
             "explanation": q.explanation or "",
             "correct_answer_text": q.correct_answer_text or "",
+            "config": q.config or {},
             "difficulty": q.difficulty,
             "negative_marks": q.negative_marks,
             "is_required": q.is_required,
+            "section_id": q.section_id,
+            "group_id": q.group_id,
             "choices": choices_data,
         })
 
     pass_pct = round((quiz.passing_marks / quiz.total_marks * 100), 1) if quiz.total_marks > 0 else 0
+    sections_data = []
+    for section in quiz.sections.filter(school=school).prefetch_related("groups", "questions"):
+        sections_data.append({
+            "id": section.pk,
+            "title": section.title,
+            "instructions": section.instructions,
+            "order": section.order,
+            "time_limit_minutes": section.time_limit_minutes,
+            "choose_n": section.choose_n,
+            "question_ids": list(
+                section.questions.filter(school=school).order_by("order", "pk").values_list("pk", flat=True)
+            ),
+            "groups": [
+                {
+                    "id": group.pk,
+                    "title": group.title,
+                    "stimulus_text": group.stimulus_text,
+                    "order": group.order,
+                }
+                for group in section.groups.filter(school=school)
+            ],
+        })
 
     return JsonResponse({
         "id": quiz.pk,
@@ -1370,6 +1404,7 @@ def teacher_quiz_detail_api_view(request, quiz_id):
         "total_attempts": quiz.attempts.filter(school=school, is_submitted=True).count(),
         "assigned_classes": assigned_classes,
         "questions": questions_data,
+        "sections": sections_data,
     })
 
 
@@ -1579,30 +1614,46 @@ def teacher_result_detail_api_view(request, attempt_id):
         Prefetch("selected_choices", queryset=AnswerChoice.objects.filter(school=school)),
         Prefetch("question__answer_choices", queryset=AnswerChoice.objects.filter(school=school)),
     ).order_by("question__order")
-    responses_by_question = {item.question_id: item for item in responses}
     questions = attempt.quiz.questions.filter(school=school).prefetch_related(
         Prefetch("answer_choices", queryset=AnswerChoice.objects.filter(school=school))
     ).order_by("order")
+    _, questions, responses = _attempt_review_snapshot(
+        attempt, attempt.quiz, questions, responses
+    )
+    responses_by_question = {item.question_id: item for item in responses}
     response_data = []
+    from .question_types import serialize_for_review
+
     for question in questions:
+        question_snapshot = attempt.configuration_snapshot.get(
+            "questions", {}
+        ).get(str(question.pk), {})
+        choice_snapshots = question_snapshot.get("choices", {})
+        question_text = question_snapshot.get("question_text", question.question_text)
+        question_type = question_snapshot.get("question_type", question.question_type)
+        question_marks = question_snapshot.get("marks", question.marks)
         item = responses_by_question.get(question.pk)
         if item is None:
             response_data.append({
                 "id": -question.pk,
-                "question_text": question.question_text,
-                "question_type": question.question_type,
-                "marks": question.marks,
+                "question_text": question_text,
+                "question_type": question_type,
+                "marks": question_marks,
                 "marks_awarded": 0,
                 "text_answer": "",
                 "selected_choice": "",
                 "selected_choices": [],
+                "answer_data": {},
+                "review_data": {"student_answer": "", "correct_answer": None},
                 "is_correct": False,
                 "is_answered": False,
-                "answer_key": question.correct_answer_text or "",
+                "answer_key": question_snapshot.get(
+                    "correct_answer_text", question.correct_answer_text or ""
+                ),
                 "correct_choices": [
-                    choice.choice_text
-                    for choice in question.answer_choices.all()
-                    if choice.is_correct
+                    choice.get("text", "")
+                    for choice in choice_snapshots.values()
+                    if choice.get("is_correct")
                 ],
                 "grading_notes": "",
             })
@@ -1612,22 +1663,31 @@ def teacher_result_detail_api_view(request, attempt_id):
             for choice in item.selected_choices.all()
             if choice.school_id == school.pk
         ]
+        review_data = serialize_for_review(
+            question, item, question_snapshot, show_correct_answers=True
+        )
         response_data.append({
             "id": item.pk,
-            "question_text": item.question.question_text,
-            "question_type": item.question.question_type,
-            "marks": item.question.marks,
+            "question_text": question_text,
+            "question_type": question_type,
+            "marks": question_marks,
             "marks_awarded": item.marks_awarded,
             "text_answer": item.text_answer or "",
             "selected_choice": item.selected_choice.choice_text if item.selected_choice else "",
             "selected_choices": selected_choices,
+            "answer_data": item.answer_data or {},
+            "review_data": review_data,
             "is_correct": item.is_correct,
-            "is_answered": bool(item.text_answer or item.selected_choice_id or selected_choices),
-            "answer_key": item.question.correct_answer_text or "",
+            "is_answered": bool(
+                item.text_answer or item.selected_choice_id or selected_choices or item.answer_data
+            ),
+            "answer_key": question_snapshot.get(
+                "correct_answer_text", item.question.correct_answer_text or ""
+            ),
             "correct_choices": [
-                choice.choice_text
-                for choice in item.question.answer_choices.all()
-                if choice.is_correct
+                choice.get("text", "")
+                for choice in choice_snapshots.values()
+                if choice.get("is_correct")
             ],
             "grading_notes": item.grading_notes or "",
         })
@@ -2228,6 +2288,116 @@ def student_quiz_start_api_view(request, quiz_id):
         return JsonResponse({"code": "SERVER_ERROR", "message": str(e)}, status=500)
 
 
+def _section_timing_enabled(attempt):
+    return any(
+        section.get("time_limit_minutes") is not None
+        for section in attempt.configuration_snapshot.get("sections", [])
+    )
+
+
+def _section_progress(attempt, now=None):
+    sections = attempt.configuration_snapshot.get("sections", [])
+    if not sections or not _section_timing_enabled(attempt):
+        return None, set()
+
+    now = now or timezone.now()
+    state = dict(attempt.section_state or {})
+    expired_ids = set()
+    active_section_id = None
+    for section in sections:
+        section_id = str(section["id"])
+        entry = dict(state.get(section_id) or {})
+        if entry.get("submitted_at"):
+            continue
+        if not entry.get("started_at"):
+            entry["started_at"] = now.isoformat()
+        limit = section.get("time_limit_minutes")
+        started_at = datetime.fromisoformat(entry["started_at"])
+        if limit is not None and (now - started_at).total_seconds() >= limit * 60:
+            entry["submitted_at"] = now.isoformat()
+            expired_ids.add(int(section["id"]))
+            state[section_id] = entry
+            continue
+        state[section_id] = entry
+        active_section_id = int(section["id"])
+        break
+
+    if state != (attempt.section_state or {}):
+        attempt.section_state = state
+        attempt.save(update_fields=["section_state"])
+    return active_section_id, expired_ids
+
+
+def _section_time_remaining(section, state, now=None):
+    limit = section.get("time_limit_minutes")
+    if limit is None:
+        return None
+    entry = (state or {}).get(str(section["id"]), {})
+    if entry.get("submitted_at"):
+        return 0
+    if not entry.get("started_at"):
+        return limit * 60
+    now = now or timezone.now()
+    started_at = datetime.fromisoformat(entry["started_at"])
+    return max(0, int(limit * 60 - (now - started_at).total_seconds()))
+
+
+def _answer_data_has_answer(question_type, answer_data, choice_ids=None):
+    if question_type in {"multiple_choice", "true_false"}:
+        return bool(choice_ids)
+    if not isinstance(answer_data, dict):
+        return bool(str(answer_data or "").strip())
+    if question_type == "matching":
+        return bool(answer_data.get("matches"))
+    if question_type == "ordering":
+        return bool(answer_data.get("items"))
+    value = answer_data.get("text")
+    if isinstance(value, (list, tuple)):
+        return any(str(item or "").strip() for item in value)
+    return bool(str(value or "").strip())
+
+
+def _response_has_answer(response, question_type):
+    if response.selected_choice_id or response.selected_choices.exists():
+        return True
+    return _answer_data_has_answer(
+        question_type, response.answer_data, response.selected_choice_id
+    ) or bool((response.text_answer or "").strip())
+
+
+def _attempt_section_scores(attempt):
+    question_snapshots = attempt.configuration_snapshot.get("questions", {})
+    responses = {
+        str(response.question_id): response
+        for response in attempt.responses.filter(school_id=attempt.school_id)
+    }
+    results = []
+    for section in attempt.configuration_snapshot.get("sections", []):
+        question_items = [
+            snapshot for snapshot in question_snapshots.values()
+            if snapshot.get("section_id") == section.get("id")
+        ]
+        question_marks = [item.get("marks", 0) for item in question_items]
+        choose_n = section.get("choose_n")
+        total_marks = (
+            choose_n * question_marks[0]
+            if choose_n is not None and question_marks
+            else sum(question_marks)
+        )
+        score = sum(
+            responses[str(item["question_id"])].marks_awarded
+            for item in question_items
+            if str(item["question_id"]) in responses
+        )
+        results.append({
+            "section_id": section["id"],
+            "title": section["title"],
+            "score": score,
+            "total_marks": total_marks,
+        })
+    return results
+
+
 @require_http_methods(["GET"])
 def student_quiz_take_api_view(request, attempt_id):
     """
@@ -2267,6 +2437,12 @@ def student_quiz_take_api_view(request, attempt_id):
             attempt = QuizAttempt.objects.select_for_update().get(pk=attempt.pk)
             if not attempt.configuration_snapshot:
                 attempt.capture_configuration()
+    active_section_id = None
+    expired_section_ids = set()
+    if _section_timing_enabled(attempt):
+        with transaction.atomic():
+            attempt = QuizAttempt.objects.select_for_update().get(pk=attempt.pk)
+            active_section_id, expired_section_ids = _section_progress(attempt)
 
     questions = list(quiz.questions.filter(school=school).prefetch_related(
         "answer_choices"
@@ -2292,49 +2468,15 @@ def student_quiz_take_api_view(request, attempt_id):
 
     for position, q in enumerate(questions, start=1):
         q_snapshot = attempt.configuration_snapshot.get("questions", {}).get(str(q.pk), {})
-        q_text = q_snapshot.get("question_text", q.question_text)
-        q_marks = q_snapshot.get("marks", q.marks)
-        q_type = q_snapshot.get("question_type", q.question_type)
+        from .question_types import serialize_for_student
 
-        choices = list(q.answer_choices.filter(school=school))
-        choice_snapshots = q_snapshot.get("choices", {})
-        if attempt.configuration_snapshot:
-            choices = [c for c in choices if str(c.pk) in choice_snapshots]
-
-        for c in choices:
-            c_snap = choice_snapshots.get(str(c.pk), {})
-            c.choice_text = c_snap.get("text", c.choice_text)
-
-        choice_positions = {
-            choice_id: c_pos
-            for c_pos, choice_id in enumerate(answer_order.get(str(q.pk), []), start=1)
-        }
-        sorted_choices = sorted(
-            choices,
-            key=lambda c: (
-                choice_positions.get(c.pk, len(choice_positions)),
-                c.order,
-                c.pk,
-            ),
+        question_data = serialize_for_student(
+            q, q_snapshot, answer_order.get(str(q.pk), [])
         )
-
-        # STRICT RULE: is_correct is NEVER sent to client in take view
-        choices_data = [
-            {
-                "id": c.pk,
-                "choice_text": c.choice_text,
-            }
-            for c in sorted_choices
-        ]
-
-        questions_data.append({
-            "id": q.pk,
-            "order": position,
-            "question_type": q_type,
-            "question_text": q_text,
-            "marks": q_marks,
-            "choices": choices_data,
-        })
+        question_data["order"] = position
+        question_data["section_id"] = q_snapshot.get("section_id")
+        question_data["group_id"] = q_snapshot.get("group_id")
+        questions_data.append(question_data)
 
     # Existing responses
     existing_responses = {}
@@ -2346,6 +2488,7 @@ def student_quiz_take_api_view(request, attempt_id):
             "selected_choice_id": r.selected_choice_id,
             "selected_choice_ids": selected_ids,
             "text_answer": r.text_answer or "",
+            "answer_data": r.answer_data or {},
         }
 
     # Time remaining
@@ -2360,6 +2503,77 @@ def student_quiz_take_api_view(request, attempt_id):
         time_remaining_seconds = int(time_remaining_minutes * 60)
 
     answered_count = len(existing_responses)
+    sections_data = []
+    snapshot_sections = attempt.configuration_snapshot.get("sections", [])
+    for section in snapshot_sections:
+        section_questions = [
+            item for item in questions_data
+            if item.get("section_id") == section["id"]
+        ]
+        groups = []
+        for group in section.get("groups", []):
+            groups.append({
+                **group,
+                "questions": [
+                    item for item in section_questions
+                    if item.get("group_id") == group["id"]
+                ],
+            })
+        section_state = (attempt.section_state or {}).get(str(section["id"]), {})
+        sections_data.append({
+            **section,
+            "questions": section_questions,
+            "groups": groups,
+            "started_at": section_state.get("started_at"),
+            "submitted_at": section_state.get("submitted_at"),
+            "is_active": section["id"] == active_section_id,
+            "is_locked": (
+                bool(section_state.get("submitted_at"))
+                or (
+                    _section_timing_enabled(attempt)
+                    and section["id"] != active_section_id
+                )
+            ),
+            "remaining_seconds": _section_time_remaining(
+                section, attempt.section_state
+            ),
+            "time_expired": section["id"] in expired_section_ids,
+        })
+    unsectioned_questions = [
+        item for item in questions_data if item.get("section_id") is None
+    ]
+    has_unsectioned_groups = any(
+        group.get("section_id") is None
+        for group in attempt.configuration_snapshot.get("groups", [])
+    )
+    if unsectioned_questions and (snapshot_sections or has_unsectioned_groups):
+        unsectioned_groups = [
+            {
+                **group,
+                "questions": [
+                    item for item in unsectioned_questions
+                    if item.get("group_id") == group["id"]
+                ],
+            }
+            for group in attempt.configuration_snapshot.get("groups", [])
+            if group.get("section_id") is None
+        ]
+        sections_data.append({
+            "id": None,
+            "title": "Other questions",
+            "instructions": "",
+            "order": len(sections_data) + 1,
+            "time_limit_minutes": None,
+            "choose_n": None,
+            "questions": unsectioned_questions,
+            "groups": unsectioned_groups,
+            "started_at": None,
+            "submitted_at": None,
+            "is_active": not _section_timing_enabled(attempt),
+            "is_locked": False,
+            "remaining_seconds": None,
+            "time_expired": False,
+        })
 
     return JsonResponse({
         "attempt_id": attempt.id,
@@ -2371,6 +2585,9 @@ def student_quiz_take_api_view(request, attempt_id):
         "total_questions": len(questions_data),
         "answered_count": answered_count,
         "questions": questions_data,
+        "sections": sections_data,
+        "active_section_id": active_section_id,
+        "section_timing_enabled": _section_timing_enabled(attempt),
         "existing_responses": existing_responses,
     })
 
@@ -2442,29 +2659,79 @@ def student_quiz_save_api_view(request, attempt_id):
                     status=400,
                 )
 
+            section_id = question_snapshot.get("section_id")
+            if section_id is not None and _section_timing_enabled(attempt):
+                active_section_id, expired_section_ids = _section_progress(attempt)
+                if section_id in expired_section_ids:
+                    return JsonResponse(
+                        {
+                            "code": "SECTION_TIME_EXPIRED",
+                            "message": "This section's time has expired. Its answers are locked.",
+                        },
+                        status=409,
+                    )
+                if section_id != active_section_id:
+                    return JsonResponse(
+                        {
+                            "code": "SECTION_LOCKED",
+                            "message": "This section is not active and its answers are locked.",
+                        },
+                        status=409,
+                    )
+
             question_type = question_snapshot.get("question_type", question.question_type)
             choices = []
-
+            choice_ids = []
+            submitted_answer_data = data.get("answer_data")
+            if isinstance(submitted_answer_data, str):
+                try:
+                    submitted_answer_data = json.loads(submitted_answer_data)
+                except json.JSONDecodeError:
+                    return JsonResponse(
+                        {"code": "INVALID_ANSWER", "message": "answer_data must be valid JSON."},
+                        status=400,
+                    )
+            if submitted_answer_data is not None and not isinstance(
+                submitted_answer_data, dict
+            ):
+                return JsonResponse(
+                    {"code": "INVALID_ANSWER", "message": "answer_data must be an object."},
+                    status=400,
+                )
             if question_type in ["multiple_choice", "true_false"]:
-                raw_ids = data.get("choice_ids")
+                question_config = question_snapshot.get("config", {})
+                if submitted_answer_data is not None:
+                    try:
+                        from .question_types import validate_answer_data
+
+                        submitted_answer_data = validate_answer_data(
+                            question_type, question_config, submitted_answer_data
+                        )
+                    except (TypeError, ValueError) as error:
+                        return JsonResponse(
+                            {"code": "INVALID_ANSWER", "message": str(error)},
+                            status=400,
+                        )
+                raw_ids = (
+                    submitted_answer_data.get("choice_ids")
+                    if submitted_answer_data is not None
+                    else data.get("choice_ids")
+                )
                 if raw_ids is None and data.get("choice_id") is not None:
                     raw_ids = [data.get("choice_id")]
-                elif raw_ids is None:
+                if raw_ids is None:
                     raw_ids = []
                 elif not isinstance(raw_ids, list):
                     raw_ids = [raw_ids]
-
                 try:
-                    choice_ids = [int(c) for c in raw_ids]
+                    choice_ids = [int(choice_id) for choice_id in raw_ids]
                 except (TypeError, ValueError):
                     return JsonResponse(
                         {"code": "INVALID_CHOICE", "message": "Invalid choice ID."},
                         status=400,
                     )
-
                 allowed_choice_ids = set(question_snapshot.get("choices", {}))
                 choices = list(question.answer_choices.filter(id__in=choice_ids, school=school))
-
                 if (
                     len({c.pk for c in choices}) != len(set(choice_ids))
                     or len(choice_ids) != len(set(choice_ids))
@@ -2479,6 +2746,122 @@ def student_quiz_save_api_view(request, attempt_id):
                         {"code": "INVALID_CHOICE", "message": "Select only one answer."},
                         status=400,
                     )
+                if (
+                    question_type == "multiple_choice"
+                    and len(choice_ids) > 1
+                    and not question_config.get(
+                        "allow_multiple",
+                        sum(
+                            choice.get("is_correct", False)
+                            for choice in question_snapshot.get("choices", {}).values()
+                        ) > 1,
+                    )
+                ):
+                    return JsonResponse(
+                        {"code": "INVALID_CHOICE", "message": "Select only one answer."},
+                        status=400,
+                    )
+                submitted_answer_data = {"choice_ids": choice_ids}
+            else:
+                if submitted_answer_data is None:
+                    if question_type in ["matching", "ordering"]:
+                        submitted_answer_data = {}
+                    else:
+                        submitted_answer_data = {
+                            "text": data.get("text_answer", "")
+                        }
+                question_config = question_snapshot.get("config", {})
+                try:
+                    from .question_types import validate_answer_data
+
+                    submitted_answer_data = validate_answer_data(
+                        question_type, question_config, submitted_answer_data
+                    )
+                except (TypeError, ValueError) as error:
+                    return JsonResponse(
+                        {"code": "INVALID_ANSWER", "message": str(error)},
+                        status=400,
+                    )
+                if question_type == "matching":
+                    matches = submitted_answer_data.get("matches", {})
+                    from .question_types import get_question_type
+
+                    pair_config = get_question_type("matching").pairs(
+                        question, question_snapshot
+                    )
+                    allowed_left_ids = {
+                        f"left:{pair['left_id']}" for pair in pair_config
+                    }
+                    allowed_right_ids = {
+                        f"right:{pair['right_id']}" for pair in pair_config
+                    }
+                    if any(
+                        left_id not in allowed_left_ids
+                        or right_id not in allowed_right_ids
+                        for left_id, right_id in matches.items()
+                    ) or len(set(matches.values())) != len(matches):
+                        return JsonResponse(
+                            {"code": "INVALID_ANSWER", "message": "Invalid matching answer."},
+                            status=400,
+                        )
+                elif question_type == "ordering":
+                    from .question_types import get_question_type
+
+                    ordering_handler = get_question_type("ordering")
+                    allowed_ids = {
+                        f"item:{item_id}"
+                        for item_id in ordering_handler.item_ids(
+                            question, question_snapshot
+                        )
+                    }
+                    submitted_items = submitted_answer_data.get("items", [])
+                    if any(item_id not in allowed_ids for item_id in submitted_items) or (
+                        len(submitted_items) != len(set(submitted_items))
+                    ):
+                        return JsonResponse(
+                            {"code": "INVALID_ANSWER", "message": "Invalid ordering answer."},
+                            status=400,
+                        )
+
+            section_snapshot = next(
+                (
+                    section for section in attempt.configuration_snapshot.get("sections", [])
+                    if section.get("id") == section_id
+                ),
+                None,
+            )
+            choose_n = section_snapshot.get("choose_n") if section_snapshot else None
+            if choose_n is not None and _answer_data_has_answer(
+                question_type, submitted_answer_data, choice_ids
+            ):
+                section_question_ids = [
+                    int(question_id)
+                    for question_id, snapshot in attempt.configuration_snapshot.get("questions", {}).items()
+                    if snapshot.get("section_id") == section_id
+                ]
+                current_response = attempt.responses.filter(question=question).first()
+                already_answered = (
+                    _response_has_answer(current_response, question_type)
+                    if current_response
+                    else False
+                )
+                answered_in_section = 0
+                for existing_response in attempt.responses.filter(
+                    question_id__in=section_question_ids
+                ).prefetch_related("selected_choices"):
+                    existing_type = attempt.configuration_snapshot["questions"].get(
+                        str(existing_response.question_id), {}
+                    ).get("question_type", existing_response.question.question_type)
+                    if _response_has_answer(existing_response, existing_type):
+                        answered_in_section += 1
+                if not already_answered and answered_in_section >= choose_n:
+                    return JsonResponse(
+                        {
+                            "code": "CHOOSE_N_LIMIT",
+                            "message": f"You may answer only {choose_n} question(s) in this section.",
+                        },
+                        status=400,
+                    )
 
             response, _ = QuizResponse.objects.get_or_create(
                 attempt=attempt,
@@ -2491,7 +2874,21 @@ def student_quiz_save_api_view(request, attempt_id):
                 response.selected_choices.set(choices)
             else:
                 text_answer = str(data.get("text_answer", "")).strip()
+                if question_type == "matching" and submitted_answer_data.get("matches"):
+                    text_answer = "; ".join(
+                        f"{left}={right}"
+                        for left, right in submitted_answer_data.get("matches", {}).items()
+                    )
+                elif question_type == "ordering" and submitted_answer_data.get("items"):
+                    text_answer = "; ".join(
+                        submitted_answer_data.get("items", [])
+                    )
+                elif not text_answer and isinstance(
+                    submitted_answer_data.get("text"), str
+                ):
+                    text_answer = submitted_answer_data["text"]
                 response.text_answer = text_answer
+            response.answer_data = submitted_answer_data
 
             response.save()
 
@@ -2500,6 +2897,106 @@ def student_quiz_save_api_view(request, attempt_id):
                 "message": "Response saved successfully",
                 "answered_count": attempt.responses.count(),
             })
+    except Exception as e:
+        return JsonResponse({"code": "SERVER_ERROR", "message": str(e)}, status=500)
+
+
+@require_http_methods(["POST"])
+def student_quiz_section_submit_api_view(request, attempt_id, section_id):
+    student, school, err = _get_authenticated_student(request)
+    if err:
+        return err
+
+    try:
+        with transaction.atomic():
+            try:
+                attempt = QuizAttempt.objects.select_for_update().get(
+                    pk=attempt_id, student=student, school=school
+                )
+            except QuizAttempt.DoesNotExist:
+                return JsonResponse(
+                    {"code": "NOT_FOUND", "message": "Attempt not found."},
+                    status=404,
+                )
+            if attempt.is_submitted:
+                return JsonResponse(
+                    {"code": "ALREADY_SUBMITTED", "message": "Quiz already submitted."},
+                    status=409,
+                )
+            if not attempt.configuration_snapshot:
+                attempt.capture_configuration()
+            section = next(
+                (
+                    item for item in attempt.configuration_snapshot.get("sections", [])
+                    if item.get("id") == section_id
+                ),
+                None,
+            )
+            if section is None:
+                return JsonResponse(
+                    {"code": "NOT_FOUND", "message": "Section not found in this attempt."},
+                    status=404,
+                )
+            if attempt.is_time_expired():
+                attempt.submit()
+                return JsonResponse(
+                    {"code": "TIME_EXPIRED", "message": "The quiz time limit has expired."},
+                    status=409,
+                )
+            if not _section_timing_enabled(attempt):
+                return JsonResponse({
+                    "success": True,
+                    "active_section_id": None,
+                    "section_timing_enabled": False,
+                })
+
+            active_section_id, expired_section_ids = _section_progress(attempt)
+            if section_id in expired_section_ids:
+                return JsonResponse(
+                    {
+                        "code": "SECTION_TIME_EXPIRED",
+                        "message": "This section's time has expired and it is now locked.",
+                    },
+                    status=409,
+                )
+            if section_id != active_section_id:
+                return JsonResponse(
+                    {
+                        "code": "SECTION_LOCKED",
+                        "message": "Sections must be completed in order.",
+                    },
+                    status=409,
+                )
+
+            now = timezone.now()
+            state = dict(attempt.section_state or {})
+            entry = dict(state.get(str(section_id)) or {})
+            entry["submitted_at"] = now.isoformat()
+            state[str(section_id)] = entry
+            ordered_sections = attempt.configuration_snapshot.get("sections", [])
+            current_index = next(
+                index for index, item in enumerate(ordered_sections)
+                if item["id"] == section_id
+            )
+            next_section = next(
+                (
+                    item for item in ordered_sections[current_index + 1:]
+                    if not (state.get(str(item["id"])) or {}).get("submitted_at")
+                ),
+                None,
+            )
+            if next_section:
+                next_entry = dict(state.get(str(next_section["id"])) or {})
+                next_entry.setdefault("started_at", now.isoformat())
+                state[str(next_section["id"])] = next_entry
+            attempt.section_state = state
+            attempt.save(update_fields=["section_state"])
+
+        return JsonResponse({
+            "success": True,
+            "active_section_id": next_section["id"] if next_section else None,
+            "section_timing_enabled": True,
+        })
     except Exception as e:
         return JsonResponse({"code": "SERVER_ERROR", "message": str(e)}, status=500)
 
@@ -2526,7 +3023,10 @@ def student_quiz_submit_api_view(request, attempt_id):
         "success": True,
         "attempt_id": attempt.id,
         "score": attempt.score,
-        "total_marks": attempt.quiz.total_marks,
+        "total_marks": attempt.configuration_snapshot.get("quiz", {}).get(
+            "total_marks", attempt.quiz.total_marks
+        ),
+        "section_scores": _attempt_section_scores(attempt),
         "percentage": attempt.percentage,
         "is_passed": attempt.is_passed() if callable(getattr(attempt, "is_passed", None)) else False,
         "message": "Quiz submitted successfully!",
@@ -2648,10 +3148,15 @@ def student_quiz_result_api_view(request, attempt_id):
     questions_data = []
 
     if allow_review:
+        from .question_types import serialize_for_review
+
         for q in review_questions:
             resp = responses_by_q.get(q.pk)
             marks_obtained = getattr(resp, "score", 0) or 0
             is_correct = getattr(resp, "is_correct", False) if resp else False
+            question_snapshot = attempt.configuration_snapshot.get(
+                "questions", {}
+            ).get(str(q.pk), {})
 
             student_ans = ""
             if resp:
@@ -2695,6 +3200,16 @@ def student_quiz_result_api_view(request, attempt_id):
                 "is_correct": is_correct,
                 "student_answer": student_ans,
                 "choices": choices_data,
+                "review_data": (
+                    serialize_for_review(
+                        q, resp, question_snapshot, show_correct_answers
+                    )
+                    if resp
+                    else {
+                        "student_answer": "",
+                        "correct_answer": None,
+                    }
+                ),
             }
             if show_correct_answers:
                 q_item["correct_answer"] = correct_ans
@@ -2712,7 +3227,10 @@ def student_quiz_result_api_view(request, attempt_id):
         "teacher_name": quiz.teacher.full_name if quiz.teacher else "",
         "academic_year": attempt.academic_year.name if attempt.academic_year else "",
         "score": attempt.score,
-        "total_marks": quiz.total_marks,
+        "total_marks": attempt.configuration_snapshot.get("quiz", {}).get(
+            "total_marks", quiz.total_marks
+        ),
+        "section_scores": _attempt_section_scores(attempt),
         "percentage": attempt.percentage,
         "duration_minutes": attempt.get_duration_minutes(),
         "correct_answers": attempt.correct_answers,
@@ -3789,7 +4307,11 @@ def class_detail_api_view(request, class_id):
 
     subjects = ClassSubject.objects.filter(
         class_name=cls_obj,
-    ).select_related("subject", "subject__department").order_by("subject__subject_name")
+    ).select_related(
+        "subject",
+        "subject__department",
+        "subject__learning_area",
+    ).order_by("subject__subject_name")
 
     return JsonResponse({
         "class": {
@@ -3826,6 +4348,11 @@ def class_detail_api_view(request, class_id):
                 "subject_name": cs.subject.subject_name if cs.subject else None,
                 "subject_code": cs.subject.subject_code if cs.subject else None,
                 "department_name": cs.subject.department.name if cs.subject and cs.subject.department else None,
+                "learning_area_name": (
+                    cs.subject.learning_area.name
+                    if cs.subject and cs.subject.learning_area
+                    else None
+                ),
             }
             for cs in subjects
         ]

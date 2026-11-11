@@ -14,6 +14,7 @@ import { Alert } from '../../components/common/Alert';
 import { Button } from '../../components/common/Button';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
+import { SectionBuilder } from './SectionBuilder';
 
 export const QuizDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -158,6 +159,7 @@ export const QuizDetail: React.FC = () => {
         </div>
       ) : quiz ? (
         <>
+          <SectionBuilder quiz={quiz} onUpdated={loadDetail} />
           {/* Metadata Card */}
           <div className="core-card core-shadow--sm core-border--none core-space--margin-bottom-4">
             <div className="core-card__body">

@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Document status | **Authoritative API Specification** |
-| Version | 1.1 |
-| Last updated | 2026-11-07 |
+| Version | 1.2 |
+| Last updated | 2026-11-11 |
 | Governed by | `REACT_FRONTEND_MIGRATION_PLAN.md` |
 
 This document defines the formal request and response schemas for all `/api/v1/` endpoints, plus the React response mode planned for Django's existing `/login/` handler. Contracts must be documented here before backend implementation and frontend consumption.
@@ -41,6 +41,7 @@ Standard HTTP status codes:
 - `403 Forbidden` — User lacks role permission or tenant/school scope (`code: "FORBIDDEN"`).
 - `404 Not Found` — Resource does not exist or belongs to another tenant/school (`code: "NOT_FOUND"`).
 - `405 Method Not Allowed` — HTTP verb not allowed for this route (`code: "METHOD_NOT_ALLOWED"`).
+- `409 Conflict` — The change is blocked by existing assessment history (`code: "QUIZ_HAS_ATTEMPTS"`, `QUESTION_HAS_ATTEMPTS`, or `CHOICE_HAS_ATTEMPTS`).
 - `500 Internal Server Error` — Unhandled server error (`code: "SERVER_ERROR"`).
 
 ### 1.4 Standard Pagination Format (When Querying Collections)
@@ -402,6 +403,56 @@ Valid superadmin credentials submitted through the school-user login flow do not
 }
 ```
 
+### 3.6.1 Directory mutations and imports
+
+Student and teacher writes require an authenticated `admin` or `superadmin`.
+School administrators are scoped to their active school; superadmins must
+provide an active `school_id` for writes. Cross-school object ids are returned
+as not found. Validation errors use the common envelope:
+
+```json
+{
+  "code": "VALIDATION_ERROR",
+  "message": "Please correct the highlighted fields.",
+  "fields": { "full_name": ["This field is required."] }
+}
+```
+
+| Method | URL | Purpose |
+|---|---|---|
+| `POST`, `PATCH` | `/api/v1/students/` | Create; update requires `id` in the JSON body |
+| `POST` | `/api/v1/students/{id}/archive/` | Archive student and deactivate active enrollments |
+| `POST` | `/api/v1/students/{id}/restore/` | Restore archived student |
+| `POST` | `/api/v1/students/bulk-archive/` | Archive or restore IDs supplied as `student_ids` |
+| `POST` multipart | `/api/v1/students/import/preview/` | Preview uploaded `file` headers and sample rows |
+| `POST` multipart | `/api/v1/students/import/` | Import `file`; accepts `column_mappings`, `school_id`, optional `assign_class` |
+| `POST`, `PATCH` | `/api/v1/teachers/` | Create; update requires `id` in the JSON body |
+| `POST` | `/api/v1/teachers/{id}/archive/` | Archive teacher and deactivate assignments |
+| `POST` | `/api/v1/teachers/{id}/restore/` | Restore archived teacher |
+| `POST` | `/api/v1/teachers/bulk-archive/` | Archive or restore IDs supplied as `teacher_ids` |
+| `POST` multipart | `/api/v1/teachers/import/preview/` | Preview uploaded `file` headers and sample rows |
+| `POST` multipart | `/api/v1/teachers/import/` | Import `file`, optional `school_id` and `default_department` |
+| `GET` | `/api/v1/teachers/export/?format=csv&school_id={id}` | Export teachers for the selected school |
+
+Imports retain valid rows and report row-level failures in `errors`,
+`partial_success`, and `imported`; student admission numbers remain globally
+unique. Legacy student and teacher POST handlers return `410 Gone` and point to
+the replacement API routes.
+
+### 3.6.2 User management writes
+
+| Method | URL | Purpose |
+|---|---|---|
+| `POST` | `/api/v1/users/` | Create a user and schedule a password-setup email |
+| `PATCH` | `/api/v1/users/` | Update the user identified by JSON `id` |
+| `DELETE` | `/api/v1/users/{id}/` | Delete a user |
+| `POST` | `/api/v1/users/bulk-password-reset/` | Send setup/reset links for `user_ids` |
+
+User writes are admin/superadmin-only and tenant-scoped. Superadmins can select
+an active school for new users and bulk password resets; existing users cannot
+be transferred between schools through this endpoint. Legacy mutation routes
+return `410 Gone`.
+
 ### 3.7 School Admin Dashboard Metrics (`GET /api/v1/dashboard/admin/`)
 - **URL:** `/api/v1/dashboard/admin/`
 - **Method:** `GET`
@@ -569,6 +620,42 @@ Valid superadmin credentials submitted through the school-user login flow do not
   ]
 }
 ```
+
+### 4.6 Teacher Assessment Writes
+Teacher and school-admin quiz, question, assignment, and grading writes use the versioned JSON envelope. Teachers may mutate only quizzes they own; admins may mutate any quiz in their school.
+
+| Method | URL | Behaviour |
+|---|---|---|
+| `POST` | `/api/v1/teacher/quizzes/` | Create a quiz (`title`, `subject`, `teacher` for admins, optional classes and settings) |
+| `PATCH` | `/api/v1/teacher/quizzes/{id}/` | Update quiz metadata and class list |
+| `DELETE` | `/api/v1/teacher/quizzes/{id}/` | Delete a quiz; `409 QUIZ_HAS_ATTEMPTS` when attempts exist |
+| `POST` | `/api/v1/teacher/quizzes/{id}/status/` | Set `draft`, `published`, or `archived`. Publishing requires at least one question |
+| `POST` | `/api/v1/teacher/quizzes/{id}/questions/` | Create a question (`question_text`, `question_type`, optional `choices`/`config`) |
+| `PATCH` | `/api/v1/teacher/quizzes/{id}/questions/{question_id}/` | Update a question; `409 CHOICE_HAS_ATTEMPTS` if a used choice is removed |
+| `DELETE` | `/api/v1/teacher/quizzes/{id}/questions/{question_id}/` | Delete a question; `409 QUESTION_HAS_ATTEMPTS` when the quiz has attempts |
+| `POST` | `/api/v1/teacher/quizzes/{id}/questions/{question_id}/duplicate/` | Duplicate a question |
+| `POST` | `/api/v1/teacher/quizzes/{id}/questions/reorder/` | Reorder with `{ "question_ids": [3, 1, 2] }` |
+| `GET, POST` | `/api/v1/teacher/quizzes/{id}/sections/` | List or create sections with instructions, optional time limit, and optional Choose-N |
+| `PATCH, DELETE` | `/api/v1/teacher/quizzes/{id}/sections/{section_id}/` | Update or remove one section |
+| `POST` | `/api/v1/teacher/quizzes/{id}/sections/reorder/` | Reorder every section with `{ "section_ids": [...] }` |
+| `GET, POST` | `/api/v1/teacher/quizzes/{id}/groups/` | List or create shared stimulus groups |
+| `POST` | `/api/v1/teacher/quizzes/{id}/groups/reorder/` | Reorder every group in a section with `{ "section_id": 4, "group_ids": [7, 5] }` |
+| `PATCH, DELETE` | `/api/v1/teacher/quizzes/{id}/groups/{group_id}/` | Update or remove a stimulus group |
+| `POST` | `/api/v1/teacher/quizzes/{id}/questions/assign/` | Assign questions using `{ "question_ids": [...], "section_id": id|null, "group_id": id|null, "replace": true }` |
+| `POST` | `/api/v1/teacher/quizzes/{id}/questions/bulk-delete/` | Bulk delete `{ "question_ids": [...] }` |
+| `POST` multipart | `/api/v1/teacher/quizzes/{id}/questions/import/` | Import CSV/XLSX; returns `imported`, `errors`, `partial_success` |
+| `POST` | `/api/v1/teacher/quizzes/{id}/assignments/` | Assign `{ "class_ids": [...] }` |
+| `DELETE` | `/api/v1/teacher/quizzes/{id}/assignments/{class_id}/` | Unassign one class |
+| `POST` | `/api/v1/teacher/quizzes/{id}/assignments/bulk-delete/` | Unassign `{ "class_ids": [...] }` |
+| `POST` | `/api/v1/teacher/responses/{response_id}/grade/` | Grade one response; marks cannot exceed the question's marks |
+| `POST` | `/api/v1/teacher/grading/{attempt_id}/bulk/` | Bulk grade `{ "grades": [{ "response_id", "marks_awarded", "grading_notes" }] }` |
+
+Quiz `total_marks` is recalculated after question and section-rule updates. A Choose-N section requires at least N questions with equal marks and contributes `N × question marks` to the quiz total. Each attempt snapshots section rules, stimulus, question membership, and question configuration; edits do not change existing attempts. Per-section scores are calculated from the attempt's responses and are not stored separately.
+
+#### Choose-N and snapshot rules
+- Sections and groups are scoped to the quiz's school. A group and its section must belong to the same quiz; questions assigned to a group must also match its section.
+- Choose-N validation rejects a rule larger than the section question count or mixed question marks.
+- Teacher routes use the standard `{ "code", "message", "fields" }` error envelope. All section and assignment routes enforce the same teacher ownership and school scope as quiz writes.
 
 ### 4.5 Teacher Grading Queue (`GET /api/v1/teacher/grading/`)
 - **URL:** `/api/v1/teacher/grading/`
@@ -751,6 +838,9 @@ Valid superadmin credentials submitted through the school-user login flow do not
 - **Method:** `GET`
 - **Auth Required:** Yes (Role: `student` who owns the attempt)
 - **High-Risk Rule:** Correct answers (`is_correct`) are NEVER returned.
+- When sections exist, the response also includes ordered `sections`; each section has its instructions, questions, stimulus groups, `choose_n`, `remaining_seconds`, `is_active`, and `is_locked`. The legacy flat `questions` list remains available.
+- If any section is timed, sections advance in order. `POST /api/v1/student/attempts/{attempt_id}/sections/{section_id}/submit/` submits and locks the active section and starts the next. Save requests for expired or locked sections return `409 SECTION_TIME_EXPIRED` or `409 SECTION_LOCKED`.
+- A Choose-N overflow returns `400 CHOOSE_N_LIMIT`.
 - **Response `200 OK`:**
 ```json
 {
@@ -769,6 +859,7 @@ Valid superadmin credentials submitted through the school-user login flow do not
       "question_type": "multiple_choice",
       "question_text": "What spell repels a Boggart?",
       "marks": 5,
+      "config": { "allow_multiple": true },
       "choices": [
         { "id": 1, "choice_text": "Riddikulus" },
         { "id": 2, "choice_text": "Expelliarmus" },
@@ -781,6 +872,7 @@ Valid superadmin credentials submitted through the school-user login flow do not
       "question_type": "essay",
       "question_text": "Describe the characteristics of a Dementor.",
       "marks": 10,
+      "config": { "answer_format": "long_text" },
       "choices": []
     }
   ],
@@ -788,11 +880,18 @@ Valid superadmin credentials submitted through the school-user login flow do not
     "101": {
       "selected_choice_id": 1,
       "selected_choice_ids": [1],
-      "text_answer": ""
+      "text_answer": "",
+      "answer_data": { "choice_ids": [1] }
     }
   }
 }
 ```
+
+For other registered types, the same payload uses display-only configuration:
+matching questions expose independent left-side pairs and shuffled
+`right_options`; ordering questions expose a shuffled list of `{id, text}`
+items; fill-in-the-blank questions expose only `blank_count`. These settings
+never contain a correctness flag or correct-answer mapping.
 
 ### 5.6 Save Question Response / Autosave (`POST /api/v1/student/attempts/<int:attempt_id>/save/`)
 - **Method:** `POST`
@@ -803,9 +902,14 @@ Valid superadmin credentials submitted through the school-user login flow do not
   "question_id": 101,
   "choice_id": 1,
   "choice_ids": [1],
-  "text_answer": ""
+  "text_answer": "",
+  "answer_data": { "choice_ids": [1] }
 }
 ```
+- `answer_data` is the canonical structured answer (`{"text": "..."}`,
+  `{"text": ["..."]}`, `{"matches": {"left-id": "right-id"}}`, or
+  `{"items": ["item-id"]}` as appropriate for the question type). The legacy
+  `choice_id`, `choice_ids`, and `text_answer` fields remain accepted.
 - **Response `200 OK`:**
 ```json
 {

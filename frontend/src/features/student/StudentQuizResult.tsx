@@ -5,6 +5,7 @@ import { studentApi } from '../../api/student';
 import type { StudentQuizResultData } from '../../types/student';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { Alert } from '../../components/common/Alert';
+import { getQuestionType } from '../../question-types';
 import './student.css';
 
 export const StudentQuizResult: React.FC = () => {
@@ -156,6 +157,20 @@ export const StudentQuizResult: React.FC = () => {
         </div>
       </div>
 
+      {result.section_scores && result.section_scores.length > 0 && (
+        <section className="stu-card core-space--margin-bottom-4" aria-label="Section scores">
+          <h2 className="core-type--heading-5">Section scores</h2>
+          <div className="core-display-flex core-layout--column core-layout--gap-2">
+            {result.section_scores.map((section) => (
+              <div key={section.section_id} className="core-display-flex core-layout--justify-between core-border-bottom core-space--padding-y-2">
+                <span>{section.title}</span>
+                <strong>{section.score} / {section.total_marks}</strong>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Question-by-Question Review Section */}
       <div className="stu-section-head">
         <div className="stu-section-head__title-group">
@@ -198,80 +213,19 @@ export const StudentQuizResult: React.FC = () => {
                 </span>
               </div>
 
-              {/* Multiple Choice / True-False Choices */}
-              {q.choices.length > 0 && (
-                <div className="core-space--margin-top-3 core-display-flex core-layout--column core-layout--gap-2">
-                  {q.choices.map((c) => {
-                    let borderCol = 'var(--stu-border)';
-                    let bgCol = 'var(--stu-surface)';
-                    if (c.is_selected && c.is_correct) {
-                      borderCol = 'var(--stu-success)';
-                      bgCol = 'var(--stu-success-bg)';
-                    } else if (c.is_selected && !c.is_correct) {
-                      borderCol = 'var(--stu-danger)';
-                      bgCol = 'var(--stu-danger-bg)';
-                    } else if (result.show_correct_answers && c.is_correct) {
-                      borderCol = 'var(--stu-warning-border)';
-                      bgCol = 'var(--stu-warning-bg)';
-                    }
-
-                    return (
-                      <div
-                        key={c.id}
-                        className="core-space--padding-2 core-radius core-display-flex core-layout--justify-between core-layout--align-center"
-                        style={{
-                          backgroundColor: bgCol,
-                          border: `1px solid ${borderCol}`,
-                          fontSize: '0.875rem',
-                        }}
-                      >
-                        <span className="core-text--dark">{c.choice_text}</span>
-                        <div className="core-display-flex core-layout--gap-1 core-layout--align-center core-layout--shrink-none">
-                          {c.is_selected && (
-                            <span className="stu-badge stu-badge--muted">Your Answer</span>
-                          )}
-                          {result.show_correct_answers && c.is_correct && (
-                            <span className="stu-badge stu-badge--success">Correct Key</span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Text / Essay Answers */}
-              {q.choices.length === 0 && (
-                <div className="core-space--margin-top-3">
-                  <div className="core-type--small core-type--weight-semibold core-text--muted core-space--margin-bottom-1">Your Submission:</div>
-                  <div
-                    className="core-space--padding-2 core-radius core-space--margin-bottom-2 core-text--dark"
-                    style={{
-                      backgroundColor: 'var(--stu-surface-alt)',
-                      border: '1px solid var(--stu-border)',
-                      fontSize: '0.875rem',
-                    }}
-                  >
-                    {q.student_answer || <span className="core-text--muted fst-italic">No response entered</span>}
-                  </div>
-
-                  {result.show_correct_answers && q.correct_answer && (
-                    <div>
-                      <div className="core-type--small core-type--weight-semibold core-text--success core-space--margin-bottom-1">Model / Correct Answer:</div>
-                      <div
-                        className="core-space--padding-2 core-radius core-text--dark"
-                        style={{
-                          backgroundColor: 'var(--stu-success-bg)',
-                          border: '1px solid var(--stu-success-border)',
-                          fontSize: '0.875rem',
-                        }}
-                      >
-                        {q.correct_answer}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
+              {(() => {
+                const Review = getQuestionType(q.question_type).Review;
+                return (
+                  <Review
+                    answer={q.review_data?.student_answer ?? q.student_answer}
+                    correctAnswer={result.show_correct_answers
+                      ? q.review_data?.correct_answer ?? q.correct_answer
+                      : null}
+                    choices={q.choices}
+                    showCorrectAnswers={result.show_correct_answers}
+                  />
+                );
+              })()}
 
               {/* Explanation Callout */}
               {result.show_correct_answers && q.explanation && (

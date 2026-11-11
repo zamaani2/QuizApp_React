@@ -10,6 +10,8 @@ import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { Alert } from '../../components/common/Alert';
 import { Button } from '../../components/common/Button';
 import { Modal } from '../../components/common/Modal';
+import { getQuestionType, isQuestionAnswered } from '../../question-types';
+import { ApiError } from '../../types';
 import './student.css';
 
 export const StudentQuizTake: React.FC = () => {
@@ -22,6 +24,11 @@ export const StudentQuizTake: React.FC = () => {
 
   // Active question index (0-based)
   const [currentIndex, setCurrentIndex] = useState<number>(0);
+  const [selectedSectionId, setSelectedSectionId] = useState<number | null>(null);
+  const [sectionSecondsRemaining, setSectionSecondsRemaining] = useState<number | null>(null);
+  const [showSectionConfirm, setShowSectionConfirm] = useState(false);
+  const [sectionSubmitting, setSectionSubmitting] = useState(false);
+  const [sectionError, setSectionError] = useState<string | null>(null);
 
   // Responses map: questionId -> { selected_choice_id, selected_choice_ids, text_answer }
   const [responses, setResponses] = useState<Record<string, StudentQuestionResponse>>({});
@@ -44,6 +51,8 @@ export const StudentQuizTake: React.FC = () => {
 
   // Ref to prevent double submission
   const isSubmittingRef = useRef<boolean>(false);
+  const pendingSavesRef = useRef<Set<Promise<void>>>(new Set());
+  const sectionSubmittingRef = useRef<boolean>(false);
 
   // Load quiz attempt data
   const loadAttempt = useCallback(async () => {
@@ -60,6 +69,14 @@ export const StudentQuizTake: React.FC = () => {
 
       setData(res);
       setSecondsRemaining(res.time_remaining_seconds);
+      setSelectedSectionId(
+        res.section_timing_enabled
+          ? res.active_section_id ?? null
+          : res.sections?.[0]?.id ?? null
+      );
+      setSectionSecondsRemaining(
+        res.sections?.find((section) => section.id === res.active_section_id)?.remaining_seconds ?? null
+      );
 
       // Restore existing responses from backend
       const initialResponses: Record<string, StudentQuestionResponse> = {
@@ -89,6 +106,28 @@ export const StudentQuizTake: React.FC = () => {
     loadAttempt();
   }, [loadAttempt]);
 
+  const sections = data?.sections ?? [];
+  const currentSectionId = data?.section_timing_enabled
+    ? data.active_section_id ?? (sections.some((section) => section.id === null) ? null : undefined)
+    : selectedSectionId;
+  const currentSection = sections.find((section) => section.id === currentSectionId);
+  const visibleQuestions = currentSection?.questions ?? data?.questions ?? [];
+  const activeGroup = currentSection?.groups.find(
+    (group) => group.questions.some((question) => question.id === visibleQuestions[currentIndex]?.id)
+  );
+
+  useEffect(() => {
+    if (!data) return;
+    const activeId = data.section_timing_enabled
+      ? data.active_section_id ?? (sections.some((section) => section.id === null) ? null : undefined)
+      : selectedSectionId;
+    const section = sections.find((item) => item.id === activeId);
+    setSectionSecondsRemaining(section?.remaining_seconds ?? null);
+    if (data.section_timing_enabled && data.active_section_id !== undefined) {
+      setSelectedSectionId(data.active_section_id);
+    }
+  }, [data, sections, selectedSectionId]);
+
   // Execute Idempotent Submission
   const handleSubmit = async () => {
     if (!attemptId || isSubmittingRef.current) return;
@@ -97,6 +136,7 @@ export const StudentQuizTake: React.FC = () => {
       setSubmitting(true);
       setSubmitError(null);
 
+      await Promise.all([...pendingSavesRef.current]);
       const res = await studentApi.submitStudentQuiz(Number(attemptId));
       if (res.success) {
         // Clean up local draft
@@ -138,10 +178,45 @@ export const StudentQuizTake: React.FC = () => {
     return () => clearInterval(timer);
   }, [secondsRemaining]);
 
+  useEffect(() => {
+    if (
+      !data?.section_timing_enabled
+      || !attemptId
+      || !currentSection
+      || currentSection.id === null
+      || currentSection.time_limit_minutes === null
+      || sectionSecondsRemaining === null
+    ) return;
+    const activeSectionId = currentSection.id;
+    if (sectionSecondsRemaining <= 0) {
+      if (sectionSubmittingRef.current) return;
+      sectionSubmittingRef.current = true;
+      void (async () => {
+        try {
+          await studentApi.submitStudentSection(Number(attemptId), activeSectionId);
+        } catch (err) {
+          if (!(err instanceof ApiError) || err.status !== 409) {
+            setSectionError(err instanceof Error ? err.message : 'Unable to submit the timed section.');
+          }
+        } finally {
+          sectionSubmittingRef.current = false;
+          await loadAttempt();
+        }
+      })();
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setSectionSecondsRemaining((remaining) => remaining === null ? null : Math.max(0, remaining - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [attemptId, currentSection, data?.section_timing_enabled, loadAttempt, sectionSecondsRemaining]);
+
   // Save response to backend and sync with localStorage
   const saveAnswer = async (
     questionId: number,
-    newResponse: Partial<StudentQuestionResponse>
+    newResponse: Partial<StudentQuestionResponse>,
+    persist = true
   ) => {
     if (!attemptId) return;
 
@@ -149,11 +224,36 @@ export const StudentQuizTake: React.FC = () => {
       selected_choice_id: null,
       selected_choice_ids: [],
       text_answer: '',
+      answer_data: {},
     };
     const updated: StudentQuestionResponse = {
       ...base,
       ...newResponse,
     };
+    const alreadyAnswered = isQuestionAnswered(
+      currentQuestion?.question_type ?? '',
+      base
+    );
+    const willBeAnswered = isQuestionAnswered(
+      currentQuestion?.question_type ?? '',
+      updated
+    );
+    const sectionAnswered = (currentSection?.questions ?? []).filter((question) => {
+      const answer = responses[String(question.id)];
+      return answer ? isQuestionAnswered(question.question_type, answer) : false;
+    }).length;
+    if (
+      currentQuestion
+      && currentSection?.choose_n !== null
+      && currentSection?.choose_n !== undefined
+      && !alreadyAnswered
+      && willBeAnswered
+      && sectionAnswered >= currentSection.choose_n
+    ) {
+      setSaveStatus('error');
+      setSaveErrorMessage(`You may answer only ${currentSection.choose_n} question(s) in this section.`);
+      return;
+    }
 
     const nextResponses = {
       ...responses,
@@ -168,29 +268,88 @@ export const StudentQuizTake: React.FC = () => {
       // ignore
     }
 
-    try {
-      setSaveStatus('saving');
-      setSaveErrorMessage(null);
+    if (!persist) return;
 
-      const savePayload = {
-        question_id: questionId,
-        choice_id: updated.selected_choice_id,
-        choice_ids: updated.selected_choice_ids,
-        text_answer: updated.text_answer,
-      };
+    const pendingSave = (async () => {
+      try {
+        setSaveStatus('saving');
+        setSaveErrorMessage(null);
 
-      const result = await studentApi.saveStudentResponse(Number(attemptId), savePayload);
-      if (result.submitted) {
-        setTimeExpiredModal(true);
-        navigate(`/student/attempts/${attemptId}/result`, { replace: true });
-        return;
+        const savePayload = {
+          question_id: questionId,
+          choice_id: updated.selected_choice_id,
+          choice_ids: updated.selected_choice_ids,
+          text_answer: updated.text_answer,
+          answer_data: updated.answer_data,
+        };
+
+        const result = await studentApi.saveStudentResponse(Number(attemptId), savePayload);
+        if (result.submitted) {
+          setTimeExpiredModal(true);
+          navigate(`/student/attempts/${attemptId}/result`, { replace: true });
+          return;
+        }
+        setSaveStatus('saved');
+      } catch (err) {
+        setSaveStatus('error');
+        setSaveErrorMessage(
+          err instanceof Error ? err.message : 'Response saved locally. Reconnecting...'
+        );
+        if (err instanceof ApiError && err.code === 'CHOOSE_N_LIMIT') {
+          const restored = { ...responses };
+          if (alreadyAnswered) restored[String(questionId)] = base;
+          else delete restored[String(questionId)];
+          setResponses(restored);
+          try {
+            localStorage.setItem(`quiz_draft_${attemptId}`, JSON.stringify(restored));
+          } catch {
+            // A rejected answer must not remain in the local draft.
+          }
+        }
       }
-      setSaveStatus('saved');
+    })();
+    pendingSavesRef.current.add(pendingSave);
+    try {
+      await pendingSave;
+    } finally {
+      pendingSavesRef.current.delete(pendingSave);
+    }
+  };
+
+  const requestSectionNavigation = (sectionId: number | null) => {
+    if (!data || !currentSection || sectionId === currentSection.id) return;
+    if (!data.section_timing_enabled) {
+      setSelectedSectionId(sectionId);
+      setCurrentIndex(0);
+      setSectionError(null);
+      return;
+    }
+    if (currentSection.id === null) return;
+    const currentPosition = sections.findIndex((section) => section.id === currentSection.id);
+    const targetPosition = sections.findIndex((section) => section.id === sectionId);
+    if (targetPosition === currentPosition + 1) {
+      setShowSectionConfirm(true);
+    }
+  };
+
+  const confirmSectionNavigation = async () => {
+    if (!attemptId || !currentSection || currentSection.id === null) return;
+    setSectionSubmitting(true);
+    setSectionError(null);
+    try {
+      await Promise.all([...pendingSavesRef.current]);
+      await studentApi.submitStudentSection(Number(attemptId), currentSection.id);
+      setShowSectionConfirm(false);
+      await loadAttempt();
     } catch (err) {
-      setSaveStatus('error');
-      setSaveErrorMessage(
-        err instanceof Error ? err.message : 'Response saved locally. Reconnecting...'
-      );
+      if (err instanceof ApiError && err.status === 409) {
+        setShowSectionConfirm(false);
+        await loadAttempt();
+      } else {
+        setSectionError(err instanceof Error ? err.message : 'Unable to move to the next section.');
+      }
+    } finally {
+      setSectionSubmitting(false);
     }
   };
 
@@ -224,18 +383,28 @@ export const StudentQuizTake: React.FC = () => {
     );
   }
 
-  const currentQuestion = data.questions[currentIndex];
+  const currentQuestion = visibleQuestions[currentIndex];
   const currentAnswer = currentQuestion
     ? responses[String(currentQuestion.id)] || {
         selected_choice_id: null,
         selected_choice_ids: [],
         text_answer: '',
+        answer_data: {},
       }
     : null;
 
-  const answeredCount = Object.values(responses).filter((r) =>
-    r.selected_choice_id !== null || (r.text_answer && r.text_answer.trim() !== '')
-  ).length;
+  const answeredCount = data.questions.filter((question) => {
+    const answer = responses[String(question.id)];
+    return answer ? isQuestionAnswered(question.question_type, answer) : false;
+  }).length;
+  const sectionAnsweredCount = visibleQuestions.filter((question) => {
+    const answer = responses[String(question.id)];
+    return answer ? isQuestionAnswered(question.question_type, answer) : false;
+  }).length;
+  const currentSectionIndex = currentSection
+    ? sections.findIndex((section) => section.id === currentSection.id)
+    : -1;
+  const nextSection = currentSectionIndex >= 0 ? sections[currentSectionIndex + 1] : undefined;
 
   const progressPercent = data.total_questions > 0 ? (answeredCount / data.total_questions) * 100 : 0;
 
@@ -247,7 +416,11 @@ export const StudentQuizTake: React.FC = () => {
           <div className="stu-exam-top-bar__title-wrap">
             <h1 className="stu-exam-top-bar__title">{data.quiz_title}</h1>
             <div className="stu-exam-top-bar__qcount">
-              Question {currentIndex + 1} of {data.total_questions} • Answered: {answeredCount}/{data.total_questions}
+              {currentSection ? `${currentSection.title} • ` : ''}
+              Question {currentIndex + 1} of {visibleQuestions.length} • Answered: {answeredCount}/{data.total_questions}
+              {currentSection?.choose_n !== null && currentSection?.choose_n !== undefined
+                ? ` • Answer ${sectionAnsweredCount} of ${currentSection.choose_n} (${visibleQuestions.length} available)`
+                : ''}
             </div>
           </div>
 
@@ -291,6 +464,16 @@ export const StudentQuizTake: React.FC = () => {
                 <span>{formatTime(secondsRemaining)}</span>
               </div>
             )}
+            {data.section_timing_enabled && currentSection?.time_limit_minutes !== null && sectionSecondsRemaining !== null && (
+              <div
+                className={`stu-exam-timer-badge ${sectionSecondsRemaining < 60 ? 'stu-exam-timer-badge--critical' : ''}`}
+                data-testid="section-timer"
+                aria-label={`Section time remaining: ${formatTime(sectionSecondsRemaining)}`}
+              >
+                <AppIcon name="clock" aria-hidden="true" />
+                <span>{formatTime(sectionSecondsRemaining)}</span>
+              </div>
+            )}
 
             {/* Direct Submit Action */}
             <button
@@ -303,6 +486,31 @@ export const StudentQuizTake: React.FC = () => {
             </button>
           </div>
         </div>
+
+        {sections.length > 1 && (
+          <nav className="stu-exam-section-nav" aria-label="Exam sections">
+            {sections.map((section, index) => {
+              const activeIndex = currentSection
+                ? sections.findIndex((item) => item.id === currentSection.id)
+                : -1;
+              const isCurrent = currentSection?.id === section.id;
+              const canMove = !data.section_timing_enabled || index === activeIndex || index === activeIndex + 1;
+              return (
+                <button
+                  key={section.id ?? 'unsectioned'}
+                  type="button"
+                  className={`stu-btn-outline ${isCurrent ? 'stu-exam-section-nav__active' : ''}`}
+                  disabled={!canMove || (data.section_timing_enabled && activeIndex < 0)}
+                  aria-current={isCurrent ? 'step' : undefined}
+                  onClick={() => requestSectionNavigation(section.id)}
+                >
+                  {index + 1}. {section.title}
+                  {section.is_locked && !isCurrent ? ' (locked)' : ''}
+                </button>
+              );
+            })}
+          </nav>
+        )}
 
         {/* Minimal Progress Bar */}
         <div
@@ -328,12 +536,30 @@ export const StudentQuizTake: React.FC = () => {
 
       {/* Main Examination Area */}
       <main className="stu-exam-body" id="quiz-question-container">
+        {sectionError && <Alert variant="danger" dismissible onDismiss={() => setSectionError(null)}>{sectionError}</Alert>}
+        {currentSection && (
+          <section className="stu-exam-section-header" aria-label={`${currentSection.title} instructions`}>
+            <h2>{currentSection.title}</h2>
+            {currentSection.instructions && <p>{currentSection.instructions}</p>}
+            {currentSection.choose_n !== null && currentSection.choose_n !== undefined && (
+              <p className="stu-exam-choose-counter">
+                Answer {sectionAnsweredCount} of {currentSection.choose_n} questions ({visibleQuestions.length} available).
+              </p>
+            )}
+          </section>
+        )}
         {currentQuestion && (
           <div className="stu-exam-card">
+            {activeGroup?.stimulus_text && (
+              <aside className="stu-exam-stimulus" aria-label="Shared stimulus">
+                <strong>{activeGroup.title}</strong>
+                <div>{activeGroup.stimulus_text}</div>
+              </aside>
+            )}
             {/* Question Heading & Marks */}
             <div className="stu-exam-question-head">
               <span className="stu-badge stu-badge--sky">
-                Question {currentIndex + 1} of {data.total_questions}
+                Question {currentIndex + 1} of {visibleQuestions.length}
               </span>
               <span className="stu-badge stu-badge--muted">
                 {currentQuestion.marks} {currentQuestion.marks === 1 ? 'mark' : 'marks'}
@@ -345,79 +571,16 @@ export const StudentQuizTake: React.FC = () => {
               {currentQuestion.question_text}
             </div>
 
-            {/* Multiple Choice & True/False Choices */}
-            {(currentQuestion.question_type === 'multiple_choice' ||
-              currentQuestion.question_type === 'true_false') && (
-              <div className="core-display-flex core-layout--column" role="radiogroup" aria-label="Answer options">
-                {currentQuestion.choices.map((choice) => {
-                  const isSelected = currentAnswer?.selected_choice_id === choice.id;
-                  return (
-                    <label
-                      key={choice.id}
-                      className={`stu-exam-choice ${isSelected ? 'stu-exam-choice--selected' : ''}`}
-                    >
-                      <input
-                        type="radio"
-                        name={`question_${currentQuestion.id}`}
-                        value={choice.id}
-                        checked={isSelected}
-                        onChange={() =>
-                          saveAnswer(currentQuestion.id, { selected_choice_id: choice.id })
-                        }
-                        className="stu-exam-choice__input"
-                        aria-label={choice.choice_text}
-                      />
-                      <span className="stu-exam-choice__label">{choice.choice_text}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Text / Essay Input */}
-            {(currentQuestion.question_type === 'essay' ||
-              currentQuestion.question_type === 'short_answer' ||
-              currentQuestion.question_type === 'fill_blank') && (
-              <div className="core-space--margin-bottom-3">
-                <label
-                  htmlFor="essay-answer"
-                  className="core-field__label core-type--small core-type--weight-bold"
-                  style={{ color: 'var(--stu-navy)' }}
-                >
-                  Type your response below:
-                </label>
-                <textarea
-                  id="essay-answer"
-                  className="core-field__input"
-                  rows={6}
-                  placeholder="Write your answer clearly..."
-                  style={{
-                    borderColor: 'var(--stu-border)',
-                    borderRadius: 'var(--stu-radius-md)',
-                    fontSize: '0.95rem',
-                    lineHeight: '1.5',
-                  }}
-                  value={currentAnswer?.text_answer || ''}
-                  onChange={(e) =>
-                    setResponses((prev) => ({
-                      ...prev,
-                      [String(currentQuestion.id)]: {
-                        selected_choice_id: null,
-                        selected_choice_ids: [],
-                        text_answer: e.target.value,
-                      },
-                    }))
-                  }
-                  onBlur={(e) =>
-                    saveAnswer(currentQuestion.id, { text_answer: e.target.value })
-                  }
+            {currentAnswer && (() => {
+              const Player = getQuestionType(currentQuestion.question_type).Player;
+              return (
+                <Player
+                  question={currentQuestion}
+                  response={currentAnswer}
+                  onChange={(answer, persist) => saveAnswer(currentQuestion.id, answer, persist)}
                 />
-                <div className="core-type--small core-text--muted core-space--margin-top-2">
-                  <AppIcon name="info" className="core-space--margin-end-1" />
-                  Your answer saves automatically when you navigate or finish typing.
-                </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         )}
       </main>
@@ -446,21 +609,30 @@ export const StudentQuizTake: React.FC = () => {
           >
             <AppIcon name="layoutGrid" className="core-space--margin-end-1" aria-hidden="true" />
             <span>
-              {currentIndex + 1} / {data.total_questions}
+              {currentIndex + 1} / {visibleQuestions.length}
             </span>
           </button>
 
           {/* Next or Review & Submit Button */}
-          {currentIndex < data.total_questions - 1 ? (
+          {currentIndex < visibleQuestions.length - 1 ? (
             <button
               type="button"
               className="stu-btn-primary"
               onClick={() =>
-                setCurrentIndex((prev) => Math.min(data.total_questions - 1, prev + 1))
+                setCurrentIndex((prev) => Math.min(visibleQuestions.length - 1, prev + 1))
               }
               style={{ minWidth: '95px' }}
             >
               Next →
+            </button>
+          ) : nextSection ? (
+            <button
+              type="button"
+              className="stu-btn-primary"
+              onClick={() => requestSectionNavigation(nextSection.id)}
+              style={{ minWidth: '130px' }}
+            >
+              Next section →
             </button>
           ) : (
             <button
@@ -499,12 +671,11 @@ export const StudentQuizTake: React.FC = () => {
           </p>
 
           <div className="stu-palette-grid core-space--margin-bottom-3">
-            {data.questions.map((q, idx) => {
+            {visibleQuestions.map((q, idx) => {
               const ans = responses[String(q.id)];
-              const isAnswered =
-                ans &&
-                (ans.selected_choice_id !== null ||
-                  (ans.text_answer && ans.text_answer.trim() !== ''));
+              const isAnswered = ans
+                ? isQuestionAnswered(q.question_type, ans)
+                : false;
               const isCurrent = idx === currentIndex;
 
               let btnModifier = 'stu-palette-btn--unanswered';
@@ -546,6 +717,37 @@ export const StudentQuizTake: React.FC = () => {
             </div>
           </div>
         </div>
+      </Modal>
+
+      <Modal
+        isOpen={showSectionConfirm}
+        onClose={() => setShowSectionConfirm(false)}
+        title="Leave this timed section?"
+        size="sm"
+        footer={
+          <div className="core-display-flex core-layout--gap-2 core-layout--justify-end core-size--width-full">
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              onClick={() => setShowSectionConfirm(false)}
+              disabled={sectionSubmitting}
+            >
+              Keep working
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={confirmSectionNavigation}
+              loading={sectionSubmitting}
+            >
+              Submit section and continue
+            </Button>
+          </div>
+        }
+      >
+        <p>
+          Continuing will submit and lock <strong>{currentSection?.title}</strong>. You will not be able to change its answers afterward.
+        </p>
       </Modal>
 
       {/* Confirmation Submit Modal */}

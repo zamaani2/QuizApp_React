@@ -1148,6 +1148,21 @@
   color: var(--stu-text-muted);
 }
 
+.stu-exam-section-nav {
+  max-width: 900px;
+  margin: 0.65rem auto 0;
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.15rem;
+}
+
+.stu-exam-section-nav__active {
+  border-color: var(--stu-sky);
+  color: var(--stu-navy);
+  font-weight: 700;
+}
+
 .stu-exam-timer-badge {
   display: inline-flex;
   align-items: center;
@@ -1196,6 +1211,28 @@
   padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
 }
 
+.stu-exam-section-header {
+  margin-bottom: 1rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--stu-sky-border);
+  border-radius: var(--stu-radius-lg);
+  background: var(--stu-sky-light);
+}
+
+.stu-exam-section-header h2 {
+  margin: 0 0 0.4rem;
+  color: var(--stu-navy);
+  font-size: 1.1rem;
+}
+
+.stu-exam-section-header p {
+  margin: 0.3rem 0 0;
+}
+
+.stu-exam-choose-counter {
+  font-weight: 700;
+}
+
 .stu-exam-card {
   background-color: var(--stu-surface);
   border: 1px solid var(--stu-border);
@@ -1203,6 +1240,25 @@
   padding: 1.25rem;
   box-shadow: var(--stu-shadow);
   margin-bottom: 1rem;
+}
+
+.stu-exam-stimulus {
+  position: sticky;
+  top: 5.25rem;
+  z-index: 2;
+  margin: -0.25rem 0 1.25rem;
+  padding: 0.85rem 1rem;
+  border-left: 4px solid var(--stu-sky);
+  border-radius: var(--stu-radius-sm);
+  background: var(--stu-sky-light);
+  color: var(--stu-text-main);
+  box-shadow: var(--stu-shadow);
+}
+
+.stu-exam-stimulus strong {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--stu-navy);
 }
 
 @media (min-width: 768px) {

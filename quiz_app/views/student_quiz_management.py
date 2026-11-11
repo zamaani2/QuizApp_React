@@ -740,6 +740,9 @@ def _attempt_review_snapshot(attempt, quiz, questions, responses):
             "correct_answer_text",
             "explanation",
             "order",
+            "config",
+            "negative_marks",
+            "partial_credit",
         ):
             if field in question_snapshot:
                 setattr(question, field, question_snapshot[field])

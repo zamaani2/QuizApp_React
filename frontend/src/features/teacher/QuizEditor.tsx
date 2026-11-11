@@ -25,6 +25,9 @@ export const QuizEditor: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [step, setStep] = useState(0);
+
+  const steps = ['Basics', 'Academic & classes', 'Schedule & scoring', 'Results & behavior'];
 
   useEffect(() => {
     let active = true;
@@ -46,12 +49,45 @@ export const QuizEditor: React.FC = () => {
     return () => { active = false; };
   }, [quizId]);
 
+  function getRequiredFieldError(form: HTMLFormElement): string | null {
+    const formData = new FormData(form);
+    if (!String(formData.get('title') || '').trim()) return 'Enter a quiz title before continuing.';
+    if (!String(formData.get('subject') || '').trim()) return 'Select a subject before continuing.';
+    if (options?.is_admin && !String(formData.get('teacher') || '').trim()) {
+      return 'Select a teacher before continuing.';
+    }
+    return null;
+  }
+
+  function handleNext(form: HTMLFormElement) {
+    if (step === 0) {
+      const validationError = getRequiredFieldError(form);
+      if (validationError) {
+        setError(validationError);
+        return;
+      }
+    }
+    setError(null);
+    setStep((current) => Math.min(steps.length - 1, current + 1));
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const form = event.currentTarget;
+    if (step < steps.length - 1) {
+      handleNext(form);
+      return;
+    }
+    const validationError = getRequiredFieldError(form);
+    if (validationError) {
+      setError(validationError);
+      setStep(0);
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
-      const result = await saveQuiz(quizId, new FormData(event.currentTarget));
+      const result = await saveQuiz(quizId, new FormData(form));
       navigate(`/teacher/quizzes/${result.quiz_id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to save quiz.');
@@ -78,12 +114,30 @@ export const QuizEditor: React.FC = () => {
       <h1 className="core-type--heading-3 core-space--margin-bottom-4">{quizId ? 'Edit Quiz' : 'Create Quiz'}</h1>
       {error && <Alert variant="danger" dismissible onDismiss={() => setError(null)}>{error}</Alert>}
 
-      <form className="core-card core-shadow--sm core-border--none" onSubmit={handleSubmit}>
+      <form className="core-card core-shadow--sm core-border--none" onSubmit={handleSubmit} noValidate>
         <div className="core-card__body">
+          <nav aria-label="Quiz setup steps" className="core-display-flex core-layout--wrap core-layout--gap-2 core-space--margin-bottom-4">
+            {steps.map((label, index) => (
+              <button
+                key={label}
+                type="button"
+                className={`core-button core-button--sm ${step === index ? 'core-button--primary' : 'core-button--outline-secondary'}`}
+                aria-current={step === index ? 'step' : undefined}
+                disabled={index > step || saving}
+                onClick={() => { setError(null); setStep(index); }}
+              >
+                {index + 1}. {label}
+              </button>
+            ))}
+          </nav>
+          <div className="core-type--small core-text--muted core-space--margin-bottom-3">
+            Step {step + 1} of {steps.length}
+          </div>
           <div className="core-grid core-grid--gap-3">
+            <section hidden={step !== 0} className="core-grid__span-12 core-grid core-grid--gap-3" aria-label="Quiz basics">
             <div className="core-grid__span-12">
               <label className="core-field__label" htmlFor="quiz-title">Title *</label>
-              <input id="quiz-title" className="core-field__input" name="title" required maxLength={200} defaultValue={quiz?.title ?? ''} />
+              <input id="quiz-title" className="core-field__input" name="title" maxLength={200} defaultValue={quiz?.title ?? ''} />
             </div>
             <div className="core-grid__span-12">
               <label className="core-field__label" htmlFor="quiz-description">Description</label>
@@ -109,6 +163,8 @@ export const QuizEditor: React.FC = () => {
                 </select>
               </div>
             )}
+            </section>
+            <section hidden={step !== 1} className="core-grid__span-12 core-grid core-grid--gap-3" aria-label="Academic year and classes">
             <div className="core-grid__span-md-6">
               <label className="core-field__label" htmlFor="quiz-category">Category</label>
               <select id="quiz-category" className="core-field__select" name="category" defaultValue={quiz?.category_id ?? ''}>
@@ -140,6 +196,8 @@ export const QuizEditor: React.FC = () => {
                 {options.classes.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
               </select>
             </div>
+            </section>
+            <section hidden={step !== 2} className="core-grid__span-12 core-grid core-grid--gap-3" aria-label="Schedule and scoring">
             <div className="core-grid__span-md-4">
               <label className="core-field__label" htmlFor="quiz-status">Status</label>
               <select id="quiz-status" className="core-field__select" name="status" defaultValue={quiz?.status ?? 'draft'}>
@@ -180,6 +238,8 @@ export const QuizEditor: React.FC = () => {
                 <span className="core-field__check-label">Require password</span>
               </label>
             </div>
+            </section>
+            <section hidden={step !== 3} className="core-grid__span-12 core-grid core-grid--gap-3" aria-label="Results and behavior">
             <div className="core-grid__span-md-6 core-display-flex core-layout--column core-layout--gap-2">
               {([
                 ['randomize_questions', 'Randomize question order', quiz?.randomize_questions],
@@ -194,11 +254,27 @@ export const QuizEditor: React.FC = () => {
                 </label>
               ))}
             </div>
+            </section>
           </div>
         </div>
-        <div className="core-card__footer core-surface--white core-display-flex core-layout--wrap core-layout--justify-end core-layout--gap-2">
+        <div className="core-card__footer core-surface--white core-display-flex core-layout--wrap core-layout--justify-between core-layout--gap-2">
           <Link to={quizId ? `/teacher/quizzes/${quizId}` : '/teacher/quizzes'} className="core-button core-button--outline-secondary">Cancel</Link>
-          <Button type="submit" loading={saving}>{quizId ? 'Save Changes' : 'Create Quiz'}</Button>
+          <div className="core-display-flex core-layout--gap-2">
+            <Button type="button" variant="outline-secondary" disabled={step === 0 || saving}
+              onClick={() => { setError(null); setStep((current) => Math.max(0, current - 1)); }}>
+              Back
+            </Button>
+            {step < steps.length - 1 ? (
+              <Button type="button" onClick={(event) => {
+                const form = event.currentTarget.form;
+                if (form) handleNext(form);
+              }}>
+                Continue
+              </Button>
+            ) : (
+              <Button type="submit" loading={saving}>{quizId ? 'Save Changes' : 'Create Quiz'}</Button>
+            )}
+          </div>
         </div>
       </form>
     </div>

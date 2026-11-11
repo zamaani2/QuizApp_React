@@ -10,6 +10,8 @@ import type {
   QuizAssignmentsData,
   GradingAttemptData,
   TeacherResultDetail,
+  QuizSectionData,
+  QuestionGroupData,
 } from '../types';
 
 export interface QuizFilters {
@@ -50,28 +52,55 @@ export async function fetchQuizFormOptions(quizId?: number): Promise<QuizFormOpt
   return apiClient<QuizFormOptions>(`/api/v1/teacher/quiz-options/${query}`);
 }
 
+const QUIZ_FLAGS = [
+  'randomize_questions',
+  'randomize_answers',
+  'show_results_immediately',
+  'show_correct_answers',
+  'allow_review',
+  'require_password',
+] as const;
+
+function quizPayloadFromForm(formData: FormData): Record<string, unknown> {
+  const data: Record<string, unknown> = {};
+  for (const [key, value] of formData.entries()) {
+    if (typeof value !== 'string') continue;
+    const existing = data[key];
+    if (existing === undefined) data[key] = value;
+    else if (Array.isArray(existing)) existing.push(value);
+    else data[key] = [existing, value];
+  }
+  for (const flag of QUIZ_FLAGS) {
+    data[flag] = formData.get(flag) === 'on';
+  }
+  data.classes = formData.getAll('classes').map(String).filter(Boolean);
+  return data;
+}
+
 export async function saveQuiz(quizId: number | null, formData: FormData): Promise<{success: boolean; quiz_id: number; message: string}> {
-  return apiClient(quizId ? `/quizzes/${quizId}/edit/` : '/quizzes/create/', {
+  const payload = quizPayloadFromForm(formData);
+  if (quizId) {
+    return apiClient(`/api/v1/teacher/quizzes/${quizId}/`, {
+      method: 'PATCH',
+      body: payload,
+    });
+  }
+  return apiClient('/api/v1/teacher/quizzes/', {
     method: 'POST',
-    headers: { 'X-Requested-With': 'XMLHttpRequest' },
-    body: formData,
+    body: payload,
   });
 }
 
 export async function updateQuizStatus(quizId: number, status: string): Promise<{success: boolean; message: string}> {
-  const body = new FormData();
-  body.set('status', status);
-  return apiClient(`/quizzes/${quizId}/update-status/`, {
+  return apiClient(`/api/v1/teacher/quizzes/${quizId}/status/`, {
     method: 'POST',
-    headers: { 'X-Requested-With': 'XMLHttpRequest' },
-    body,
+    body: { status },
   });
 }
 
 export async function deleteQuiz(quizId: number): Promise<{success: boolean; message: string}> {
-  return apiClient(`/quizzes/${quizId}/delete/`, {
-    method: 'POST',
-    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+  return apiClient(`/api/v1/teacher/quizzes/${quizId}/`, {
+    method: 'DELETE',
   });
 }
 
@@ -80,48 +109,44 @@ export async function fetchQuizAssignments(quizId: number): Promise<QuizAssignme
 }
 
 export async function assignQuizClasses(quizId: number, classIds: number[]): Promise<{success: boolean; message: string}> {
-  const body = new FormData();
-  classIds.forEach((id) => body.append('classes', String(id)));
-  return apiClient(`/quizzes/${quizId}/assignments/create/`, {
+  return apiClient(`/api/v1/teacher/quizzes/${quizId}/assignments/`, {
     method: 'POST',
-    headers: { 'X-Requested-With': 'XMLHttpRequest' },
-    body,
+    body: { class_ids: classIds },
   });
 }
 
 export async function unassignQuizClass(quizId: number, classId: number): Promise<{success: boolean; message: string}> {
-  return apiClient(`/quizzes/${quizId}/assignments/${classId}/delete/`, {
-    method: 'POST',
-    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+  return apiClient(`/api/v1/teacher/quizzes/${quizId}/assignments/${classId}/`, {
+    method: 'DELETE',
   });
 }
 
 export async function saveQuestion(
   quizId: number,
   questionId: number | null,
-  formData: FormData
+  payload: Record<string, unknown>
 ): Promise<{success: boolean; question_id: number; message: string}> {
-  const url = questionId
-    ? `/quizzes/${quizId}/questions/${questionId}/edit/`
-    : `/quizzes/${quizId}/questions/create/`;
-  return apiClient(url, {
+  if (questionId) {
+    return apiClient(`/api/v1/teacher/quizzes/${quizId}/questions/${questionId}/`, {
+      method: 'PATCH',
+      body: payload,
+    });
+  }
+  return apiClient(`/api/v1/teacher/quizzes/${quizId}/questions/`, {
     method: 'POST',
-    headers: { 'X-Requested-With': 'XMLHttpRequest' },
-    body: formData,
+    body: payload,
   });
 }
 
 export async function deleteQuestion(quizId: number, questionId: number): Promise<{success: boolean; message: string}> {
-  return apiClient(`/quizzes/${quizId}/questions/${questionId}/delete/`, {
-    method: 'POST',
-    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+  return apiClient(`/api/v1/teacher/quizzes/${quizId}/questions/${questionId}/`, {
+    method: 'DELETE',
   });
 }
 
 export async function duplicateQuestion(quizId: number, questionId: number): Promise<{success: boolean; question_id: number; message: string}> {
-  return apiClient(`/quizzes/${quizId}/questions/${questionId}/duplicate/`, {
+  return apiClient(`/api/v1/teacher/quizzes/${quizId}/questions/${questionId}/duplicate/`, {
     method: 'POST',
-    headers: { 'X-Requested-With': 'XMLHttpRequest' },
   });
 }
 
@@ -129,14 +154,91 @@ export async function reorderQuizQuestions(
   quizId: number,
   questionIds: number[]
 ): Promise<{success: boolean; message: string}> {
-  return apiClient(`/quizzes/${quizId}/questions/reorder/`, {
+  return apiClient(`/api/v1/teacher/quizzes/${quizId}/questions/reorder/`, {
     method: 'POST',
-    body: {
-      question_orders: questionIds.map((question_id, index) => ({
-        question_id,
-        order: index + 1,
-      })),
-    },
+    body: { question_ids: questionIds },
+  });
+}
+
+export async function createQuizSection(
+  quizId: number,
+  payload: { title: string; instructions?: string; order?: number; time_limit_minutes?: number | null; choose_n?: number | null }
+): Promise<{success: boolean; section: QuizSectionData}> {
+  return apiClient(`/api/v1/teacher/quizzes/${quizId}/sections/`, {
+    method: 'POST',
+    body: payload,
+  });
+}
+
+export async function updateQuizSection(
+  quizId: number,
+  sectionId: number,
+  payload: { title: string; instructions?: string; order?: number; time_limit_minutes?: number | null; choose_n?: number | null }
+): Promise<{success: boolean; section: QuizSectionData}> {
+  return apiClient(`/api/v1/teacher/quizzes/${quizId}/sections/${sectionId}/`, {
+    method: 'PATCH',
+    body: payload,
+  });
+}
+
+export async function deleteQuizSection(quizId: number, sectionId: number): Promise<{success: boolean}> {
+  return apiClient(`/api/v1/teacher/quizzes/${quizId}/sections/${sectionId}/`, {
+    method: 'DELETE',
+  });
+}
+
+export async function reorderQuizSections(quizId: number, sectionIds: number[]): Promise<{success: boolean}> {
+  return apiClient(`/api/v1/teacher/quizzes/${quizId}/sections/reorder/`, {
+    method: 'POST',
+    body: { section_ids: sectionIds },
+  });
+}
+
+export async function createQuizQuestionGroup(
+  quizId: number,
+  payload: { section_id: number | null; title: string; stimulus_text: string; order?: number }
+): Promise<{success: boolean; group: QuestionGroupData}> {
+  return apiClient(`/api/v1/teacher/quizzes/${quizId}/groups/`, {
+    method: 'POST',
+    body: payload,
+  });
+}
+
+export async function updateQuizQuestionGroup(
+  quizId: number,
+  groupId: number,
+  payload: { section_id: number | null; title: string; stimulus_text: string; order?: number }
+): Promise<{success: boolean; group: QuestionGroupData}> {
+  return apiClient(`/api/v1/teacher/quizzes/${quizId}/groups/${groupId}/`, {
+    method: 'PATCH',
+    body: payload,
+  });
+}
+
+export async function deleteQuizQuestionGroup(quizId: number, groupId: number): Promise<{success: boolean}> {
+  return apiClient(`/api/v1/teacher/quizzes/${quizId}/groups/${groupId}/`, {
+    method: 'DELETE',
+  });
+}
+
+export async function reorderQuizQuestionGroups(
+  quizId: number,
+  sectionId: number,
+  groupIds: number[]
+): Promise<{success: boolean}> {
+  return apiClient(`/api/v1/teacher/quizzes/${quizId}/groups/reorder/`, {
+    method: 'POST',
+    body: { section_id: sectionId, group_ids: groupIds },
+  });
+}
+
+export async function assignQuizQuestions(
+  quizId: number,
+  payload: { question_ids: number[]; section_id: number | null; group_id?: number | null; replace?: boolean }
+): Promise<{success: boolean; assigned_count: number}> {
+  return apiClient(`/api/v1/teacher/quizzes/${quizId}/questions/assign/`, {
+    method: 'POST',
+    body: payload,
   });
 }
 
@@ -146,9 +248,8 @@ export async function importQuizQuestions(quizId: number, formData: FormData): P
   imported: number;
   errors?: string[];
 }> {
-  return apiClient(`/quizzes/${quizId}/questions/import/`, {
+  return apiClient(`/api/v1/teacher/quizzes/${quizId}/questions/import/`, {
     method: 'POST',
-    headers: { 'X-Requested-With': 'XMLHttpRequest' },
     body: formData,
   });
 }
@@ -158,9 +259,19 @@ export async function updateQuizResponseGrade(
   marksAwarded: number,
   gradingNotes: string
 ): Promise<{success: boolean; message: string}> {
-  return apiClient(`/quizzes/responses/${responseId}/grade/`, {
+  return apiClient(`/api/v1/teacher/responses/${responseId}/grade/`, {
     method: 'POST',
     body: { marks_awarded: marksAwarded, grading_notes: gradingNotes },
+  });
+}
+
+export async function bulkGradeAttempt(
+  attemptId: number,
+  grades: Array<{ response_id: number; marks_awarded: number; grading_notes?: string }>
+): Promise<{success: boolean; message: string; graded_count: number}> {
+  return apiClient(`/api/v1/teacher/grading/${attemptId}/bulk/`, {
+    method: 'POST',
+    body: { grades },
   });
 }
 

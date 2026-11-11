@@ -119,6 +119,7 @@ export interface TeacherListItem {
   email: string;
   is_active: boolean;
   assigned_classes_count?: number;
+  school_id?: number | null;
 }
 
 export interface StudentAdminInput {
@@ -139,6 +140,7 @@ export interface TeacherAdminInput {
   contact_number: string;
   email: string;
   department: number | '';
+  school_id?: number | '';
 }
 
 export interface AdminDashboardOverview {

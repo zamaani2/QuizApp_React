@@ -117,7 +117,7 @@ class AccountSetupAndPasswordResetTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            response.json()["redirect_url"], reverse("quiz_app:dashboard")
+            response.json()["redirect_url"], "/app/admin/dashboard"
         )
 
     def test_login_without_json_accept_redirects_to_react_auth(self):

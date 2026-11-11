@@ -95,19 +95,19 @@ describe('apiClient', () => {
     }
   });
 
-  it('uses the legacy Django error field for form validation messages', async () => {
+  it('uses the standard API error envelope for validation messages', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 400,
       statusText: 'Bad Request',
-      json: async () => ({ success: false, error: 'Contact number is required.' }),
+      json: async () => ({ code: 'VALIDATION_ERROR', message: 'Please correct the highlighted fields.', fields: { contact_number: ['This field is required.'] } }),
     });
 
-    await expect(apiClient('/students/create/', { method: 'POST', body: new URLSearchParams() }))
+    await expect(apiClient('/api/v1/students/', { method: 'POST', body: {} }))
       .rejects.toMatchObject({
-        code: 'HTTP_ERROR',
+        code: 'VALIDATION_ERROR',
         status: 400,
-        message: 'Contact number is required.',
+        message: 'Please correct the highlighted fields.',
       });
   });
 });

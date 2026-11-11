@@ -2,18 +2,22 @@ import { AppIcon } from '../../components/common/AppIcon';
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   archiveTeacher,
+  bulkImportTeachers,
   createTeacher,
+  fetchSuperadminSchools,
   fetchTeachers,
+  previewTeacherImport,
   restoreTeacher,
   updateTeacher,
 } from '../../api/admin';
-import type { StructureLookups, TeacherAdminInput, TeacherListItem } from '../../types';
+import type { StructureLookups, SuperadminSchool, TeacherAdminInput, TeacherListItem } from '../../types';
 import { academicApi } from '../../api/academic';
 import { DataTable, type Column } from '../../components/table/DataTable';
 import { Alert } from '../../components/common/Alert';
 import { Button } from '../../components/common/Button';
 import { Modal } from '../../components/common/Modal';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
+import { useAuth } from '../../auth/AuthContext';
 import './AdminDirectory.css';
 
 const emptyTeacherForm = (): TeacherAdminInput => ({
@@ -22,10 +26,15 @@ const emptyTeacherForm = (): TeacherAdminInput => ({
   contact_number: '',
   email: '',
   department: '',
+  school_id: '',
 });
 
 export const TeacherList: React.FC = () => {
+  const { data: authData } = useAuth();
+  const isSuperadmin = Boolean(authData?.user.is_superadmin);
   const [teachers, setTeachers] = useState<TeacherListItem[]>([]);
+  const [schools, setSchools] = useState<SuperadminSchool[]>([]);
+  const [selectedSchoolId, setSelectedSchoolId] = useState<number | 'all'>('all');
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,12 +49,19 @@ export const TeacherList: React.FC = () => {
   const [archiveTarget, setArchiveTarget] = useState<TeacherListItem | null>(null);
   const [restoreTarget, setRestoreTarget] = useState<TeacherListItem | null>(null);
   const [archiveLoading, setArchiveLoading] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importHeaders, setImportHeaders] = useState<string[]>([]);
+  const [importSampleRows, setImportSampleRows] = useState<Array<Record<string, string>>>([]);
+  const [importLoading, setImportLoading] = useState(false);
 
   const loadTeachers = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetchTeachers({ is_active: statusFilter === 'active' });
+      const response = await fetchTeachers({
+        is_active: statusFilter === 'active',
+        school_id: selectedSchoolId === 'all' ? undefined : selectedSchoolId,
+      });
       setTeachers(response.results);
       setTotalCount(response.count);
     } catch (err) {
@@ -53,15 +69,22 @@ export const TeacherList: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter]);
+  }, [statusFilter, selectedSchoolId]);
 
   useEffect(() => {
     loadTeachers();
   }, [loadTeachers]);
 
-  const loadLookups = async () => {
+  useEffect(() => {
+    if (!isSuperadmin) return;
+    void fetchSuperadminSchools()
+      .then((response) => setSchools(response.results.filter((school) => school.is_active)))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Could not load schools.'));
+  }, [isSuperadmin]);
+
+  const loadLookups = async (targetSchoolId?: number) => {
     try {
-      setLookups(await academicApi.getStructureLookups());
+      setLookups(await academicApi.getStructureLookups({ school_id: targetSchoolId }));
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Could not load teacher form options.');
     }
@@ -71,7 +94,14 @@ export const TeacherList: React.FC = () => {
     setEditingTeacher(null);
     setFormData(emptyTeacherForm());
     setFormError(null);
-    await loadLookups();
+    if (isSuperadmin && selectedSchoolId === 'all') {
+      setFormError('Choose a school before adding a teacher.');
+      return;
+    }
+    if (isSuperadmin && selectedSchoolId !== 'all') {
+      setFormData((previous) => ({ ...previous, school_id: selectedSchoolId }));
+    }
+    await loadLookups(selectedSchoolId === 'all' ? undefined : selectedSchoolId);
     setIsModalOpen(true);
   };
 
@@ -83,9 +113,11 @@ export const TeacherList: React.FC = () => {
       contact_number: teacher.contact_number || '',
       email: teacher.email || '',
       department: teacher.department_id || '',
+      school_id: teacher.school_id || '',
     });
     setFormError(null);
-    await loadLookups();
+    if (isSuperadmin && teacher.school_id) setSelectedSchoolId(teacher.school_id);
+    await loadLookups(teacher.school_id || undefined);
     setIsModalOpen(true);
   };
 
@@ -94,9 +126,13 @@ export const TeacherList: React.FC = () => {
     setFormSubmitting(true);
     setFormError(null);
     try {
+      const payload = {
+        ...formData,
+        ...(isSuperadmin && selectedSchoolId !== 'all' ? { school_id: selectedSchoolId } : {}),
+      };
       const response = editingTeacher
-        ? await updateTeacher(editingTeacher.id, formData)
-        : await createTeacher(formData);
+        ? await updateTeacher(editingTeacher.id, payload)
+        : await createTeacher(payload);
       setSuccessMessage(response.message);
       setIsModalOpen(false);
       await loadTeachers();
@@ -136,6 +172,46 @@ export const TeacherList: React.FC = () => {
       setRestoreTarget(null);
     } finally {
       setArchiveLoading(false);
+    }
+  };
+
+  const handleTeacherFile = async (file: File | null) => {
+    setImportFile(file);
+    setImportHeaders([]);
+    setImportSampleRows([]);
+    if (!file) return;
+    setImportLoading(true);
+    try {
+      const preview = await previewTeacherImport(file);
+      setImportHeaders(preview.headers);
+      setImportSampleRows(preview.preview_rows);
+      setSuccessMessage(`Preview ready: ${preview.headers.join(', ')}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not preview teacher import.');
+      setImportFile(null);
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const handleTeacherImport = async () => {
+    if (!importFile) return;
+    setImportLoading(true);
+    try {
+      const result = await bulkImportTeachers(
+        importFile,
+        isSuperadmin && selectedSchoolId !== 'all' ? selectedSchoolId : undefined
+      );
+      setSuccessMessage(result.message);
+      if (result.errors.length) setError(result.errors.join('\n'));
+      setImportFile(null);
+      setImportHeaders([]);
+      setImportSampleRows([]);
+      await loadTeachers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not import teachers.');
+    } finally {
+      setImportLoading(false);
     }
   };
 
@@ -240,6 +316,32 @@ export const TeacherList: React.FC = () => {
           <button className="directory-page__action" type="button" onClick={loadTeachers} disabled={loading}>
             <AppIcon name="rotateClockwise" aria-hidden="true" /> Refresh
           </button>
+          <label className="directory-page__action">
+            Import teachers
+            <input
+              type="file"
+              accept=".csv,.xlsx"
+              aria-label="Select teacher import file"
+              disabled={importLoading || (isSuperadmin && selectedSchoolId === 'all')}
+              onChange={(event) => void handleTeacherFile(event.target.files?.[0] || null)}
+            />
+          </label>
+          {isSuperadmin && (
+            <label className="core-field">
+              <span className="core-field__label">School</span>
+              <select className="core-select" value={selectedSchoolId} onChange={(event) => setSelectedSchoolId(event.target.value ? Number(event.target.value) : 'all')}>
+                <option value="all">All schools</option>
+                {schools.map((school) => <option key={school.id} value={school.id}>{school.name}</option>)}
+              </select>
+            </label>
+          )}
+          <a
+            className="directory-page__action"
+            href={`/api/v1/teachers/export/?format=csv${isSuperadmin && selectedSchoolId !== 'all' ? `&school_id=${selectedSchoolId}` : ''}`}
+            aria-disabled={isSuperadmin && selectedSchoolId === 'all'}
+            tabIndex={isSuperadmin && selectedSchoolId === 'all' ? -1 : undefined}
+            onClick={(event) => { if (isSuperadmin && selectedSchoolId === 'all') event.preventDefault(); }}
+          >Export CSV</a>
           <Button variant="primary" size="sm" onClick={() => void openCreateModal()}>
             <AppIcon name="userRoundPlus" aria-hidden="true" /> New Teacher
           </Button>
@@ -250,6 +352,18 @@ export const TeacherList: React.FC = () => {
       {error && (
         <Alert variant="danger" dismissible onDismiss={() => setError(null)}>
           {error}
+        </Alert>
+      )}
+      {importFile && (
+        <Alert variant="info">
+          <div>{importLoading ? 'Reading teacher file…' : `Preview: ${importHeaders.join(', ')}`}</div>
+          {importSampleRows[0] && <pre>{JSON.stringify(importSampleRows[0], null, 2)}</pre>}
+          <Button variant="primary" size="sm" onClick={() => void handleTeacherImport()} disabled={importLoading || !importHeaders.length}>
+            Import {importFile.name}
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => { setImportFile(null); setImportHeaders([]); setImportSampleRows([]); }} disabled={importLoading}>
+            Cancel
+          </Button>
         </Alert>
       )}
 

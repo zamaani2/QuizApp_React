@@ -132,16 +132,52 @@ export interface StudentTakeChoice {
 export interface StudentTakeQuestion {
   id: number;
   order: number;
-  question_type: 'multiple_choice' | 'true_false' | 'short_answer' | 'fill_blank' | 'essay';
+  question_type: string;
   question_text: string;
   marks: number;
+  section_id?: number | null;
+  group_id?: number | null;
   choices: StudentTakeChoice[];
+  config?: Record<string, unknown>;
+}
+
+export interface StudentTakeGroup {
+  id: number;
+  title: string;
+  stimulus_text: string;
+  order: number;
+  questions: StudentTakeQuestion[];
+}
+
+export interface StudentTakeSection {
+  id: number | null;
+  title: string;
+  instructions: string;
+  order: number;
+  time_limit_minutes: number | null;
+  choose_n: number | null;
+  questions: StudentTakeQuestion[];
+  groups: StudentTakeGroup[];
+  started_at: string | null;
+  submitted_at: string | null;
+  is_active: boolean;
+  is_locked: boolean;
+  remaining_seconds: number | null;
+  time_expired: boolean;
+}
+
+export interface StudentAnswerData {
+  choice_ids?: number[];
+  text?: string | string[];
+  matches?: Record<string, string>;
+  items?: string[];
 }
 
 export interface StudentQuestionResponse {
   selected_choice_id: number | null;
   selected_choice_ids: number[];
   text_answer: string;
+  answer_data?: StudentAnswerData;
 }
 
 export interface StudentQuizTakeData {
@@ -156,6 +192,9 @@ export interface StudentQuizTakeData {
   total_questions: number;
   answered_count: number;
   questions: StudentTakeQuestion[];
+  sections?: StudentTakeSection[];
+  active_section_id?: number | null;
+  section_timing_enabled?: boolean;
   existing_responses: Record<string, StudentQuestionResponse>;
 }
 
@@ -200,6 +239,11 @@ export interface StudentReviewQuestion {
   is_correct: boolean;
   student_answer: string;
   correct_answer?: string;
+  review_data?: {
+    student_answer: unknown;
+    correct_answer: unknown;
+    correct_choice_ids?: number[];
+  };
   explanation?: string;
   choices: StudentReviewChoice[];
 }
@@ -215,6 +259,12 @@ export interface StudentQuizResultData {
   academic_year?: string;
   score: number;
   total_marks: number;
+  section_scores?: Array<{
+    section_id: number;
+    title: string;
+    score: number;
+    total_marks: number;
+  }>;
   percentage: number;
   passing_marks: number;
   is_passed: boolean;
@@ -250,6 +300,12 @@ export interface SubmitQuizResponse {
   attempt_id: number;
   score: number;
   total_marks: number;
+  section_scores?: Array<{
+    section_id: number;
+    title: string;
+    score: number;
+    total_marks: number;
+  }>;
   percentage: number;
   is_passed: boolean;
   message: string;

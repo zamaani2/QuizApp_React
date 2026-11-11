@@ -66,7 +66,28 @@ export interface QuestionDetailItem {
   difficulty?: 'easy' | 'medium' | 'hard';
   negative_marks?: number;
   is_required?: boolean;
+  section_id?: number | null;
+  group_id?: number | null;
   choices: AnswerChoiceItem[];
+  config?: Record<string, unknown>;
+}
+
+export interface QuestionGroupData {
+  id: number;
+  title: string;
+  stimulus_text: string;
+  order: number;
+}
+
+export interface QuizSectionData {
+  id: number;
+  title: string;
+  instructions: string;
+  order: number;
+  time_limit_minutes: number | null;
+  choose_n: number | null;
+  question_ids: number[];
+  groups: QuestionGroupData[];
 }
 
 export interface QuizDetailData {
@@ -102,6 +123,7 @@ export interface QuizDetailData {
   total_attempts: number;
   assigned_classes: { id: number; name: string }[];
   questions: QuestionDetailItem[];
+  sections?: QuizSectionData[];
 }
 
 export interface QuizResultItem {
@@ -184,6 +206,11 @@ export interface TeacherResultResponse {
   answer_key: string;
   correct_choices: string[];
   grading_notes: string;
+  answer_data?: Record<string, unknown>;
+  review_data?: {
+    student_answer: unknown;
+    correct_answer: unknown;
+  };
 }
 
 export interface QuizResultSchoolInfo {

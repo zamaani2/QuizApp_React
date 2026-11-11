@@ -49,6 +49,7 @@ from ..models import (
 from ..utils.tenant_utils import get_object_or_404_with_school, get_write_school
 from ..utils.export_utils import build_tabular_export
 from ..utils.import_utils import read_tabular_upload
+from ..utils.legacy_api import legacy_write_gone
 
 
 @login_required
@@ -362,6 +363,7 @@ def student_create_view(request):
     
     POST: Creates student and returns JSON response
     """
+    return legacy_write_gone("/api/v1/students/")
     if request.user.role not in ["admin", "superadmin"]:
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:student_list")
@@ -456,6 +458,7 @@ def student_edit_view(request, student_id):
     
     POST: Updates student and returns JSON response
     """
+    return legacy_write_gone("/api/v1/students/")
     if request.user.role not in ["admin", "superadmin"]:
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:student_list")
@@ -528,14 +531,14 @@ def student_delete_view(request, student_id):
     """
     Archive a student without deleting academic history.
     """
-    return _set_student_archive_state(request, student_id, is_active=False)
+    return legacy_write_gone(f"/api/v1/students/{student_id}/archive/")
 
 
 @login_required
 @require_http_methods(["POST"])
 def student_restore_view(request, student_id):
     """Restore a previously archived student profile."""
-    return _set_student_archive_state(request, student_id, is_active=True)
+    return legacy_write_gone(f"/api/v1/students/{student_id}/restore/")
 
 
 def _set_student_archive_state(request, student_id, *, is_active):
@@ -576,6 +579,7 @@ def student_bulk_delete_view(request):
     
     POST: Updates profile and linked account state for selected students
     """
+    return legacy_write_gone("/api/v1/students/bulk-archive/")
     if request.user.role not in ["admin", "superadmin"]:
         return JsonResponse({'error': 'Permission denied'}, status=403)
     
@@ -652,36 +656,8 @@ def student_bulk_delete_view(request):
 
 
 def _set_student_archive_state_for_record(student, *, is_active):
-    account = User.objects.select_for_update().filter(
-        student_profile=student
-    ).first()
-    if is_active and not student.is_active:
-        student.is_active = True
-        student.save(update_fields=["is_active", "updated_at"])
-        if account and student.account_active_before_archive is not None:
-            account.is_active = student.account_active_before_archive
-            account.save(update_fields=["is_active"])
-        student.account_active_before_archive = None
-        student.save(update_fields=["account_active_before_archive", "updated_at"])
-        return True
-    elif not is_active and student.is_active:
-        student.account_active_before_archive = account.is_active if account else None
-        student.is_active = False
-        student.save(
-            update_fields=["is_active", "account_active_before_archive", "updated_at"]
-        )
-        if student.school_id is not None:
-            StudentClass.objects.filter(
-                student=student,
-                school_id=student.school_id,
-                assigned_class__school_id=student.school_id,
-                is_active=True,
-            ).update(is_active=False)
-        if account:
-            account.is_active = False
-            account.save(update_fields=["is_active"])
-        return True
-    return False
+    from ..services.directory_management import set_student_archive_state
+    return set_student_archive_state(student, is_active=is_active)
 
 
 @login_required
@@ -872,6 +848,7 @@ def student_bulk_import_preview_headers_view(request):
     """
     Preview CSV/XLSX headers for column mapping.
     """
+    return legacy_write_gone("/api/v1/students/import/preview/")
     if request.user.role not in ["admin", "superadmin"]:
         return JsonResponse({'error': 'Permission denied'}, status=403)
     
@@ -910,6 +887,7 @@ def student_bulk_import_view(request):
     
     POST: Processes CSV/XLSX file and imports students
     """
+    return legacy_write_gone("/api/v1/students/import/")
     if request.user.role not in ["admin", "superadmin"]:
         messages.error(request, "You don't have permission to perform this action.")
         return redirect("quiz_app:student_list")

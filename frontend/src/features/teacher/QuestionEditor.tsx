@@ -5,6 +5,7 @@ import type { QuestionDetailItem, QuizDetailData } from '../../types';
 import { Alert } from '../../components/common/Alert';
 import { Button } from '../../components/common/Button';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
+import { getQuestionType, type QuestionConfig } from '../../question-types';
 
 interface ChoiceDraft {
   id?: number;
@@ -48,6 +49,8 @@ export const QuestionEditor: React.FC = () => {
   const [questionType, setQuestionType] = useState('multiple_choice');
   const [choices, setChoices] = useState<ChoiceDraft[]>(initialChoices());
   const [tfCorrect, setTfCorrect] = useState('true');
+  const [config, setConfig] = useState<QuestionConfig>({});
+  const [answerKey, setAnswerKey] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +69,18 @@ export const QuestionEditor: React.FC = () => {
       setQuestion(currentQuestion);
       setQuestionType(currentQuestion?.question_type ?? 'multiple_choice');
       setChoices(initialChoices(currentQuestion));
+      const currentConfig = currentQuestion?.config ?? {};
+      setConfig(currentConfig);
+      if (currentQuestion?.question_type === 'matching' && Array.isArray(currentConfig.pairs)) {
+        setAnswerKey((currentConfig.pairs as { left: string; right: string }[])
+          .map((pair) => `${pair.left}=${pair.right}`).join('\n'));
+      } else if (currentQuestion?.question_type === 'ordering' && Array.isArray(currentConfig.items)) {
+        setAnswerKey((currentConfig.items as string[]).join('; '));
+      } else if (Array.isArray(currentConfig.accepted_answers)) {
+        setAnswerKey((currentConfig.accepted_answers as string[]).join('; '));
+      } else {
+        setAnswerKey(currentQuestion?.correct_answer_text ?? '');
+      }
       const correctTrueFalse = currentQuestion?.choices.find((choice) => choice.is_correct);
       setTfCorrect(correctTrueFalse?.choice_text.toLowerCase() === 'false' ? 'false' : 'true');
     }).catch((err: unknown) => {
@@ -86,8 +101,19 @@ export const QuestionEditor: React.FC = () => {
     event.preventDefault();
     const form = event.currentTarget;
     const formData = new FormData(form);
-    formData.set('question_type', questionType);
-    formData.set('tf_correct', tfCorrect);
+    const payload: Record<string, unknown> = {
+      question_type: questionType,
+      question_text: String(formData.get('question_text') || ''),
+      marks: formData.get('marks'),
+      order: formData.get('order'),
+      difficulty: formData.get('difficulty'),
+      negative_marks: formData.get('negative_marks'),
+      explanation: formData.get('explanation'),
+      is_required: formData.get('is_required') === 'on',
+      tf_correct: tfCorrect,
+      correct_answer: answerKey,
+      config: {},
+    };
     if (questionType === 'multiple_choice') {
       const completedChoices = choices.filter((choice) => choice.text.trim());
       if (completedChoices.length < 2) {
@@ -98,17 +124,66 @@ export const QuestionEditor: React.FC = () => {
         setError('Mark at least one choice as correct.');
         return;
       }
-      completedChoices.forEach((choice, index) => {
-        formData.append('choice_id', choice.id ? String(choice.id) : '');
-        formData.append('choice_text', choice.text);
-        if (choice.isCorrect) formData.append('is_correct', String(index));
-      });
+      payload.choices = completedChoices.map((choice) => ({
+        id: choice.id,
+        text: choice.text,
+        is_correct: choice.isCorrect,
+      }));
+      payload.config = {
+        ...config,
+        allow_multiple: config.allow_multiple === true
+          || completedChoices.filter((choice) => choice.isCorrect).length > 1,
+      };
+    } else if (questionType === 'true_false') {
+      payload.config = {};
+    } else if (questionType === 'matching') {
+      const existingPairs = Array.isArray(config.pairs)
+        ? config.pairs as { id?: string; left: string; right: string }[]
+        : [];
+      const pairs = answerKey.split(/[;\n]/).map((pair, index) => {
+        const [left = '', ...rightParts] = pair.split('=');
+        return {
+          id: existingPairs[index]?.id || `pair-${index + 1}`,
+          left: left.trim(),
+          right: rightParts.join('=').trim(),
+        };
+      }).filter((pair) => pair.left && pair.right);
+      if (pairs.length < 2) {
+        setError('Matching questions need at least two complete left=right pairs.');
+        return;
+      }
+      payload.config = { pairs };
+    } else if (questionType === 'ordering') {
+      const items = answerKey.split(/[;\n]/).map((item) => item.trim()).filter(Boolean);
+      if (items.length < 2 || new Set(items.map((item) => item.toLocaleLowerCase())).size !== items.length) {
+        setError('Ordering questions need at least two distinct items.');
+        return;
+      }
+      payload.config = { items };
+    } else if (questionType === 'short_answer') {
+      const accepted_answers = answerKey.split(/[;\n]/).map((answer) => answer.trim()).filter(Boolean);
+      if (!accepted_answers.length) {
+        setError('At least one accepted answer is required.');
+        return;
+      }
+      payload.config = { ...config, accepted_answers };
+    } else if (questionType === 'fill_blank') {
+      const blanks = answerKey.split('\n').map((blank) =>
+        blank.split('|').map((answer) => answer.trim()).filter(Boolean)
+      ).filter((blank) => blank.length);
+      if (!blanks.length) {
+        setError('Enter at least one answer for each blank.');
+        return;
+      }
+      payload.config = { ...config, blanks };
+    } else {
+      payload.config = config;
     }
 
     setSaving(true);
     setError(null);
     try {
-      await saveQuestion(quizId, parsedQuestionId, formData);
+      await saveQuestion(quizId, parsedQuestionId, payload);
       navigate(`/teacher/quizzes/${quizId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to save question.');
@@ -120,8 +195,8 @@ export const QuestionEditor: React.FC = () => {
   if (loading) return <LoadingSpinner size="lg" message="Loading question editor..." />;
   if (!quiz) return <Alert variant="danger">{error || 'Quiz is unavailable.'}</Alert>;
 
-  const answerFieldRequired = ['short_answer', 'fill_blank', 'matching', 'ordering'].includes(questionType);
   const isChoiceType = questionType === 'multiple_choice' || questionType === 'true_false';
+  const Editor = getQuestionType(questionType).Editor;
 
   return (
     <div className="assessment-page core-container core-space--padding-y-4">
@@ -139,6 +214,8 @@ export const QuestionEditor: React.FC = () => {
                 <select id="question-type" className="core-field__select" value={questionType} onChange={(event) => {
                   setQuestionType(event.target.value);
                   setChoices(initialChoices());
+                  setConfig({});
+                  setAnswerKey('');
                 }}>
                   {QUESTION_TYPES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                 </select>
@@ -191,17 +268,16 @@ export const QuestionEditor: React.FC = () => {
                       <Button type="button" variant="outline-secondary" size="sm" onClick={() => setChoices((current) => [...current, { text: '', isCorrect: false }])}>Add choice</Button>
                     </>
                   )}
+                  {questionType === 'multiple_choice' && (
+                    <Editor questionType={questionType} config={config}
+                      onChange={setConfig} answerKey={answerKey} onAnswerKeyChange={setAnswerKey} />
+                  )}
                 </fieldset>
               </div>
             )}
-            {answerFieldRequired && (
-              <div className="core-grid__span-12">
-                <label className="core-field__label" htmlFor="question-answer">
-                  {questionType === 'matching' ? 'Correct pairs (left=right, separated by semicolons)' :
-                    questionType === 'ordering' ? 'Correct order (items separated by semicolons)' : 'Accepted answer(s)'}
-                </label>
-                <textarea id="question-answer" className="core-field__input" rows={2} name="correct_answer" required={questionType === 'matching' || questionType === 'ordering'} defaultValue={question?.correct_answer_text ?? ''} />
-              </div>
+            {questionType !== 'multiple_choice' && questionType !== 'true_false' && (
+              <Editor questionType={questionType} config={config} onChange={setConfig}
+                answerKey={answerKey} onAnswerKeyChange={setAnswerKey} />
             )}
             <div className="core-grid__span-md-6">
               <label className="core-field__label" htmlFor="question-difficulty">Difficulty</label>

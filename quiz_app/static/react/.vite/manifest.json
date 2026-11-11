@@ -12,7 +12,23 @@
     "name": "ConfirmDialog",
     "imports": [
       "_me.js",
+      "_Modal.js",
       "index.html"
+    ]
+  },
+  "_DataTable.js": {
+    "file": "assets/DataTable.js",
+    "name": "DataTable",
+    "imports": [
+      "_me.js",
+      "index.html"
+    ]
+  },
+  "_Modal.js": {
+    "file": "assets/Modal.js",
+    "name": "Modal",
+    "imports": [
+      "_me.js"
     ]
   },
   "_academic.js": {
@@ -32,6 +48,13 @@
   "_allocations.js": {
     "file": "assets/allocations.js",
     "name": "allocations",
+    "imports": [
+      "_me.js"
+    ]
+  },
+  "_index2.js": {
+    "file": "assets/index2.js",
+    "name": "index",
     "imports": [
       "_me.js"
     ]
@@ -150,6 +173,8 @@
       "_me.js",
       "index.html",
       "_academic.js",
+      "_DataTable.js",
+      "_Modal.js",
       "_ConfirmDialog.js"
     ],
     "css": [
@@ -179,6 +204,8 @@
       "_me.js",
       "index.html",
       "_academic.js",
+      "_DataTable.js",
+      "_Modal.js",
       "_ConfirmDialog.js"
     ]
   },
@@ -191,6 +218,8 @@
       "_me.js",
       "index.html",
       "_academic.js",
+      "_DataTable.js",
+      "_Modal.js",
       "_ConfirmDialog.js"
     ],
     "css": [
@@ -217,7 +246,9 @@
       "_me.js",
       "index.html",
       "_academic.js",
-      "_ConfirmDialog.js"
+      "_ConfirmDialog.js",
+      "_Modal.js",
+      "_DataTable.js"
     ],
     "css": [
       "assets/AdminAcademic.css"
@@ -232,6 +263,8 @@
       "_me.js",
       "index.html",
       "_allocations.js",
+      "_DataTable.js",
+      "_Modal.js",
       "_ConfirmDialog.js"
     ],
     "css": [
@@ -248,6 +281,8 @@
       "index.html",
       "_admin.js",
       "_academic.js",
+      "_DataTable.js",
+      "_Modal.js",
       "_ConfirmDialog.js"
     ],
     "css": [
@@ -263,6 +298,8 @@
       "_me.js",
       "index.html",
       "_academic.js",
+      "_DataTable.js",
+      "_Modal.js",
       "_ConfirmDialog.js"
     ],
     "css": [
@@ -278,6 +315,8 @@
       "_me.js",
       "index.html",
       "_allocations.js",
+      "_DataTable.js",
+      "_Modal.js",
       "_ConfirmDialog.js"
     ]
   },
@@ -291,6 +330,8 @@
       "index.html",
       "_admin.js",
       "_academic.js",
+      "_DataTable.js",
+      "_Modal.js",
       "_ConfirmDialog.js"
     ],
     "css": [
@@ -306,6 +347,8 @@
       "_me.js",
       "index.html",
       "_academic.js",
+      "_DataTable.js",
+      "_Modal.js",
       "_ConfirmDialog.js"
     ],
     "css": [
@@ -320,7 +363,9 @@
     "imports": [
       "_me.js",
       "index.html",
+      "_Modal.js",
       "_ConfirmDialog.js",
+      "_DataTable.js",
       "_admin.js"
     ],
     "css": [
@@ -401,7 +446,8 @@
     "imports": [
       "_me.js",
       "index.html",
-      "_student.js"
+      "_student.js",
+      "_index2.js"
     ]
   },
   "src/features/student/StudentQuizTake.tsx": {
@@ -412,7 +458,9 @@
     "imports": [
       "_me.js",
       "index.html",
-      "_student.js"
+      "_student.js",
+      "_Modal.js",
+      "_index2.js"
     ]
   },
   "src/features/superadmin/AdminDetail.tsx": {
@@ -445,6 +493,7 @@
     "imports": [
       "_me.js",
       "_admin.js",
+      "_DataTable.js",
       "index.html"
     ]
   },
@@ -484,6 +533,7 @@
     "imports": [
       "_me.js",
       "_admin.js",
+      "_DataTable.js",
       "index.html"
     ]
   },
@@ -520,6 +570,7 @@
     "imports": [
       "_me.js",
       "_teacher.js",
+      "_DataTable.js",
       "index.html"
     ]
   },
@@ -531,7 +582,8 @@
     "imports": [
       "_me.js",
       "_teacher.js",
-      "index.html"
+      "index.html",
+      "_index2.js"
     ]
   },
   "src/features/teacher/QuestionImport.tsx": {
@@ -554,7 +606,8 @@
       "_me.js",
       "_teacher.js",
       "index.html",
-      "_ConfirmDialog.js"
+      "_ConfirmDialog.js",
+      "_Modal.js"
     ]
   },
   "src/features/teacher/QuizDetail.tsx": {
@@ -566,7 +619,8 @@
       "_me.js",
       "index.html",
       "_teacher.js",
-      "_ConfirmDialog.js"
+      "_ConfirmDialog.js",
+      "_Modal.js"
     ]
   },
   "src/features/teacher/QuizEditor.tsx": {
@@ -588,6 +642,7 @@
     "imports": [
       "_me.js",
       "_teacher.js",
+      "_DataTable.js",
       "index.html"
     ]
   },
@@ -599,7 +654,8 @@
     "imports": [
       "_me.js",
       "_teacher.js",
-      "index.html"
+      "index.html",
+      "_index2.js"
     ]
   },
   "src/features/teacher/QuizResultsList.tsx": {
@@ -610,6 +666,7 @@
     "imports": [
       "_me.js",
       "_teacher.js",
+      "_DataTable.js",
       "index.html"
     ]
   },

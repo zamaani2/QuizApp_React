@@ -197,7 +197,7 @@ describe('Phase 3 Feature Components', () => {
       expect(screen.getByText('General Science')).toBeInTheDocument();
     });
 
-    it('creates a student through the Django form endpoint', async () => {
+    it('creates a student through the versioned JSON API', async () => {
       global.fetch = vi.fn().mockImplementation((url: string) => {
         if (url === '/api/v1/structure-lookups/') {
           return Promise.resolve({
@@ -206,8 +206,8 @@ describe('Phase 3 Feature Components', () => {
             json: async () => ({ academic_years: [], terms: [], forms: [], learning_areas: [], departments: [] }),
           });
         }
-        if (url === '/students/create/') {
-          return Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true, message: 'Student created.' }) });
+        if (url === '/api/v1/students/') {
+          return Promise.resolve({ ok: true, status: 201, json: async () => ({ message: 'Student created.' }) });
         }
         return Promise.resolve({
           ok: true,
@@ -232,17 +232,17 @@ describe('Phase 3 Feature Components', () => {
       fireEvent.click(screen.getByRole('button', { name: /create student/i }));
 
       await waitFor(() => {
-        const createCall = vi.mocked(global.fetch).mock.calls.find(([url]) => url === '/students/create/');
+        const createCall = vi.mocked(global.fetch).mock.calls.find(([url, options]) => url === '/api/v1/students/' && (options as RequestInit).method === 'POST');
         expect(createCall).toBeDefined();
-        expect(String((createCall?.[1] as RequestInit).body)).toContain('full_name=Mina+Patel');
+        expect(JSON.parse(String((createCall?.[1] as RequestInit).body))).toMatchObject({ full_name: 'Mina Patel' });
       });
       expect(await screen.findByText('Student created.')).toBeInTheDocument();
     });
 
     it('archives a student from the directory', async () => {
       global.fetch = vi.fn().mockImplementation((url: string) => {
-        if (url === '/students/10/delete/') {
-          return Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true, message: 'Student archived.' }) });
+        if (url === '/api/v1/students/10/archive/') {
+          return Promise.resolve({ ok: true, status: 200, json: async () => ({ message: 'Student archived.' }) });
         }
         return Promise.resolve({
           ok: true,
@@ -264,7 +264,7 @@ describe('Phase 3 Feature Components', () => {
       fireEvent.click(screen.getByRole('button', { name: /^Archive$/ }));
 
       await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith('/students/10/delete/', expect.objectContaining({ method: 'POST' }));
+        expect(global.fetch).toHaveBeenCalledWith('/api/v1/students/10/archive/', expect.objectContaining({ method: 'POST' }));
       });
       expect(await screen.findByText('Student archived.')).toBeInTheDocument();
     });
@@ -308,7 +308,7 @@ describe('Phase 3 Feature Components', () => {
       expect(screen.getByText('4 classes')).toBeInTheDocument();
     });
 
-    it('creates a teacher through the Django form endpoint', async () => {
+    it('creates a teacher through the versioned JSON API', async () => {
       global.fetch = vi.fn().mockImplementation((url: string) => {
         if (url === '/api/v1/structure-lookups/') {
           return Promise.resolve({
@@ -317,8 +317,8 @@ describe('Phase 3 Feature Components', () => {
             json: async () => ({ academic_years: [], terms: [], forms: [], learning_areas: [], departments: [{ id: 8, name: 'Science' }] }),
           });
         }
-        if (url === '/teachers/create/') {
-          return Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true, message: 'Teacher created.' }) });
+        if (url === '/api/v1/teachers/') {
+          return Promise.resolve({ ok: true, status: 201, json: async () => ({ message: 'Teacher created.' }) });
         }
         return Promise.resolve({ ok: true, status: 200, json: async () => ({ count: 0, results: [] }) });
       });
@@ -336,9 +336,9 @@ describe('Phase 3 Feature Components', () => {
       fireEvent.click(screen.getByRole('button', { name: /create teacher/i }));
 
       await waitFor(() => {
-        const createCall = vi.mocked(global.fetch).mock.calls.find(([url]) => url === '/teachers/create/');
+        const createCall = vi.mocked(global.fetch).mock.calls.find(([url, options]) => url === '/api/v1/teachers/' && (options as RequestInit).method === 'POST');
         expect(createCall).toBeDefined();
-        expect(String((createCall?.[1] as RequestInit).body)).toContain('full_name=Dr.+Grace+Hopper');
+        expect(JSON.parse(String((createCall?.[1] as RequestInit).body))).toMatchObject({ full_name: 'Dr. Grace Hopper' });
       });
       expect(await screen.findByText('Teacher created.')).toBeInTheDocument();
     });
