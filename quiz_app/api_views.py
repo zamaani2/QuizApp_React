@@ -2474,8 +2474,11 @@ def student_quiz_take_api_view(request, attempt_id):
             q, q_snapshot, answer_order.get(str(q.pk), [])
         )
         question_data["order"] = position
+<<<<<<< HEAD
         question_data["section_id"] = q_snapshot.get("section_id")
         question_data["group_id"] = q_snapshot.get("group_id")
+=======
+>>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
         questions_data.append(question_data)
 
     # Existing responses
@@ -2681,7 +2684,10 @@ def student_quiz_save_api_view(request, attempt_id):
 
             question_type = question_snapshot.get("question_type", question.question_type)
             choices = []
+<<<<<<< HEAD
             choice_ids = []
+=======
+>>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
             submitted_answer_data = data.get("answer_data")
             if isinstance(submitted_answer_data, str):
                 try:
@@ -2822,6 +2828,7 @@ def student_quiz_save_api_view(request, attempt_id):
                             {"code": "INVALID_ANSWER", "message": "Invalid ordering answer."},
                             status=400,
                         )
+<<<<<<< HEAD
 
             section_snapshot = next(
                 (
@@ -2862,6 +2869,8 @@ def student_quiz_save_api_view(request, attempt_id):
                         },
                         status=400,
                     )
+=======
+>>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
 
             response, _ = QuizResponse.objects.get_or_create(
                 attempt=attempt,

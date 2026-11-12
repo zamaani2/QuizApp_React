@@ -141,6 +141,7 @@ export interface StudentTakeQuestion {
   config?: Record<string, unknown>;
 }
 
+<<<<<<< HEAD
 export interface StudentTakeGroup {
   id: number;
   title: string;
@@ -166,6 +167,8 @@ export interface StudentTakeSection {
   time_expired: boolean;
 }
 
+=======
+>>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
 export interface StudentAnswerData {
   choice_ids?: number[];
   text?: string | string[];

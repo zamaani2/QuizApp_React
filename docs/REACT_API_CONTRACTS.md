@@ -635,6 +635,7 @@ Teacher and school-admin quiz, question, assignment, and grading writes use the 
 | `DELETE` | `/api/v1/teacher/quizzes/{id}/questions/{question_id}/` | Delete a question; `409 QUESTION_HAS_ATTEMPTS` when the quiz has attempts |
 | `POST` | `/api/v1/teacher/quizzes/{id}/questions/{question_id}/duplicate/` | Duplicate a question |
 | `POST` | `/api/v1/teacher/quizzes/{id}/questions/reorder/` | Reorder with `{ "question_ids": [3, 1, 2] }` |
+<<<<<<< HEAD
 | `GET, POST` | `/api/v1/teacher/quizzes/{id}/sections/` | List or create sections with instructions, optional time limit, and optional Choose-N |
 | `PATCH, DELETE` | `/api/v1/teacher/quizzes/{id}/sections/{section_id}/` | Update or remove one section |
 | `POST` | `/api/v1/teacher/quizzes/{id}/sections/reorder/` | Reorder every section with `{ "section_ids": [...] }` |
@@ -642,6 +643,8 @@ Teacher and school-admin quiz, question, assignment, and grading writes use the 
 | `POST` | `/api/v1/teacher/quizzes/{id}/groups/reorder/` | Reorder every group in a section with `{ "section_id": 4, "group_ids": [7, 5] }` |
 | `PATCH, DELETE` | `/api/v1/teacher/quizzes/{id}/groups/{group_id}/` | Update or remove a stimulus group |
 | `POST` | `/api/v1/teacher/quizzes/{id}/questions/assign/` | Assign questions using `{ "question_ids": [...], "section_id": id|null, "group_id": id|null, "replace": true }` |
+=======
+>>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
 | `POST` | `/api/v1/teacher/quizzes/{id}/questions/bulk-delete/` | Bulk delete `{ "question_ids": [...] }` |
 | `POST` multipart | `/api/v1/teacher/quizzes/{id}/questions/import/` | Import CSV/XLSX; returns `imported`, `errors`, `partial_success` |
 | `POST` | `/api/v1/teacher/quizzes/{id}/assignments/` | Assign `{ "class_ids": [...] }` |
@@ -650,12 +653,16 @@ Teacher and school-admin quiz, question, assignment, and grading writes use the 
 | `POST` | `/api/v1/teacher/responses/{response_id}/grade/` | Grade one response; marks cannot exceed the question's marks |
 | `POST` | `/api/v1/teacher/grading/{attempt_id}/bulk/` | Bulk grade `{ "grades": [{ "response_id", "marks_awarded", "grading_notes" }] }` |
 
+<<<<<<< HEAD
 Quiz `total_marks` is recalculated after question and section-rule updates. A Choose-N section requires at least N questions with equal marks and contributes `N × question marks` to the quiz total. Each attempt snapshots section rules, stimulus, question membership, and question configuration; edits do not change existing attempts. Per-section scores are calculated from the attempt's responses and are not stored separately.
 
 #### Choose-N and snapshot rules
 - Sections and groups are scoped to the quiz's school. A group and its section must belong to the same quiz; questions assigned to a group must also match its section.
 - Choose-N validation rejects a rule larger than the section question count or mixed question marks.
 - Teacher routes use the standard `{ "code", "message", "fields" }` error envelope. All section and assignment routes enforce the same teacher ownership and school scope as quiz writes.
+=======
+Quiz `total_marks` is recalculated after question create, update, delete, duplicate, and import.
+>>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
 
 ### 4.5 Teacher Grading Queue (`GET /api/v1/teacher/grading/`)
 - **URL:** `/api/v1/teacher/grading/`

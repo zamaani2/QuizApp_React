@@ -70,6 +70,7 @@ export interface QuestionDetailItem {
   group_id?: number | null;
   choices: AnswerChoiceItem[];
   config?: Record<string, unknown>;
+<<<<<<< HEAD
 }
 
 export interface QuestionGroupData {
@@ -88,6 +89,8 @@ export interface QuizSectionData {
   choose_n: number | null;
   question_ids: number[];
   groups: QuestionGroupData[];
+=======
+>>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
 }
 
 export interface QuizDetailData {

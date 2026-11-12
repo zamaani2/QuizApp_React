@@ -93,6 +93,7 @@ from .assessment_api_views import (
     teacher_question_detail_api_view,
     teacher_question_duplicate_api_view,
     teacher_question_reorder_api_view,
+<<<<<<< HEAD
     teacher_question_assignment_api_view,
     teacher_question_bulk_delete_api_view,
     teacher_quiz_sections_api_view,
@@ -101,6 +102,9 @@ from .assessment_api_views import (
     teacher_quiz_groups_api_view,
     teacher_quiz_groups_reorder_api_view,
     teacher_quiz_group_detail_api_view,
+=======
+    teacher_question_bulk_delete_api_view,
+>>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
     teacher_question_import_api_view,
     teacher_quiz_assignments_write_api_view,
     teacher_quiz_assignment_delete_api_view,
@@ -531,6 +535,7 @@ urlpatterns = [
     path("api/v1/teacher/quizzes/", teacher_quizzes_collection_api_view, name="api_teacher_quizzes"),
     path("api/v1/teacher/quizzes/<int:quiz_id>/", teacher_quiz_detail_write_api_view, name="api_teacher_quiz_detail"),
     path("api/v1/teacher/quizzes/<int:quiz_id>/status/", teacher_quiz_status_api_view, name="api_teacher_quiz_status"),
+<<<<<<< HEAD
     path("api/v1/teacher/quizzes/<int:quiz_id>/sections/", teacher_quiz_sections_api_view, name="api_teacher_quiz_sections"),
     path("api/v1/teacher/quizzes/<int:quiz_id>/sections/reorder/", teacher_quiz_sections_reorder_api_view, name="api_teacher_quiz_sections_reorder"),
     path("api/v1/teacher/quizzes/<int:quiz_id>/sections/<int:section_id>/", teacher_quiz_section_detail_api_view, name="api_teacher_quiz_section_detail"),
@@ -540,6 +545,10 @@ urlpatterns = [
     path("api/v1/teacher/quizzes/<int:quiz_id>/questions/", teacher_question_create_api_view, name="api_teacher_questions"),
     path("api/v1/teacher/quizzes/<int:quiz_id>/questions/reorder/", teacher_question_reorder_api_view, name="api_teacher_question_reorder"),
     path("api/v1/teacher/quizzes/<int:quiz_id>/questions/assign/", teacher_question_assignment_api_view, name="api_teacher_question_assignment"),
+=======
+    path("api/v1/teacher/quizzes/<int:quiz_id>/questions/", teacher_question_create_api_view, name="api_teacher_questions"),
+    path("api/v1/teacher/quizzes/<int:quiz_id>/questions/reorder/", teacher_question_reorder_api_view, name="api_teacher_question_reorder"),
+>>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
     path("api/v1/teacher/quizzes/<int:quiz_id>/questions/bulk-delete/", teacher_question_bulk_delete_api_view, name="api_teacher_question_bulk_delete"),
     path("api/v1/teacher/quizzes/<int:quiz_id>/questions/import/", teacher_question_import_api_view, name="api_teacher_question_import"),
     path("api/v1/teacher/quizzes/<int:quiz_id>/questions/<int:question_id>/", teacher_question_detail_api_view, name="api_teacher_question_detail"),

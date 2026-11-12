@@ -20,8 +20,11 @@ from ..models import (
     Quiz,
     QuizAttempt,
     QuizCategory,
+<<<<<<< HEAD
     QuestionGroup,
     QuizSection,
+=======
+>>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
     QuizResponse,
     Subject,
     Teacher,
@@ -250,6 +253,7 @@ def save_quiz(user, school, data, quiz=None):
     return quiz
 
 
+<<<<<<< HEAD
 def _validate_quiz_sections(quiz):
     for section in quiz.sections.filter(school_id=quiz.school_id):
         if section.choose_n is None:
@@ -432,6 +436,8 @@ def assign_questions(quiz, school, data):
     return questions
 
 
+=======
+>>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
 def delete_quiz(quiz, school):
     quiz = Quiz.objects.select_for_update().get(pk=quiz.pk, school=school)
     if quiz.attempts.exists():
@@ -633,7 +639,10 @@ def save_question(quiz, school, data, question=None):
         _sync_multiple_choice(question, school, data)
     elif question.question_type in {"short_answer", "fill_blank", "matching", "ordering"}:
         _apply_text_answer(question, data)
+<<<<<<< HEAD
     _validate_quiz_sections(quiz)
+=======
+>>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
     quiz.calculate_total_marks()
     return question
 
@@ -655,7 +664,10 @@ def delete_question(quiz, school, question_id):
             "QUESTION_HAS_ATTEMPTS",
             "This question cannot be deleted because it is referenced by existing records.",
         ) from error
+<<<<<<< HEAD
     _validate_quiz_sections(quiz)
+=======
+>>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
     quiz.calculate_total_marks()
 
 
@@ -674,7 +686,10 @@ def bulk_delete_questions(quiz, school, question_ids):
             "Questions in a quiz with attempts cannot be deleted.",
         )
     questions.delete()
+<<<<<<< HEAD
     _validate_quiz_sections(quiz)
+=======
+>>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
     quiz.calculate_total_marks()
     return len(ids)
 

@@ -157,6 +157,7 @@ export async function reorderQuizQuestions(
   return apiClient(`/api/v1/teacher/quizzes/${quizId}/questions/reorder/`, {
     method: 'POST',
     body: { question_ids: questionIds },
+<<<<<<< HEAD
   });
 }
 
@@ -239,6 +240,8 @@ export async function assignQuizQuestions(
   return apiClient(`/api/v1/teacher/quizzes/${quizId}/questions/assign/`, {
     method: 'POST',
     body: payload,
+=======
+>>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
   });
 }
 

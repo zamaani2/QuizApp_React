@@ -2302,6 +2302,7 @@ class Question(models.Model):
 
     def clean(self):
         errors = {}
+<<<<<<< HEAD
         if self.section_id and (
             self.section.quiz_id != self.quiz_id
             or self.section.school_id != self.school_id
@@ -2317,6 +2318,8 @@ class Question(models.Model):
             errors["group"] = ValidationError(
                 "A question group must belong to the same quiz, school, and section."
             )
+=======
+>>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
         if self.config:
             try:
                 from .question_types import get_question_type

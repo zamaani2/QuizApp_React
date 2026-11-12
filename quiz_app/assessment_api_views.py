@@ -11,18 +11,26 @@ from .services.assessment_management import (
     AssessmentConflict,
     MAX_IMPORT_FILE_SIZE,
     assign_classes,
+<<<<<<< HEAD
     assign_questions,
+=======
+>>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
     bulk_delete_questions,
     bulk_grade_attempt,
     bulk_unassign_classes,
     delete_question,
+<<<<<<< HEAD
     delete_question_group,
     delete_quiz,
     delete_quiz_section,
+=======
+    delete_quiz,
+>>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
     duplicate_question,
     get_staff_school,
     grade_response,
     import_questions,
+<<<<<<< HEAD
     reorder_quiz_sections,
     reorder_question_groups,
     reorder_questions,
@@ -30,6 +38,11 @@ from .services.assessment_management import (
     save_question,
     save_quiz,
     save_quiz_section,
+=======
+    reorder_questions,
+    save_question,
+    save_quiz,
+>>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
     unassign_class,
     update_quiz_status,
     writable_quiz,
@@ -258,6 +271,7 @@ def teacher_question_bulk_delete_api_view(request, quiz_id):
     return _handle(mutate)
 
 
+<<<<<<< HEAD
 def _section_payload(section):
     return {
         "id": section.pk,
@@ -446,6 +460,8 @@ def teacher_question_assignment_api_view(request, quiz_id):
     return _handle(mutate)
 
 
+=======
+>>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
 @require_http_methods(["POST"])
 def teacher_question_import_api_view(request, quiz_id):
     school, denied = _staff(request)
