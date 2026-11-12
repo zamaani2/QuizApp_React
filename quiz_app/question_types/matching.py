@@ -12,6 +12,9 @@ def _stable_side_id(question, side, pair_id):
 
 
 class MatchingQuestionType(QuestionType):
+    def requires_manual_grading(self, question, snapshot):
+        return not self.pairs(question, snapshot)
+
     def validate_config(self, config):
         config = super().validate_config(config)
         pairs = config.get("pairs", [])

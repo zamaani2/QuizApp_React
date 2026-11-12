@@ -11,10 +11,7 @@ import { Alert } from '../../components/common/Alert';
 import { Button } from '../../components/common/Button';
 import { Modal } from '../../components/common/Modal';
 import { getQuestionType, isQuestionAnswered } from '../../question-types';
-<<<<<<< HEAD
 import { ApiError } from '../../types';
-=======
->>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
 import './student.css';
 
 export const StudentQuizTake: React.FC = () => {
@@ -55,10 +52,7 @@ export const StudentQuizTake: React.FC = () => {
   // Ref to prevent double submission
   const isSubmittingRef = useRef<boolean>(false);
   const pendingSavesRef = useRef<Set<Promise<void>>>(new Set());
-<<<<<<< HEAD
   const sectionSubmittingRef = useRef<boolean>(false);
-=======
->>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
 
   // Load quiz attempt data
   const loadAttempt = useCallback(async () => {
@@ -301,7 +295,6 @@ export const StudentQuizTake: React.FC = () => {
         setSaveErrorMessage(
           err instanceof Error ? err.message : 'Response saved locally. Reconnecting...'
         );
-<<<<<<< HEAD
         if (err instanceof ApiError && err.code === 'CHOOSE_N_LIMIT') {
           const restored = { ...responses };
           if (alreadyAnswered) restored[String(questionId)] = base;
@@ -313,8 +306,6 @@ export const StudentQuizTake: React.FC = () => {
             // A rejected answer must not remain in the local draft.
           }
         }
-=======
->>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
       }
     })();
     pendingSavesRef.current.add(pendingSave);
@@ -322,7 +313,6 @@ export const StudentQuizTake: React.FC = () => {
       await pendingSave;
     } finally {
       pendingSavesRef.current.delete(pendingSave);
-<<<<<<< HEAD
     }
   };
 
@@ -360,8 +350,6 @@ export const StudentQuizTake: React.FC = () => {
       }
     } finally {
       setSectionSubmitting(false);
-=======
->>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
     }
   };
 
@@ -409,7 +397,6 @@ export const StudentQuizTake: React.FC = () => {
     const answer = responses[String(question.id)];
     return answer ? isQuestionAnswered(question.question_type, answer) : false;
   }).length;
-<<<<<<< HEAD
   const sectionAnsweredCount = visibleQuestions.filter((question) => {
     const answer = responses[String(question.id)];
     return answer ? isQuestionAnswered(question.question_type, answer) : false;
@@ -418,8 +405,6 @@ export const StudentQuizTake: React.FC = () => {
     ? sections.findIndex((section) => section.id === currentSection.id)
     : -1;
   const nextSection = currentSectionIndex >= 0 ? sections[currentSectionIndex + 1] : undefined;
-=======
->>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
 
   const progressPercent = data.total_questions > 0 ? (answeredCount / data.total_questions) * 100 : 0;
 

@@ -12,6 +12,9 @@ def _stable_item_id(question, index):
 
 
 class OrderingQuestionType(QuestionType):
+    def requires_manual_grading(self, question, snapshot):
+        return not self.items(question, snapshot)
+
     def validate_config(self, config):
         config = super().validate_config(config)
         items = config.get("items", [])

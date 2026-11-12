@@ -67,6 +67,11 @@ def grade_response(question, response, snapshot):
     return result
 
 
+def requires_manual_grading(question, snapshot):
+    handler = get_question_type(snapshot.get("question_type", question.question_type))
+    return handler.requires_manual_grading(question, snapshot)
+
+
 def validate_answer_data(question_type, config, answer_data):
     return get_question_type(question_type).validate_answer_data(config, answer_data)
 

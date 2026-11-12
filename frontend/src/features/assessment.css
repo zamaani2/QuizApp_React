@@ -14,6 +14,39 @@
 .core-content .core-container {
   width: 100%;
   max-width: 100%;
+}
+
+.quiz-question-expand {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.quiz-question-clamp {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+@media (max-width: 639px) {
+  .quiz-question-row {
+    flex-wrap: wrap;
+    align-items: flex-start !important;
+  }
+
+  .quiz-question-expand {
+    flex: 1 1 calc(100% - 5rem) !important;
+    min-height: 2.5rem;
+  }
+
+  .quiz-question-badges {
+    flex-wrap: wrap;
+    margin-left: 2.5rem;
+  }
   padding-left: 0;
   padding-right: 0;
   margin-left: 0;
@@ -920,4 +953,40 @@
   .core-content .core-button-group > button {
     flex: 1;
   }
+}
+.core-content .core-type--small { font-size: 12px; }
+.core-content .core-card__body { padding: 24px; }
+.core-content .core-badge { font-size: 12px; }
+.core-content .core-field__label,
+.core-content label.core-field__label { font-size: 13px; font-weight: 600; }
+.core-content input:not([type='checkbox']):not([type='radio']),
+.core-content select,
+.core-content textarea { min-height: 42px; font-size: 15px; }
+.core-content .core-button,
+.core-content button.core-button { min-height: 40px; font-size: 14px; }
+.core-content .core-button--sm { min-height: 36px; font-size: 13px; }
+.core-content .page-section { display: grid; gap: 32px; }
+.core-content .form-page { width: 100%; max-width: 880px; margin-inline: auto; }
+.core-content .sticky-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  border-top: 1px solid var(--core-line);
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  background: var(--core-surface);
+}
+.core-content .core-link { color: var(--core-accent); text-decoration: underline; text-underline-offset: 2px; }
+.core-content .core-link:hover { color: var(--core-ink); }
+
+@media (max-width: 767px), (pointer: coarse) {
+  .core-content input:not([type='checkbox']):not([type='radio']),
+  .core-content select,
+  .core-content textarea,
+  .core-content button,
+  .core-content .core-button { min-height: 44px; }
+  .core-content .core-card__body { padding: 16px; }
+  .core-content .sticky-actions { bottom: calc(60px + env(safe-area-inset-bottom)); }
 }

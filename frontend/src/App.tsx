@@ -1,8 +1,9 @@
 import { AppIcon } from './components/common/AppIcon';
 import { useState, lazy, Suspense, type FC } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth, RoleGuard } from './auth';
 import './features/assessment.css';
+
 import {
   StudentAppLayout,
   TeacherAppLayout,
@@ -14,6 +15,13 @@ import {
   type Column,
   LoadingSpinner,
 } from './components';
+
+const LegacyQuizSettingsRedirect = () => { const { id } = useParams(); return <Navigate to={`/teacher/quizzes/${id}/settings`} replace />; };
+const LegacyQuizQuestionsRedirect = () => { const { id } = useParams(); return <Navigate to={`/teacher/questions/${id}`} replace />; };
+const LegacyQuestionNewRedirect = () => { const { id } = useParams(); return <Navigate to={`/teacher/questions/${id}/new`} replace />; };
+const LegacyQuestionEditRedirect = () => { const { id, questionId } = useParams(); return <Navigate to={`/teacher/questions/${id}/${questionId}/edit`} replace />; };
+const LegacyQuestionImportRedirect = () => { const { id } = useParams(); return <Navigate to={`/teacher/questions/${id}/import`} replace />; };
+const LegacyAssignmentsRedirect = () => { const { id } = useParams(); return <Navigate to={`/teacher/assignments?quiz=${id}`} replace />; };
 
 // Code-split per role area (Section 4.6)
 // Superadmin features
@@ -89,6 +97,9 @@ const QuizList = lazy(() =>
 );
 const QuizDetail = lazy(() =>
   import('./features/teacher/QuizDetail').then((m) => ({ default: m.QuizDetail }))
+);
+const QuizQuestionsPage = lazy(() =>
+  import('./features/teacher/QuizQuestionsPage').then((m) => ({ default: m.QuizQuestionsPage }))
 );
 const QuizEditor = lazy(() =>
   import('./features/teacher/QuizEditor').then((m) => ({ default: m.QuizEditor }))
@@ -695,25 +706,25 @@ const AppShellWithRoutes: FC = () => {
           />
           <Route
             path="/teacher/quizzes/:id/edit"
-            element={
-              <RoleGuard allowedRoles={['teacher', 'admin']}>
-                <QuizEditor />
-              </RoleGuard>
-            }
+            element={<LegacyQuizSettingsRedirect />}
           />
+          <Route path="/teacher/quizzes/:id/settings" element={<RoleGuard allowedRoles={['teacher', 'admin']}><QuizEditor /></RoleGuard>} />
+          <Route path="/teacher/questions" element={<RoleGuard allowedRoles={['teacher', 'admin', 'superadmin']}><QuizQuestionsPage /></RoleGuard>} />
+          <Route path="/teacher/questions/:quizId" element={<RoleGuard allowedRoles={['teacher', 'admin', 'superadmin']}><QuizQuestionsPage /></RoleGuard>} />
+          <Route path="/teacher/questions/:quizId/new" element={<RoleGuard allowedRoles={['teacher', 'admin']}><QuestionEditor /></RoleGuard>} />
+          <Route path="/teacher/questions/:quizId/:questionId/edit" element={<RoleGuard allowedRoles={['teacher', 'admin']}><QuestionEditor /></RoleGuard>} />
+          <Route path="/teacher/questions/:quizId/import" element={<RoleGuard allowedRoles={['teacher', 'admin']}><QuestionImport /></RoleGuard>} />
+          <Route path="/teacher/assignments" element={<RoleGuard allowedRoles={['teacher', 'admin', 'superadmin']}><QuizAssignments /></RoleGuard>} />
+          <Route path="/teacher/quizzes/:id/questions" element={<LegacyQuizQuestionsRedirect />} />
           <Route
             path="/teacher/quizzes/:id/questions/new"
-            element={
-              <RoleGuard allowedRoles={['teacher', 'admin']}>
-                <QuestionEditor />
-              </RoleGuard>
-            }
+            element={<LegacyQuestionNewRedirect />}
           />
           <Route
             path="/teacher/quizzes/:id/questions/:questionId/edit"
             element={
               <RoleGuard allowedRoles={['teacher', 'admin']}>
-                <QuestionEditor />
+                <LegacyQuestionEditRedirect />
               </RoleGuard>
             }
           />
@@ -721,7 +732,7 @@ const AppShellWithRoutes: FC = () => {
             path="/teacher/quizzes/:id/questions/import"
             element={
               <RoleGuard allowedRoles={['teacher', 'admin']}>
-                <QuestionImport />
+                <LegacyQuestionImportRedirect />
               </RoleGuard>
             }
           />
@@ -729,7 +740,7 @@ const AppShellWithRoutes: FC = () => {
             path="/teacher/quizzes/:id/assignments"
             element={
               <RoleGuard allowedRoles={['teacher', 'admin']}>
-                <QuizAssignments />
+                <LegacyAssignmentsRedirect />
               </RoleGuard>
             }
           />

@@ -4,6 +4,7 @@ import { BrowserRouter, MemoryRouter, Routes, Route } from 'react-router-dom';
 import { TeacherDashboard } from './TeacherDashboard';
 import { QuestionEditor } from './QuestionEditor';
 import { QuizEditor } from './QuizEditor';
+import { QuizDetail } from './QuizDetail';
 import { AdminDashboard } from '../admin/AdminDashboard';
 import { TeacherAppLayout } from '../../components/layout/TeacherAppLayout';
 import { AdminAppLayout } from '../../components/layout/AdminAppLayout';
@@ -168,9 +169,9 @@ describe('Teacher and Admin Responsive Verification', () => {
       );
 
       expect(await screen.findByTestId('teacher-dashboard')).toBeInTheDocument();
-      expect(screen.getByText('Prof. Minerva McGonagall — Teaching Workspace')).toBeInTheDocument();
+      expect(screen.getByText('Prof. Minerva McGonagall — Home')).toBeInTheDocument();
       expect(screen.getByText('Assessment Builder & Evaluation')).toBeInTheDocument();
-      expect(screen.getAllByText('Quiz Catalog').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('Quizzes').length).toBeGreaterThanOrEqual(1);
     });
 
     it(`renders AdminAppLayout and AdminDashboard cleanly at ${width}px`, async () => {
@@ -188,6 +189,23 @@ describe('Teacher and Admin Responsive Verification', () => {
       expect(screen.getByText('Manage School Allocations & Cohorts')).toBeInTheDocument();
       expect(screen.getAllByText('Students Directory').length).toBeGreaterThanOrEqual(1);
     });
+  });
+
+  it('requires confirmation before deleting a quiz', async () => {
+    render(
+      <MemoryRouter initialEntries={['/teacher/quizzes/1']}>
+        <Routes><Route path="/teacher/quizzes/:id" element={<QuizDetail />} /></Routes>
+      </MemoryRouter>
+    );
+    await screen.findByText('Transfiguration 101');
+    fireEvent.click(screen.getByRole('button', { name: 'Quiz options menu' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    expect(global.fetch).not.toHaveBeenCalledWith('/api/v1/teacher/quizzes/1/', expect.objectContaining({ method: 'DELETE' }));
+    expect(await screen.findByText(/all questions, settings, and attempts will be permanently erased/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Quiz' }));
+    await waitFor(() => expect(vi.mocked(global.fetch).mock.calls.some(([url, options]) =>
+      url === '/api/v1/teacher/quizzes/1/' && options?.method === 'DELETE'
+    )).toBe(true));
   });
 
   describe('390px Mobile Quiz & Question Editor Wrapping Verification', () => {
@@ -233,31 +251,17 @@ describe('Teacher and Admin Responsive Verification', () => {
         </MemoryRouter>
       );
 
-      expect(await screen.findByText('Create Quiz')).toBeInTheDocument();
-      expect(screen.getByLabelText('Title *')).toBeInTheDocument();
+      expect(await screen.findByText('New Quiz')).toBeInTheDocument();
+      expect(screen.getByLabelText('Quiz Title *')).toBeInTheDocument();
       expect(screen.getByLabelText('Subject *')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument();
+      expect(screen.getByRole('radiogroup', { name: 'Quiz type presets' })).toBeInTheDocument();
+      expect(screen.getByRole('radio', { name: /Practice quiz/ })).toHaveAttribute('aria-checked', 'true');
+      expect(screen.getByRole('radio', { name: /Class test/ })).toHaveTextContent('30 minutes');
+      expect(screen.getByRole('radio', { name: /Exam/ })).toHaveTextContent('60 minutes');
 
-      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-      expect(await screen.findByText('Enter a quiz title before continuing.')).toBeInTheDocument();
-
-      fireEvent.change(screen.getByLabelText('Title *'), { target: { value: 'Midterm' } });
+      fireEvent.change(screen.getByLabelText('Quiz Title *'), { target: { value: 'Midterm' } });
       fireEvent.change(screen.getByLabelText('Subject *'), { target: { value: '1' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-      expect(await screen.findByText('Select a teacher before continuing.')).toBeInTheDocument();
-
-      fireEvent.change(screen.getByLabelText('Teacher *'), { target: { value: '2' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-      expect(await screen.findByRole('region', { name: 'Academic year and classes' })).toBeInTheDocument();
-      fireEvent.change(screen.getByLabelText('Category'), { target: { value: '1' } });
-
-      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-      expect(await screen.findByRole('region', { name: 'Schedule and scoring' })).toBeInTheDocument();
-      fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'published' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-      expect(await screen.findByRole('region', { name: 'Results and behavior' })).toBeInTheDocument();
-      fireEvent.click(screen.getByLabelText('Show results immediately'));
-      expect(screen.getByRole('button', { name: 'Create Quiz' })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('radio', { name: /Exam/ }));
 
       fireEvent.click(screen.getByRole('button', { name: 'Create Quiz' }));
       expect(await screen.findByTestId('saved-quiz-route')).toBeInTheDocument();
@@ -271,11 +275,13 @@ describe('Teacher and Admin Responsive Verification', () => {
       );
       const body = JSON.parse(String(saveCall?.[1]?.body));
       expect(body.title).toBe('Midterm');
-      expect(body.subject).toBe('1');
-      expect(body.teacher).toBe('2');
-      expect(body.category).toBe('1');
-      expect(body.status).toBe('published');
-      expect(body.show_results_immediately).toBe(true);
+      expect(body.subject_id).toBe(1);
+      expect(body.status).toBe('draft');
+      expect(body.time_limit).toBe(60);
+      expect(body.max_attempts).toBe(1);
+      expect(body.randomize_questions).toBe(true);
+      expect(body.randomize_answers).toBe(true);
+      expect(body.show_results_immediately).toBe(false);
     });
   });
 });

@@ -301,16 +301,22 @@ export const StudentDashboard: React.FC = () => {
               </div>
 
               <div className="stu-result-card__score-box">
-                <span className={`stu-badge ${att.is_passed ? 'stu-badge--success' : 'stu-badge--danger'}`}>
-                  {att.percentage}% ({att.is_passed ? 'Passed' : 'Failed'})
-                </span>
-                <Link
-                  to={`/student/attempts/${att.id}/result`}
-                  className="stu-section-head__link"
-                  style={{ fontSize: '0.75rem' }}
-                >
-                  Review Result →
-                </Link>
+                {att.results_available ? (
+                  <>
+                    <span className={`stu-badge ${att.is_passed ? 'stu-badge--success' : 'stu-badge--danger'}`}>
+                      {att.percentage}% ({att.is_passed ? 'Passed' : 'Failed'})
+                    </span>
+                    <Link
+                      to={`/student/attempts/${att.id}/result`}
+                      className="stu-section-head__link"
+                      style={{ fontSize: '0.75rem' }}
+                    >
+                      Review Result →
+                    </Link>
+                  </>
+                ) : (
+                  <span className="stu-badge stu-badge--warning">Results pending</span>
+                )}
               </div>
             </div>
           ))}

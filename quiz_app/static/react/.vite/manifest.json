@@ -459,12 +459,8 @@
       "_me.js",
       "index.html",
       "_student.js",
-<<<<<<< HEAD
       "_Modal.js",
       "_index2.js"
-=======
-      "_Modal.js"
->>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
     ]
   },
   "src/features/superadmin/AdminDetail.tsx": {

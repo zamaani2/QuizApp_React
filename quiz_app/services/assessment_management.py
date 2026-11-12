@@ -20,17 +20,15 @@ from ..models import (
     Quiz,
     QuizAttempt,
     QuizCategory,
-<<<<<<< HEAD
     QuestionGroup,
     QuizSection,
-=======
->>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
     QuizResponse,
     Subject,
     Teacher,
     TeacherSubjectAssignment,
     Term,
 )
+from ..question_types import requires_manual_grading
 
 MAX_IMPORT_FILE_SIZE = 5 * 1024 * 1024
 MAX_IMPORT_ROWS = 5000
@@ -47,10 +45,11 @@ VALID_QUESTION_TYPES = [
 
 
 class AssessmentConflict(Exception):
-    def __init__(self, code, message):
+    def __init__(self, code, message, fields=None):
         super().__init__(message)
         self.code = code
         self.message = message
+        self.fields = fields
 
 
 def _int(value, field, default=None, required=False):
@@ -153,9 +152,13 @@ def _classes_for_ids(school, class_ids):
     return classes
 
 
-def _academic_context(school, data):
+def _academic_context(school, data, existing=None):
     academic_year_id = data.get("academic_year") or data.get("academic_year_id")
     term_id = data.get("term") or data.get("term_id")
+    if not academic_year_id and not term_id:
+        if existing:
+            return existing.academic_year, existing.term
+        return getattr(school, "current_academic_year", None), getattr(school, "current_term", None)
     if term_id and not academic_year_id:
         raise ValidationError({"academic_year": ["Select an academic year for the selected term."]})
     academic_year = None
@@ -206,7 +209,7 @@ def _subject_for_quiz(user, school, teacher, data, existing=None):
 
 
 def save_quiz(user, school, data, quiz=None):
-    title = _text(data, "title")
+    title = _text(data, "title", quiz.title if quiz else "")
     if not title:
         raise ValidationError({"title": ["Quiz title is required."]})
     teacher = _teacher_for_quiz(user, school, data, quiz)
@@ -217,10 +220,10 @@ def save_quiz(user, school, data, quiz=None):
         category = QuizCategory.objects.filter(pk=category_id, school=school).first()
         if category is None:
             raise ValidationError({"category": ["Invalid category selected."]})
-    class_ids = _ids(data.get("classes") or data.get("class_ids"))
-    classes = _classes_for_ids(school, class_ids) if class_ids else Class.objects.none()
-    academic_year, term = _academic_context(school, data)
+    academic_year, term = _academic_context(school, data, quiz)
     status = _text(data, "status", quiz.status if quiz else "draft") or "draft"
+    if quiz is None:
+        status = "draft"
     if status not in {"draft", "published", "archived"}:
         raise ValidationError({"status": ["Invalid status."]})
     difficulty = _text(data, "difficulty", quiz.difficulty if quiz else "medium") or "medium"
@@ -236,24 +239,56 @@ def save_quiz(user, school, data, quiz=None):
     quiz.term = term
     quiz.difficulty = difficulty
     quiz.status = status
-    quiz.time_limit = _int(data.get("time_limit"), "time_limit", 0) or 0
-    quiz.passing_marks = _int(data.get("passing_marks"), "passing_marks", 0) or 0
-    quiz.max_attempts = _int(data.get("max_attempts"), "max_attempts", 1) or 1
-    quiz.available_from = _parse_datetime(data.get("available_from"))
-    quiz.available_until = _parse_datetime(data.get("available_until"))
-    quiz.randomize_questions = _flag(data, "randomize_questions")
-    quiz.randomize_answers = _flag(data, "randomize_answers")
-    quiz.show_results_immediately = _flag(data, "show_results_immediately")
-    quiz.show_correct_answers = _flag(data, "show_correct_answers")
-    quiz.allow_review = _flag(data, "allow_review", True if quiz is None else quiz.allow_review)
-    quiz.require_password = _flag(data, "require_password")
-    quiz.quiz_password = _text(data, "quiz_password") or None
+    time_limit = _int(data.get("time_limit"), "time_limit", quiz.time_limit if quiz else 0)
+    if time_limit < 0:
+        raise ValidationError({"time_limit": ["Time limit cannot be negative."]})
+    quiz.time_limit = time_limit
+    if "pass_percentage" in data and data["pass_percentage"] not in (None, ""):
+        try:
+            pct = float(data["pass_percentage"])
+            if not (0.0 <= pct <= 100.0):
+                raise ValidationError({"pass_percentage": ["Pass percentage must be between 0 and 100."]})
+            quiz.pass_percentage = pct
+            quiz.passing_marks = round((pct / 100.0) * quiz.total_marks) if quiz.total_marks else 0
+        except (ValueError, TypeError):
+            raise ValidationError({"pass_percentage": ["Enter a valid pass percentage."]})
+    elif "passing_marks" in data:
+        quiz.passing_marks = _int(data.get("passing_marks"), "passing_marks", 0) or 0
+        if quiz.total_marks > 0:
+            quiz.pass_percentage = round((quiz.passing_marks / quiz.total_marks) * 100.0, 1)
+    quiz.max_attempts = _int(data.get("max_attempts"), "max_attempts", quiz.max_attempts if quiz else 1) or 1
+    raw_available_from = data.get("available_from", quiz.available_from if quiz else None)
+    raw_available_until = data.get("available_until", quiz.available_until if quiz else None)
+    available_from = _parse_datetime(raw_available_from)
+    available_until = _parse_datetime(raw_available_until)
+    if raw_available_from and available_from is None:
+        raise ValidationError({"available_from": ["Enter a valid date and time."]})
+    if raw_available_until and available_until is None:
+        raise ValidationError({"available_until": ["Enter a valid date and time."]})
+    if available_from and available_until and available_from >= available_until:
+        raise ValidationError({"available_until": ["Available until date must be after available from date."]})
+    quiz.available_from = available_from
+    quiz.available_until = available_until
+    quiz.randomize_questions = _flag(data, "randomize_questions", quiz.randomize_questions if quiz else False)
+    quiz.randomize_answers = _flag(data, "randomize_answers", quiz.randomize_answers if quiz else False)
+    was_showing_results = quiz.show_results_immediately
+    quiz.show_results_immediately = _flag(
+        data, "show_results_immediately", quiz.show_results_immediately
+    )
+    if quiz.show_results_immediately != was_showing_results:
+        quiz.results_released_at = None
+    quiz.show_correct_answers = _flag(data, "show_correct_answers", quiz.show_correct_answers if quiz else False)
+    quiz.allow_review = _flag(data, "allow_review", quiz.allow_review)
+    quiz.require_password = _flag(data, "require_password", quiz.require_password if quiz else False)
+    quiz.quiz_password = _text(data, "quiz_password", quiz.quiz_password or "") or None
     quiz.save()
-    quiz.classes.set(classes)
+    if "classes" in data or "class_ids" in data:
+        class_ids = _ids(data.get("classes") or data.get("class_ids"))
+        classes = _classes_for_ids(school, class_ids) if class_ids else Class.objects.none()
+        quiz.classes.set(classes)
     return quiz
 
 
-<<<<<<< HEAD
 def _validate_quiz_sections(quiz):
     for section in quiz.sections.filter(school_id=quiz.school_id):
         if section.choose_n is None:
@@ -436,8 +471,6 @@ def assign_questions(quiz, school, data):
     return questions
 
 
-=======
->>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
 def delete_quiz(quiz, school):
     quiz = Quiz.objects.select_for_update().get(pk=quiz.pk, school=school)
     if quiz.attempts.exists():
@@ -453,10 +486,50 @@ def delete_quiz(quiz, school):
 def update_quiz_status(quiz, status):
     if status not in {"draft", "published", "archived"}:
         raise ValidationError({"status": ["Invalid status."]})
-    if status == "published" and not quiz.questions.exists():
-        raise ValidationError({"status": ["Publish a quiz only after it has at least one question."]})
+    if status == "published":
+        if not quiz.questions.filter(school_id=quiz.school_id).exists():
+            raise AssessmentConflict(
+                "QUIZ_NO_QUESTIONS",
+                "Add at least one question before publishing this quiz.",
+                {"questions": ["Add at least one question before publishing."]},
+            )
+        if not quiz.classes.filter(school_id=quiz.school_id).exists():
+            raise AssessmentConflict(
+                "QUIZ_NO_CLASSES",
+                "Assign at least one class before publishing this quiz.",
+                {"classes": ["Assign at least one class before publishing."]},
+            )
+        if quiz.available_from and quiz.available_until and quiz.available_from >= quiz.available_until:
+            raise AssessmentConflict(
+                "INVALID_AVAILABILITY_DATES",
+                "The availability end must be after its start.",
+                {"available_until": ["Available until date must be after available from date."]},
+            )
+        if quiz.time_limit is None or quiz.time_limit < 0:
+            raise AssessmentConflict(
+                "INVALID_TIME_LIMIT",
+                "The time limit must be zero (untimed) or a positive number of minutes.",
+                {"time_limit": ["Time limit cannot be negative."]},
+            )
     quiz.status = status
     quiz.save(update_fields=["status"])
+    return quiz
+
+
+def release_quiz_results(quiz):
+    if quiz.status != "published":
+        raise AssessmentConflict(
+            "QUIZ_NOT_PUBLISHED",
+            "Publish the quiz before releasing results.",
+        )
+    if quiz.show_results_immediately:
+        raise AssessmentConflict(
+            "RESULTS_ALREADY_IMMEDIATE",
+            "This quiz already shows results immediately.",
+        )
+    if quiz.results_released_at is None:
+        quiz.results_released_at = timezone.now()
+        quiz.save(update_fields=["results_released_at"])
     return quiz
 
 
@@ -639,10 +712,7 @@ def save_question(quiz, school, data, question=None):
         _sync_multiple_choice(question, school, data)
     elif question.question_type in {"short_answer", "fill_blank", "matching", "ordering"}:
         _apply_text_answer(question, data)
-<<<<<<< HEAD
     _validate_quiz_sections(quiz)
-=======
->>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
     quiz.calculate_total_marks()
     return question
 
@@ -664,10 +734,7 @@ def delete_question(quiz, school, question_id):
             "QUESTION_HAS_ATTEMPTS",
             "This question cannot be deleted because it is referenced by existing records.",
         ) from error
-<<<<<<< HEAD
     _validate_quiz_sections(quiz)
-=======
->>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
     quiz.calculate_total_marks()
 
 
@@ -686,10 +753,7 @@ def bulk_delete_questions(quiz, school, question_ids):
             "Questions in a quiz with attempts cannot be deleted.",
         )
     questions.delete()
-<<<<<<< HEAD
     _validate_quiz_sections(quiz)
-=======
->>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
     quiz.calculate_total_marks()
     return len(ids)
 
@@ -1010,6 +1074,27 @@ def _response_queryset(user, school):
     return responses
 
 
+def get_manual_grading_responses(attempt, school):
+    responses = getattr(attempt, "prefetched_grading_responses", None)
+    if responses is None:
+        responses = attempt.responses.filter(
+            school=school,
+            question__school=school,
+            question__quiz_id=F("attempt__quiz_id"),
+        ).filter(Q(selected_choice__isnull=True) | Q(selected_choice__school=school))
+        responses = responses.select_related("question")
+
+    question_snapshots = attempt.configuration_snapshot.get("questions", {})
+    return [
+        response
+        for response in responses
+        if requires_manual_grading(
+            response.question,
+            question_snapshots.get(str(response.question_id), {}),
+        )
+    ]
+
+
 def _attempt_queryset(user, school):
     attempts = QuizAttempt.objects.filter(
         school=school,
@@ -1053,23 +1138,23 @@ def _apply_grade(response, user, marks_awarded, grading_notes):
             "grading_notes": grading_notes,
         },
     ]
-    if response.question.question_type == "essay":
+    question_type = response.attempt.configuration_snapshot.get(
+        "questions", {}
+    ).get(str(response.question_id), {}).get(
+        "question_type", response.question.question_type
+    )
+    if question_type == "essay":
         response.is_correct = marks_awarded > 0
     else:
-        response.check_correctness()
+        response.is_correct = marks_awarded >= max_marks * 0.5
     response.save()
 
 
 def _refresh_attempt_grading(attempt, school):
     attempt.calculate_score()
-    essay_responses = attempt.responses.filter(
-        school=school,
-        question__school=school,
-        question__quiz_id=F("attempt__quiz_id"),
-        question__question_type="essay",
-    ).filter(Q(selected_choice__isnull=True) | Q(selected_choice__school=school))
-    all_graded = all(item.is_graded for item in essay_responses) if essay_responses.exists() else True
-    if all_graded and essay_responses.exists():
+    manual_responses = get_manual_grading_responses(attempt, school)
+    all_graded = all(item.is_graded for item in manual_responses)
+    if all_graded and manual_responses:
         attempt.is_graded = True
         attempt.needs_grading = False
         attempt.save(update_fields=["is_graded", "needs_grading"])

@@ -194,7 +194,7 @@ export const StudentQuizList: React.FC = () => {
                 <span className="stu-quiz-card__meta-item">
                   {quiz.attempts_count} of {quiz.max_attempts} attempts
                 </span>
-                {quiz.attempts_count > 0 && (
+                {quiz.attempts_count > 0 && quiz.results_available && quiz.best_percentage !== null && (
                   <>
                     <span>•</span>
                     <span className="stu-quiz-card__meta-item core-text--primary core-type--weight-semibold">

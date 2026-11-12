@@ -40,8 +40,8 @@ function initialChoices(question?: QuestionDetailItem): ChoiceDraft[] {
 }
 
 export const QuestionEditor: React.FC = () => {
-  const { id, questionId } = useParams<{ id: string; questionId?: string }>();
-  const quizId = Number(id);
+  const { id, quizId: quizRouteId, questionId } = useParams<{ id?: string; quizId?: string; questionId?: string }>();
+  const quizId = Number(id ?? quizRouteId);
   const parsedQuestionId = questionId ? Number(questionId) : null;
   const navigate = useNavigate();
   const [quiz, setQuiz] = useState<QuizDetailData | null>(null);

@@ -47,6 +47,9 @@ export interface QuizListItem {
   total_attempts: number;
   avg_score: number;
   created_at: string | null;
+  classes?: { id: number; name: string }[];
+  available_from?: string | null;
+  available_until?: string | null;
 }
 
 export interface AnswerChoiceItem {
@@ -70,7 +73,6 @@ export interface QuestionDetailItem {
   group_id?: number | null;
   choices: AnswerChoiceItem[];
   config?: Record<string, unknown>;
-<<<<<<< HEAD
 }
 
 export interface QuestionGroupData {
@@ -89,8 +91,6 @@ export interface QuizSectionData {
   choose_n: number | null;
   question_ids: number[];
   groups: QuestionGroupData[];
-=======
->>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
 }
 
 export interface QuizDetailData {
@@ -117,6 +117,7 @@ export interface QuizDetailData {
   randomize_questions?: boolean;
   randomize_answers?: boolean;
   show_results_immediately?: boolean;
+  results_released_at?: string | null;
   show_correct_answers?: boolean;
   allow_review?: boolean;
   require_password?: boolean;
@@ -177,9 +178,11 @@ export interface QuizAssignmentsData {
 export interface GradingResponse {
   id: number;
   question_text: string;
+  question_type?: string;
   question_marks: number;
   marks_awarded: number;
   text_answer: string;
+  student_answer?: unknown;
   grading_notes: string;
   is_graded: boolean;
 }

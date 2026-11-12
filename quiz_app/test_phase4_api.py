@@ -6,8 +6,9 @@ Covers:
 - GET /api/v1/teacher/quizzes/ (cross-teacher and cross-school negative isolation, filtering)
 - GET /api/v1/teacher/quizzes/<id>/ (ownership enforcement, question & choice breakdown)
 - GET /api/v1/teacher/results/ (student attempts & scores)
-- GET /api/v1/teacher/grading/ (essay grading queue)
+- GET /api/v1/teacher/grading/ (manual grading queue)
 """
+import json
 import datetime
 from django.test import TestCase, Client
 from django.urls import reverse
@@ -369,6 +370,134 @@ class Phase4ApiTests(TestCase):
         grade_data = grade_response.json()
         self.assertEqual(grade_data["count"], 1)
         self.assertEqual(grade_data["results"][0]["ungraded_responses_count"], 1)
+
+    def test_manual_grading_queue_includes_responses_without_answer_keys(self):
+        matching = Question.objects.create(
+            quiz=self.quiz_a1,
+            question_type="matching",
+            question_text="Match the terms",
+            marks=4,
+            order=3,
+            school=self.school_a,
+        )
+        ordering = Question.objects.create(
+            quiz=self.quiz_a1,
+            question_type="ordering",
+            question_text="Order the steps",
+            marks=3,
+            order=4,
+            school=self.school_a,
+        )
+        short_answer = Question.objects.create(
+            quiz=self.quiz_a1,
+            question_type="short_answer",
+            question_text="Explain the principle",
+            marks=2,
+            order=5,
+            school=self.school_a,
+        )
+        multiple_choice = Question.objects.create(
+            quiz=self.quiz_a1,
+            question_type="multiple_choice",
+            question_text="Choose the best explanation",
+            marks=1,
+            order=6,
+            school=self.school_a,
+        )
+        first_choice = AnswerChoice.objects.create(
+            question=multiple_choice,
+            choice_text="First option",
+            is_correct=False,
+            order=1,
+            school=self.school_a,
+        )
+        AnswerChoice.objects.create(
+            question=multiple_choice,
+            choice_text="Second option",
+            is_correct=False,
+            order=2,
+            school=self.school_a,
+        )
+        attempt = QuizAttempt.objects.create(
+            quiz=self.quiz_a1,
+            student=self.student_a1_profile,
+            attempt_number=3,
+            is_submitted=True,
+            is_completed=True,
+            submitted_at=timezone.now(),
+            school=self.school_a,
+        )
+        attempt.capture_configuration()
+        matching_response = QuizResponse.objects.create(
+            attempt=attempt,
+            question=matching,
+            answer_data={"matches": {"left-unmatched": "right-unmatched"}},
+            school=self.school_a,
+        )
+        ordering_response = QuizResponse.objects.create(
+            attempt=attempt,
+            question=ordering,
+            answer_data={"items": ["first", "second"]},
+            school=self.school_a,
+        )
+        short_answer_response = QuizResponse.objects.create(
+            attempt=attempt,
+            question=short_answer,
+            text_answer="My explanation",
+            school=self.school_a,
+        )
+        multiple_choice_response = QuizResponse.objects.create(
+            attempt=attempt,
+            question=multiple_choice,
+            selected_choice=first_choice,
+            school=self.school_a,
+        )
+        attempt.calculate_score()
+        attempt.refresh_from_db()
+        self.assertTrue(attempt.needs_grading)
+
+        self.client.force_login(self.teacher_a1_user)
+        queue = self.client.get(reverse("quiz_app:api_teacher_grading")).json()
+        queued_attempt = next(row for row in queue["results"] if row["id"] == attempt.pk)
+        self.assertEqual(queued_attempt["ungraded_responses_count"], 4)
+
+        detail = self.client.get(
+            reverse("quiz_app:api_teacher_grading_detail", args=[attempt.pk])
+        ).json()
+        self.assertEqual(
+            {response["question_type"] for response in detail["responses"]},
+            {"matching", "ordering", "short_answer", "multiple_choice"},
+        )
+        self.assertEqual(
+            {response["id"] for response in detail["responses"]},
+            {
+                matching_response.pk,
+                ordering_response.pk,
+                short_answer_response.pk,
+                multiple_choice_response.pk,
+            },
+        )
+
+        grades = (
+            (matching_response, 3.5),
+            (ordering_response, 2.5),
+            (short_answer_response, 1.5),
+            (multiple_choice_response, 0.5),
+        )
+        for response, marks in grades:
+            grade_response = self.client.post(
+                reverse("quiz_app:api_teacher_response_grade", args=[response.pk]),
+                data=json.dumps({"marks_awarded": marks, "grading_notes": "Reviewed"}),
+                content_type="application/json",
+            )
+            self.assertEqual(grade_response.status_code, 200, grade_response.content)
+
+        attempt.refresh_from_db()
+        self.assertAlmostEqual(attempt.score, 8)
+        self.assertFalse(attempt.needs_grading)
+        self.assertTrue(attempt.is_graded)
+        queue = self.client.get(reverse("quiz_app:api_teacher_grading")).json()
+        self.assertNotIn(attempt.pk, {row["id"] for row in queue["results"]})
 
     def test_teacher_grading_forbidden_for_student(self):
         self.client.force_login(self.student_a1_user)

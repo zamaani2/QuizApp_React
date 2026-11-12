@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { assignQuizClasses, fetchQuizAssignments, unassignQuizClass } from '../../api/teacher';
 import type { QuizAssignmentsData } from '../../types';
 import { Alert } from '../../components/common/Alert';
@@ -9,7 +9,8 @@ import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 
 export const QuizAssignments: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const quizId = Number(id);
+  const [searchParams] = useSearchParams();
+  const quizId = Number(id ?? searchParams.get('quiz'));
   const [data, setData] = useState<QuizAssignmentsData | null>(null);
   const [selected, setSelected] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,6 +21,7 @@ export const QuizAssignments: React.FC = () => {
   const [unassignLoading, setUnassignLoading] = useState(false);
 
   const load = useCallback(async () => {
+    if (!Number.isFinite(quizId) || quizId <= 0) { setLoading(false); return; }
     setLoading(true);
     setError(null);
     try {
@@ -64,6 +66,13 @@ export const QuizAssignments: React.FC = () => {
     }
   }
 
+  if (!Number.isFinite(quizId) || quizId <= 0) return (
+    <div className="assessment-page core-container core-space--padding-y-4">
+      <h1 className="core-type--heading-3">Assignments</h1>
+      <p>Select a quiz to manage its class assignments.</p>
+      <Link className="core-button core-button--primary" to="/teacher/quizzes">Choose a quiz</Link>
+    </div>
+  );
   if (loading && !data) return <LoadingSpinner size="lg" message="Loading class assignments..." />;
   return (
     <div className="assessment-page core-container core-space--padding-y-4">

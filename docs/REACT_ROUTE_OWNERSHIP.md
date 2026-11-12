@@ -21,13 +21,8 @@ Port `8000` is not the normal browser-facing app URL during Vite development.
 | `/auth-app/*` | React authentication and account-recovery UI | `/api/v1/me/`, `/login/`, `/superadmin/login/`, `/logout/`, `/password-reset/*` |
 | `/app/superadmin/*` | React superadmin workspace | `/api/v1/superadmin/*`, `/api/v1/users/` |
 | `/app/admin/*` | React school-administration workspace | `/api/v1/dashboard/admin/`, `/api/v1/students/`, `/api/v1/teachers/`, `/api/v1/users/`, `/api/v1/classes/`, `/api/v1/subjects/`, `/api/v1/academic-years/`, `/api/v1/terms/`, `/api/v1/school-structure/*`, `/api/v1/enrollments/`, `/api/v1/teacher-assignments/` |
-<<<<<<< HEAD
 | `/app/teacher/*` | React teacher workspace | `/api/v1/dashboard/teacher/`, `/api/v1/teacher/*` (including quiz, section, stimulus-group, question assignment, and grading writes) |
 | `/app/student/*` | React student workspace | `/api/v1/dashboard/student/`, `/api/v1/student/*` (including section-aware quiz taking and section submission) |
-=======
-| `/app/teacher/*` | React teacher workspace | `/api/v1/dashboard/teacher/`, `/api/v1/teacher/*` (including quiz, question, assignment, and grading writes) |
-| `/app/student/*` | React student workspace | `/api/v1/dashboard/student/`, `/api/v1/student/*` |
->>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
 
 ## Legacy Django URLs
 
@@ -45,3 +40,13 @@ The only Django templates retained are `react_app.html` and
 `auth_core_app.html`. They are mount shells, not feature UIs. See
 [LEGACY_DJANGO_TEMPLATE_CATALOG.md](./LEGACY_DJANGO_TEMPLATE_CATALOG.md) for
 the template inventory and retirement policy.
+
+### Teacher assessment routes
+
+The teacher workspace uses `/app/teacher/quizzes` for the quiz list and quiz
+overview/settings, `/app/teacher/questions` for question selection and authoring,
+and `/app/teacher/assignments` for class assignments. Legacy quiz, question and
+assignment URLs redirect to these React routes. Quiz-specific assignment
+redirects preserve the quiz as `?quiz=<id>`. Old question editor and import URLs
+redirect to `/app/teacher/questions/<quizId>/...`; the React route definitions
+omit `/app` because the router uses `/app` as its basename.

@@ -2,10 +2,10 @@ import { useState, type FC, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
-  HelpCircle,
+  CircleHelp,
+  ClipboardList,
   CheckSquare,
   Award,
-  PlusCircle,
   PanelLeftClose,
   PanelLeftOpen,
   LogOut,
@@ -32,7 +32,7 @@ export interface TeacherNavItem {
 export const TEACHER_NAV_ITEMS: TeacherNavItem[] = [
   {
     id: 'dashboard',
-    label: 'Teaching Workspace',
+    label: 'Home',
     to: '/teacher/dashboard',
     icon: LayoutDashboard,
     section: 'Workspace',
@@ -41,16 +41,26 @@ export const TEACHER_NAV_ITEMS: TeacherNavItem[] = [
   },
   {
     id: 'quizzes',
-    label: 'Quiz Catalog',
+    label: 'Quizzes',
     to: '/teacher/quizzes',
-    icon: HelpCircle,
+    icon: CircleHelp,
     section: 'Assessments',
     isPrimary: true,
-    isActive: (p) => p === '/teacher/quizzes' || (p.startsWith('/teacher/quizzes/') && !p.endsWith('/new')),
+    isActive: (p) => p === '/teacher/quizzes' || /^\/teacher\/quizzes\/\d+(?:\/settings)?\/?$/.test(p),
+  },
+  {
+    id: 'questions', label: 'Questions', to: '/teacher/questions', icon: CircleHelp,
+    section: 'Assessments', isPrimary: false,
+    isActive: (p) => p === '/teacher/questions' || p.startsWith('/teacher/questions/'),
+  },
+  {
+    id: 'assignments', label: 'Assignments', to: '/teacher/assignments', icon: ClipboardList,
+    section: 'Assessments', isPrimary: false,
+    isActive: (p) => p === '/teacher/assignments' || p.startsWith('/teacher/assignments/'),
   },
   {
     id: 'grading',
-    label: 'Grading Queue',
+    label: 'Grading',
     to: '/teacher/grading',
     icon: CheckSquare,
     section: 'Assessments',
@@ -59,21 +69,12 @@ export const TEACHER_NAV_ITEMS: TeacherNavItem[] = [
   },
   {
     id: 'results',
-    label: 'Quiz Results',
+    label: 'Results',
     to: '/teacher/results',
     icon: Award,
     section: 'Assessments',
     isPrimary: true,
     isActive: (p) => p.startsWith('/teacher/results'),
-  },
-  {
-    id: 'create-quiz',
-    label: 'Create Quiz',
-    to: '/teacher/quizzes/new',
-    icon: PlusCircle,
-    section: 'Workspace',
-    isPrimary: false,
-    isActive: (p) => p === '/teacher/quizzes/new',
   },
 ];
 
@@ -283,7 +284,7 @@ export const TeacherAppLayout: FC<TeacherAppLayoutProps> = ({ children }) => {
               aria-current={active ? 'page' : undefined}
             >
               <Icon size={20} aria-hidden="true" />
-              <span>{item.label === 'Teaching Workspace' ? 'Home' : item.label.replace('Quiz ', '')}</span>
+              <span>{item.label}</span>
             </Link>
           );
         })}
@@ -327,7 +328,7 @@ export const TeacherAppLayout: FC<TeacherAppLayoutProps> = ({ children }) => {
               </button>
             </div>
             <div className="portal-more-sheet__body">
-              <p className="portal-more-sheet__group-label">Quick Actions</p>
+              <p className="portal-more-sheet__group-label">Assessments</p>
               {secondaryItems.map((item) => {
                 const Icon = item.icon;
                 const active = item.isActive(pathname);

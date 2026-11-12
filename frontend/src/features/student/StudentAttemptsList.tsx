@@ -143,20 +143,26 @@ export const StudentAttemptsList: React.FC = () => {
                   </div>
                 </div>
 
-                {att.is_submitted ? (
+                {att.is_submitted && att.results_available ? (
                   <span className={`stu-badge ${att.is_passed ? 'stu-badge--success' : 'stu-badge--danger'}`}>
                     {att.percentage}% ({att.is_passed ? 'Passed' : 'Failed'})
                   </span>
+                ) : att.is_submitted ? (
+                  <span className="stu-badge stu-badge--warning">Results pending</span>
                 ) : (
                   <span className="stu-badge stu-badge--warning">In Progress</span>
                 )}
               </div>
 
               <div className="stu-quiz-card__meta">
-                {att.is_submitted ? (
+                {att.is_submitted && att.results_available ? (
                   <span className="stu-quiz-card__meta-item">
                     <AppIcon name="star" aria-hidden="true" />
                     <strong>{att.score}</strong> / {att.total_marks} marks
+                  </span>
+                ) : att.is_submitted ? (
+                  <span className="stu-quiz-card__meta-item core-text--muted">
+                    Results are waiting for your teacher.
                   </span>
                 ) : (
                   <span className="stu-quiz-card__meta-item core-text--warning">
@@ -183,7 +189,7 @@ export const StudentAttemptsList: React.FC = () => {
               </div>
 
               <div className="stu-quiz-card__footer">
-                {att.is_submitted ? (
+                {att.is_submitted && att.results_available ? (
                   <Link
                     to={`/student/attempts/${att.id}/result`}
                     className="stu-btn-primary"
@@ -191,7 +197,7 @@ export const StudentAttemptsList: React.FC = () => {
                   >
                     Review Result
                   </Link>
-                ) : (
+                ) : !att.is_submitted ? (
                   <Link
                     to={`/student/take/${att.id}`}
                     className="stu-btn-warning"
@@ -199,6 +205,8 @@ export const StudentAttemptsList: React.FC = () => {
                   >
                     Resume Quiz →
                   </Link>
+                ) : (
+                  <span className="core-type--small core-text--muted">Results pending</span>
                 )}
               </div>
             </div>

@@ -1798,6 +1798,11 @@ class Quiz(models.Model):
     passing_marks = models.PositiveIntegerField(
         default=0, help_text="Minimum marks required to pass"
     )
+    pass_percentage = models.FloatField(
+        default=50.0,
+        validators=[MinValueValidator(0.0), MaxValueValidator(100.0)],
+        help_text="Passing percentage threshold (0-100)",
+    )
 
     # Availability settings
     available_from = models.DateTimeField(
@@ -1825,6 +1830,11 @@ class Quiz(models.Model):
     )
     show_results_immediately = models.BooleanField(
         default=True, help_text="Show results immediately after submission"
+    )
+    results_released_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When delayed quiz results were released to students",
     )
     show_correct_answers = models.BooleanField(
         default=True, help_text="Show correct answers after completion"
@@ -1997,7 +2007,11 @@ class Quiz(models.Model):
                 total += section_marks
         if self.total_marks != total:
             self.total_marks = total
-            self.save(update_fields=["total_marks"])
+            pct = getattr(self, "pass_percentage", 50.0)
+            if pct is None:
+                pct = 50.0
+            self.passing_marks = round((pct / 100.0) * total) if total > 0 else 0
+            self.save(update_fields=["total_marks", "passing_marks"])
         return total
 
     def get_completion_rate(self):
@@ -2302,7 +2316,6 @@ class Question(models.Model):
 
     def clean(self):
         errors = {}
-<<<<<<< HEAD
         if self.section_id and (
             self.section.quiz_id != self.quiz_id
             or self.section.school_id != self.school_id
@@ -2318,8 +2331,6 @@ class Question(models.Model):
             errors["group"] = ValidationError(
                 "A question group must belong to the same quiz, school, and section."
             )
-=======
->>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
         if self.config:
             try:
                 from .question_types import get_question_type
@@ -2578,7 +2589,8 @@ class QuizAttempt(models.Model):
         null=True, blank=True, help_text="Total time taken for the attempt"
     )
     needs_grading = models.BooleanField(
-        default=False, help_text="Whether manual grading is required (for essay questions)"
+        default=False,
+        help_text="Whether one or more responses require manual grading",
     )
     is_graded = models.BooleanField(
         default=False, help_text="Whether all questions have been graded"
@@ -2894,6 +2906,8 @@ class QuizAttempt(models.Model):
 
     def calculate_score(self):
         """Calculate and update the score for this attempt"""
+        from .question_types import requires_manual_grading
+
         responses = list(
             self.responses.select_related("question", "selected_choice").prefetch_related(
                 "selected_choices"
@@ -2915,14 +2929,14 @@ class QuizAttempt(models.Model):
             snapshot = self.configuration_snapshot.get("questions", {}).get(
                 str(response.question_id), {}
             )
-            question_type = snapshot.get(
-                "question_type", response.question.question_type
-            )
-            if question_type == "essay" and not response.is_graded:
+            if (
+                requires_manual_grading(response.question, snapshot)
+                and not response.is_graded
+            ):
                 needs_grading = True
                 continue
 
-            if question_type != "essay":
+            if not response.is_graded:
                 response.check_correctness()
                 response.save(update_fields=["is_correct", "marks_awarded", "updated_at"])
 
@@ -2968,6 +2982,7 @@ class QuizAttempt(models.Model):
             else 0
         )
         self.needs_grading = needs_grading
+        self.is_graded = not needs_grading
 
         self.save(
             update_fields=[
@@ -2978,6 +2993,7 @@ class QuizAttempt(models.Model):
                 "wrong_answers",
                 "unanswered",
                 "needs_grading",
+                "is_graded",
             ]
         )
 
@@ -3164,14 +3180,8 @@ class QuizResponse(models.Model):
         if not self.school and self.attempt:
             self.school = self.attempt.school
 
-        # Auto-check correctness and calculate marks (unless manually graded)
-        question_snapshot = self.attempt.configuration_snapshot.get(
-            "questions", {}
-        ).get(str(self.question_id), {})
-        question_type = question_snapshot.get(
-            "question_type", self.question.question_type
-        )
-        if not self.is_graded or question_type != "essay":
+        # Auto-check correctness and calculate marks unless manually graded.
+        if not self.is_graded:
             self.check_correctness()
 
         super().save(*args, **kwargs)
@@ -3185,7 +3195,7 @@ class QuizResponse(models.Model):
             str(self.question_id), {}
         )
         question_type = snapshot.get("question_type", self.question.question_type)
-        if question_type == "essay" and self.is_graded:
+        if self.is_graded:
             return
         from .question_types import grade_response
 

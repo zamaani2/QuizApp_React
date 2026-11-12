@@ -267,16 +267,24 @@ export const StudentQuizDetail: React.FC = () => {
               <div className="stu-result-card__info">
                 <h3 className="stu-result-card__title">Attempt #{att.attempt_number}</h3>
                 <div className="stu-result-card__sub">
-                  <span>Score: {att.score} / {att.total_marks}</span>
+                  {att.results_available && att.is_submitted ? (
+                    <span>Score: {att.score} / {att.total_marks}</span>
+                  ) : att.is_submitted ? (
+                    <span>Results are waiting for your teacher.</span>
+                  ) : null}
                   {att.submitted_at && <span> • {new Date(att.submitted_at).toLocaleDateString()}</span>}
                 </div>
               </div>
 
               <div className="stu-result-card__score-box">
-                <span className={`stu-badge ${att.is_passed ? 'stu-badge--success' : 'stu-badge--danger'}`}>
-                  {att.percentage}% ({att.is_passed ? 'Passed' : 'Failed'})
-                </span>
-                {att.is_submitted ? (
+                {att.results_available && att.is_submitted ? (
+                  <span className={`stu-badge ${att.is_passed ? 'stu-badge--success' : 'stu-badge--danger'}`}>
+                    {att.percentage}% ({att.is_passed ? 'Passed' : 'Failed'})
+                  </span>
+                ) : att.is_submitted ? (
+                  <span className="stu-badge stu-badge--warning">Results pending</span>
+                ) : null}
+                {att.is_submitted && att.results_available ? (
                   <Link
                     to={`/student/attempts/${att.id}/result`}
                     className="stu-section-head__link"
@@ -284,7 +292,7 @@ export const StudentQuizDetail: React.FC = () => {
                   >
                     Review →
                   </Link>
-                ) : (
+                ) : !att.is_submitted ? (
                   <Link
                     to={`/student/take/${att.id}`}
                     className="stu-section-head__link core-text--warning"
@@ -292,7 +300,7 @@ export const StudentQuizDetail: React.FC = () => {
                   >
                     Resume →
                   </Link>
-                )}
+                ) : null}
               </div>
             </div>
           ))}

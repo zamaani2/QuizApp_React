@@ -2,6 +2,13 @@ from .base import GradeResult, QuestionType
 
 
 class TextQuestionType(QuestionType):
+    def requires_manual_grading(self, question, snapshot):
+        config = self.config(snapshot)
+        question_type = snapshot.get("question_type", question.question_type)
+        if question_type == "fill_blank" and config.get("blanks"):
+            return False
+        return not bool(self.expected_answers(question, snapshot))
+
     def validate_config(self, config):
         config = super().validate_config(config)
         answers = config.get("accepted_answers", [])
@@ -138,6 +145,9 @@ class TextQuestionType(QuestionType):
 
 
 class EssayQuestionType(TextQuestionType):
+    def requires_manual_grading(self, question, snapshot):
+        return True
+
     def validate_config(self, config):
         config = QuestionType.validate_config(self, config)
         rubric = config.get("rubric", "")

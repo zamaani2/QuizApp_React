@@ -2,6 +2,18 @@ from .base import GradeResult, QuestionType
 
 
 class ChoiceQuestionType(QuestionType):
+    def requires_manual_grading(self, question, snapshot):
+        choices = snapshot.get("choices")
+        if not isinstance(choices, dict):
+            choices = {
+                str(choice.pk): {"is_correct": choice.is_correct}
+                for choice in question.answer_choices.all()
+            }
+        return not any(
+            isinstance(choice, dict) and choice.get("is_correct")
+            for choice in choices.values()
+        )
+
     def validate_config(self, config):
         config = super().validate_config(config)
         allow_multiple = config.get("allow_multiple", False)

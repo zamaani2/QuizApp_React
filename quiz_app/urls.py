@@ -89,11 +89,11 @@ from .assessment_api_views import (
     teacher_quizzes_collection_api_view,
     teacher_quiz_detail_write_api_view,
     teacher_quiz_status_api_view,
+    teacher_quiz_results_release_api_view,
     teacher_question_create_api_view,
     teacher_question_detail_api_view,
     teacher_question_duplicate_api_view,
     teacher_question_reorder_api_view,
-<<<<<<< HEAD
     teacher_question_assignment_api_view,
     teacher_question_bulk_delete_api_view,
     teacher_quiz_sections_api_view,
@@ -102,9 +102,6 @@ from .assessment_api_views import (
     teacher_quiz_groups_api_view,
     teacher_quiz_groups_reorder_api_view,
     teacher_quiz_group_detail_api_view,
-=======
-    teacher_question_bulk_delete_api_view,
->>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
     teacher_question_import_api_view,
     teacher_quiz_assignments_write_api_view,
     teacher_quiz_assignment_delete_api_view,
@@ -451,29 +448,29 @@ urlpatterns = [
     # Quiz Management URLs (for teachers)
     path("quizzes/", react_owned_page(quiz_list_view, "/app/teacher/quizzes"), name="quiz_list"),
     path("quizzes/create/", react_owned_page(quiz_create_view, "/app/teacher/quizzes/new"), name="quiz_create"),
-    path("quizzes/<int:quiz_id>/edit/", react_owned_page(quiz_edit_view, "/app/teacher/quizzes/{quiz_id}/edit"), name="quiz_edit"),
+    path("quizzes/<int:quiz_id>/edit/", react_owned_page(quiz_edit_view, "/app/teacher/quizzes/{quiz_id}/settings"), name="quiz_edit"),
     path("quizzes/<int:quiz_id>/delete/", react_owned_page(quiz_delete_view, "/app/teacher/quizzes"), name="quiz_delete"),
     path("quizzes/<int:quiz_id>/detail/", react_owned_page(quiz_detail_view, "/app/teacher/quizzes/{quiz_id}"), name="quiz_detail"),
     path("quizzes/<int:quiz_id>/update-status/", react_owned_page(quiz_update_status_view, "/app/teacher/quizzes/{quiz_id}"), name="quiz_update_status"),
     path("quizzes/get-terms/", react_owned_page(get_terms_for_academic_year_view, "/app/teacher/quizzes"), name="get_terms_for_academic_year"),
     
     # Question Management URLs (for teachers)
-    path("quizzes/<int:quiz_id>/questions/", react_owned_page(question_list_view, "/app/teacher/quizzes/{quiz_id}"), name="question_list"),
-    path("quizzes/<int:quiz_id>/questions/create/", react_owned_page(question_create_view, "/app/teacher/quizzes/{quiz_id}/questions/new"), name="question_create"),
-    path("quizzes/<int:quiz_id>/questions/<int:question_id>/edit/", react_owned_page(question_edit_view, "/app/teacher/quizzes/{quiz_id}/questions/{question_id}/edit"), name="question_edit"),
-    path("quizzes/<int:quiz_id>/questions/<int:question_id>/delete/", react_owned_page(question_delete_view, "/app/teacher/quizzes/{quiz_id}"), name="question_delete"),
-    path("quizzes/<int:quiz_id>/questions/<int:question_id>/duplicate/", react_owned_page(question_duplicate_view, "/app/teacher/quizzes/{quiz_id}"), name="question_duplicate"),
-    path("quizzes/<int:quiz_id>/questions/reorder/", react_owned_page(question_reorder_view, "/app/teacher/quizzes/{quiz_id}"), name="question_reorder"),
-    path("quizzes/<int:quiz_id>/questions/import/", react_owned_page(question_bulk_import_view, "/app/teacher/quizzes/{quiz_id}/questions/import"), name="question_bulk_import"),
+    path("quizzes/<int:quiz_id>/questions/", react_owned_page(question_list_view, "/app/teacher/questions/{quiz_id}"), name="question_list"),
+    path("quizzes/<int:quiz_id>/questions/create/", react_owned_page(question_create_view, "/app/teacher/questions/{quiz_id}/new"), name="question_create"),
+    path("quizzes/<int:quiz_id>/questions/<int:question_id>/edit/", react_owned_page(question_edit_view, "/app/teacher/questions/{quiz_id}/{question_id}/edit"), name="question_edit"),
+    path("quizzes/<int:quiz_id>/questions/<int:question_id>/delete/", react_owned_page(question_delete_view, "/app/teacher/questions/{quiz_id}"), name="question_delete"),
+    path("quizzes/<int:quiz_id>/questions/<int:question_id>/duplicate/", react_owned_page(question_duplicate_view, "/app/teacher/questions/{quiz_id}"), name="question_duplicate"),
+    path("quizzes/<int:quiz_id>/questions/reorder/", react_owned_page(question_reorder_view, "/app/teacher/questions/{quiz_id}"), name="question_reorder"),
+    path("quizzes/<int:quiz_id>/questions/import/", react_owned_page(question_bulk_import_view, "/app/teacher/questions/{quiz_id}/import"), name="question_bulk_import"),
     path("quizzes/<int:quiz_id>/questions/import-template/<str:format_type>/", question_import_template_view, name="question_import_template"),
-    path("quizzes/<int:quiz_id>/questions/bulk-delete/", react_owned_page(question_bulk_delete_view, "/app/teacher/quizzes/{quiz_id}"), name="question_bulk_delete"),
+    path("quizzes/<int:quiz_id>/questions/bulk-delete/", react_owned_page(question_bulk_delete_view, "/app/teacher/questions/{quiz_id}"), name="question_bulk_delete"),
     
     # Quiz Assignment Management URLs (for teachers)
-    path("quizzes/assignments/", react_owned_page(quiz_assignment_overview_view, "/app/teacher/quizzes"), name="quiz_assignment_overview"),
-    path("quizzes/<int:quiz_id>/assignments/", react_owned_page(quiz_assignment_list_view, "/app/teacher/quizzes/{quiz_id}/assignments"), name="quiz_assignment_list"),
-    path("quizzes/<int:quiz_id>/assignments/create/", react_owned_page(quiz_assignment_create_view, "/app/teacher/quizzes/{quiz_id}/assignments"), name="quiz_assignment_create"),
-    path("quizzes/<int:quiz_id>/assignments/<int:class_id>/delete/", react_owned_page(quiz_assignment_delete_view, "/app/teacher/quizzes/{quiz_id}/assignments"), name="quiz_assignment_delete"),
-    path("quizzes/<int:quiz_id>/assignments/bulk-delete/", react_owned_page(quiz_assignment_bulk_delete_view, "/app/teacher/quizzes/{quiz_id}/assignments"), name="quiz_assignment_bulk_delete"),
+    path("quizzes/assignments/", react_owned_page(quiz_assignment_overview_view, "/app/teacher/assignments"), name="quiz_assignment_overview"),
+    path("quizzes/<int:quiz_id>/assignments/", react_owned_page(quiz_assignment_list_view, "/app/teacher/assignments?quiz={quiz_id}"), name="quiz_assignment_list"),
+    path("quizzes/<int:quiz_id>/assignments/create/", react_owned_page(quiz_assignment_create_view, "/app/teacher/assignments?quiz={quiz_id}"), name="quiz_assignment_create"),
+    path("quizzes/<int:quiz_id>/assignments/<int:class_id>/delete/", react_owned_page(quiz_assignment_delete_view, "/app/teacher/assignments?quiz={quiz_id}"), name="quiz_assignment_delete"),
+    path("quizzes/<int:quiz_id>/assignments/bulk-delete/", react_owned_page(quiz_assignment_bulk_delete_view, "/app/teacher/assignments?quiz={quiz_id}"), name="quiz_assignment_bulk_delete"),
     
     # Class Quiz List URL (view quizzes assigned to a class)
     path("classes/<int:class_id>/quizzes/", react_owned_page(class_quiz_list_view, "/app/admin/classes/{class_id}"), name="class_quiz_list"),
@@ -535,7 +532,7 @@ urlpatterns = [
     path("api/v1/teacher/quizzes/", teacher_quizzes_collection_api_view, name="api_teacher_quizzes"),
     path("api/v1/teacher/quizzes/<int:quiz_id>/", teacher_quiz_detail_write_api_view, name="api_teacher_quiz_detail"),
     path("api/v1/teacher/quizzes/<int:quiz_id>/status/", teacher_quiz_status_api_view, name="api_teacher_quiz_status"),
-<<<<<<< HEAD
+    path("api/v1/teacher/quizzes/<int:quiz_id>/release-results/", teacher_quiz_results_release_api_view, name="api_teacher_quiz_results_release"),
     path("api/v1/teacher/quizzes/<int:quiz_id>/sections/", teacher_quiz_sections_api_view, name="api_teacher_quiz_sections"),
     path("api/v1/teacher/quizzes/<int:quiz_id>/sections/reorder/", teacher_quiz_sections_reorder_api_view, name="api_teacher_quiz_sections_reorder"),
     path("api/v1/teacher/quizzes/<int:quiz_id>/sections/<int:section_id>/", teacher_quiz_section_detail_api_view, name="api_teacher_quiz_section_detail"),
@@ -545,10 +542,6 @@ urlpatterns = [
     path("api/v1/teacher/quizzes/<int:quiz_id>/questions/", teacher_question_create_api_view, name="api_teacher_questions"),
     path("api/v1/teacher/quizzes/<int:quiz_id>/questions/reorder/", teacher_question_reorder_api_view, name="api_teacher_question_reorder"),
     path("api/v1/teacher/quizzes/<int:quiz_id>/questions/assign/", teacher_question_assignment_api_view, name="api_teacher_question_assignment"),
-=======
-    path("api/v1/teacher/quizzes/<int:quiz_id>/questions/", teacher_question_create_api_view, name="api_teacher_questions"),
-    path("api/v1/teacher/quizzes/<int:quiz_id>/questions/reorder/", teacher_question_reorder_api_view, name="api_teacher_question_reorder"),
->>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
     path("api/v1/teacher/quizzes/<int:quiz_id>/questions/bulk-delete/", teacher_question_bulk_delete_api_view, name="api_teacher_question_bulk_delete"),
     path("api/v1/teacher/quizzes/<int:quiz_id>/questions/import/", teacher_question_import_api_view, name="api_teacher_question_import"),
     path("api/v1/teacher/quizzes/<int:quiz_id>/questions/<int:question_id>/", teacher_question_detail_api_view, name="api_teacher_question_detail"),

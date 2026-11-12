@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import { TeacherAppLayout } from './TeacherAppLayout';
+import { TEACHER_NAV_ITEMS, TeacherAppLayout } from './TeacherAppLayout';
 
 const mockTeacherAuth = {
   data: {
@@ -34,6 +34,16 @@ vi.mock('../../auth/AuthContext', () => ({
 }));
 
 describe('TeacherAppLayout Component', () => {
+  it('marks quiz, question and assignment routes precisely', () => {
+    const nav = Object.fromEntries(TEACHER_NAV_ITEMS.map((item) => [item.id, item]));
+    expect(nav.quizzes.isActive('/teacher/quizzes')).toBe(true);
+    expect(nav.quizzes.isActive('/teacher/quizzes/12/settings')).toBe(true);
+    expect(nav.quizzes.isActive('/teacher/quizzes/new')).toBe(false);
+    expect(nav.quizzes.isActive('/teacher/quizzes/12/assignments')).toBe(false);
+    expect(nav.questions.isActive('/teacher/questions/12/new')).toBe(true);
+    expect(nav.assignments.isActive('/teacher/assignments')).toBe(true);
+    expect(nav.assignments.isActive('/teacher/quizzes/12/assignments')).toBe(false);
+  });
   beforeEach(() => {
     vi.restoreAllMocks();
     window.history.pushState({}, '', '/app/teacher/dashboard');
@@ -72,11 +82,13 @@ describe('TeacherAppLayout Component', () => {
     expect(screen.getByText('Assessments & Grading')).toBeInTheDocument();
 
     // Navigation links present
-    expect(screen.getAllByText('Teaching Workspace').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('Quiz Catalog').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('Grading Queue').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('Quiz Results').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('Create Quiz')).toBeInTheDocument();
+    expect(screen.getAllByText('Home').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Quizzes').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Questions').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Assignments').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Grading').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Results').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('Create Quiz')).not.toBeInTheDocument();
   });
 
   it('supports collapsible desktop sidebar toggle', () => {
@@ -112,11 +124,11 @@ describe('TeacherAppLayout Component', () => {
     const bottomNav = screen.getByTestId('teacher-mobile-bottom-nav');
     expect(bottomNav).toBeInTheDocument();
 
-    // 4 primary destinations in mobile bottom nav: Home, Catalog, Queue, Results
-    expect(within(bottomNav).getByRole('link', { name: 'Teaching Workspace' })).toBeInTheDocument();
-    expect(within(bottomNav).getByRole('link', { name: 'Quiz Catalog' })).toBeInTheDocument();
-    expect(within(bottomNav).getByRole('link', { name: 'Grading Queue' })).toBeInTheDocument();
-    expect(within(bottomNav).getByRole('link', { name: 'Quiz Results' })).toBeInTheDocument();
+    // Keep frequent destinations visible; put Questions and Assignments in More.
+    expect(within(bottomNav).getByRole('link', { name: 'Home' })).toBeInTheDocument();
+    expect(within(bottomNav).getByRole('link', { name: 'Quizzes' })).toBeInTheDocument();
+    expect(within(bottomNav).getByRole('link', { name: 'Grading' })).toBeInTheDocument();
+    expect(within(bottomNav).getByRole('link', { name: 'Results' })).toBeInTheDocument();
 
     // More button opens sheet
     const moreBtn = screen.getByRole('button', { name: /more navigation options/i });
@@ -126,7 +138,8 @@ describe('TeacherAppLayout Component', () => {
     // Dialog sheet opens
     const dialog = screen.getByRole('dialog', { name: /more options/i });
     expect(dialog).toBeInTheDocument();
-    expect(within(dialog).getByRole('link', { name: 'Create Quiz' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('link', { name: 'Questions' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('link', { name: 'Assignments' })).toBeInTheDocument();
 
     // Close button dismisses sheet
     fireEvent.click(within(dialog).getByRole('button', { name: /close menu/i }));

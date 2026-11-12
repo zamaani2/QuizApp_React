@@ -3960,6 +3960,9 @@ class SchoolScopedManagementEndpointTests(TestCase):
             text_answer="first; third; second",
         )
 
+        attempt.calculate_score()
+        self.assertFalse(attempt.needs_grading)
+        self.assertTrue(attempt.is_graded)
         self.assertTrue(matching_response.is_correct)
         self.assertEqual(matching_response.marks_awarded, 2)
         self.assertFalse(ordering_response.is_correct)

@@ -6,6 +6,24 @@ import { Alert } from '../../components/common/Alert';
 import { Button } from '../../components/common/Button';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 
+function formatQuestionType(questionType?: string): string {
+  if (!questionType) return 'Manual';
+  return questionType
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function formatStudentAnswer(studentAnswer: unknown, fallback: string): string {
+  if (studentAnswer === undefined || studentAnswer === null) {
+    return fallback || 'No response provided.';
+  }
+  if (typeof studentAnswer === 'string') {
+    return studentAnswer || 'No response provided.';
+  }
+  return JSON.stringify(studentAnswer, null, 2) || 'No response provided.';
+}
+
 export const GradingAttempt: React.FC = () => {
   const { attemptId } = useParams<{ attemptId: string }>();
   const id = Number(attemptId);
@@ -65,12 +83,14 @@ export const GradingAttempt: React.FC = () => {
       {attempt && (attempt.responses.length ? attempt.responses.map((response, index) => (
         <section className="core-card core-shadow--sm core-border--none core-space--margin-bottom-3" key={response.id}>
           <div className="core-card__header core-surface--white core-display-flex core-layout--justify-between">
-            <strong>Essay response {index + 1}</strong>
+            <strong>{formatQuestionType(response.question_type)} response {index + 1}</strong>
             <span className="core-badge core-surface--secondary">{response.is_graded ? 'Graded' : 'Needs grading'}</span>
           </div>
           <div className="core-card__body">
             <p className="core-type--weight-semibold">{response.question_text}</p>
-            <div className="core-surface--light core-radius core-space--padding-3 core-space--margin-bottom-3" style={{ whiteSpace: 'pre-wrap' }}>{response.text_answer || 'No response provided.'}</div>
+            <pre className="core-surface--light core-radius core-space--padding-3 core-space--margin-bottom-3" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontFamily: 'inherit' }}>
+              {formatStudentAnswer(response.student_answer, response.text_answer)}
+            </pre>
             <div className="core-grid core-grid--gap-3">
               <div className="core-grid__span-md-3">
                 <label className="core-field__label" htmlFor={`marks-${response.id}`}>Marks (maximum {response.question_marks})</label>
@@ -86,7 +106,7 @@ export const GradingAttempt: React.FC = () => {
             <Button onClick={() => void submitGrade(response.id)} loading={savingId === response.id}>Save grade</Button>
           </div>
         </section>
-      )) : <Alert variant="info">There are no essay responses to grade in this submission.</Alert>)}
+      )) : <Alert variant="info">There are no responses requiring manual grading in this submission.</Alert>)}
       {loading && <LoadingSpinner message="Refreshing grades..." />}
     </div>
   );

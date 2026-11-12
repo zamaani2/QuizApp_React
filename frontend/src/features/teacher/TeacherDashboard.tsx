@@ -34,7 +34,7 @@ export const TeacherDashboard: React.FC = () => {
       <div className="core-display-flex core-layout--wrap core-layout--justify-between core-layout--align-center core-space--margin-bottom-4 core-layout--gap-3">
         <div>
           <h2 className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-bottom-1">
-            {data?.teacher_name ? `${data.teacher_name} — Teaching Workspace` : 'Teaching Workspace'}
+            {data?.teacher_name ? `${data.teacher_name} — Home` : 'Home'}
           </h2>
           <p className="core-text--muted core-space--margin-bottom-0">
             Assessment management, grading queue, and student performance metrics
@@ -62,7 +62,7 @@ export const TeacherDashboard: React.FC = () => {
           {/* Quick Shortcuts Row */}
           <div className="core-display-flex core-layout--wrap core-layout--gap-2 core-space--margin-bottom-4" aria-label="Quick teaching shortcuts">
             <Link to="/teacher/quizzes" className="core-button core-button--sm core-button--outline-primary core-display-inline-flex core-layout--align-center core-layout--gap-1 core-radius--pill core-space--padding-x-3">
-              <AppIcon name="badgeHelp" aria-hidden="true" /> Quiz Catalog
+              <AppIcon name="badgeHelp" aria-hidden="true" /> Quizzes
             </Link>
             <Link to="/teacher/quizzes/new" className="core-button core-button--sm core-button--primary core-display-inline-flex core-layout--align-center core-layout--gap-1 core-radius--pill core-space--padding-x-3">
               <AppIcon name="circlePlus" aria-hidden="true" /> Create Quiz
@@ -79,7 +79,7 @@ export const TeacherDashboard: React.FC = () => {
           <div className="core-card core-shadow--sm core-border--none core-space--margin-bottom-4 core-space--padding-4" style={{ background: 'linear-gradient(135deg, #0f2942 0%, #1e3a5f 100%)', color: '#ffffff', borderRadius: '12px' }}>
             <div className="core-display-flex core-layout--wrap core-layout--justify-between core-layout--align-center core-layout--gap-3">
               <div>
-                <span className="core-badge core-surface--info core-text--dark core-radius--pill core-space--padding-x-3 core-space--padding-y-1 core-space--margin-bottom-2 core-type--weight-semibold">Teaching Workspace</span>
+                <span className="core-badge core-surface--info core-text--dark core-radius--pill core-space--padding-x-3 core-space--padding-y-1 core-space--margin-bottom-2 core-type--weight-semibold">Home</span>
                 <h3 className="core-type--heading-4 core-type--weight-bold core-text--white core-space--margin-bottom-1">Assessment Builder & Evaluation</h3>
                 <p className="core-space--margin-bottom-0 core-text--white-50" style={{ maxWidth: '650px' }}>
                   Create customized quizzes, build questions with multiple answer formats, and evaluate student submissions in real time.
@@ -213,13 +213,13 @@ export const TeacherDashboard: React.FC = () => {
                 <div className="core-grid__span-12 core-grid__span-md-4">
                   <div className="core-space--padding-3 core-border core-radius core-surface--light core-size--height-full core-display-flex core-layout--column core-layout--justify-between">
                     <div>
-                      <h6 className="core-type--weight-bold core-space--margin-bottom-1">Quiz Catalog</h6>
+                      <h6 className="core-type--weight-bold core-space--margin-bottom-1">Quizzes</h6>
                       <p className="core-type--small core-text--muted core-space--margin-bottom-3">
                         Review published and draft assessments, manage questions, and preview layouts.
                       </p>
                     </div>
                     <Link to="/teacher/quizzes" className="core-button core-button--sm core-button--primary core-layout--self-start">
-                      Open Quiz Catalog
+                      Open Quizzes
                     </Link>
                   </div>
                 </div>

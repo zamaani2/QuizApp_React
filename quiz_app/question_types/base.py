@@ -26,6 +26,9 @@ class QuestionType:
     def grade(self, question, response, snapshot):
         raise NotImplementedError
 
+    def requires_manual_grading(self, question, snapshot):
+        return False
+
     def serialize_for_review(self, question, response, snapshot, show_correct_answers):
         raise NotImplementedError
 

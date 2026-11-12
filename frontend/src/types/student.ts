@@ -27,10 +27,11 @@ export interface StudentDashboardRecentAttempt {
   quiz_id: number;
   quiz_title: string;
   subject_name: string;
-  score: number;
-  total_marks: number;
-  percentage: number;
-  is_passed: boolean;
+  score: number | null;
+  total_marks: number | null;
+  percentage: number | null;
+  is_passed: boolean | null;
+  results_available: boolean;
   submitted_at: string | null;
 }
 
@@ -74,8 +75,9 @@ export interface StudentQuiz {
   status: StudentQuizStatus;
   can_attempt: boolean;
   attempt_message: string;
-  best_score: number;
-  best_percentage: number;
+  best_score: number | null;
+  best_percentage: number | null;
+  results_available: boolean;
   in_progress_attempt_id: number | null;
   available_from: string | null;
   available_until: string | null;
@@ -89,10 +91,11 @@ export interface StudentQuizzesResponse {
 export interface StudentPastAttempt {
   id: number;
   attempt_number: number;
-  score: number;
-  total_marks: number;
-  percentage: number;
-  is_passed: boolean;
+  score: number | null;
+  total_marks: number | null;
+  percentage: number | null;
+  is_passed: boolean | null;
+  results_available: boolean;
   is_submitted: boolean;
   started_at: string | null;
   submitted_at: string | null;
@@ -117,8 +120,9 @@ export interface StudentQuizDetail {
   attempt_message: string;
   require_password: boolean;
   in_progress_attempt_id: number | null;
-  best_score: number;
-  best_percentage: number;
+  best_score: number | null;
+  best_percentage: number | null;
+  results_available: boolean;
   available_from: string | null;
   available_until: string | null;
   past_attempts: StudentPastAttempt[];
@@ -141,7 +145,6 @@ export interface StudentTakeQuestion {
   config?: Record<string, unknown>;
 }
 
-<<<<<<< HEAD
 export interface StudentTakeGroup {
   id: number;
   title: string;
@@ -167,8 +170,6 @@ export interface StudentTakeSection {
   time_expired: boolean;
 }
 
-=======
->>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
 export interface StudentAnswerData {
   choice_ids?: number[];
   text?: string | string[];
@@ -207,10 +208,11 @@ export interface StudentAttemptHistoryItem {
   quiz_title: string;
   subject_name: string;
   attempt_number: number;
-  score: number;
-  total_marks: number;
-  percentage: number;
-  is_passed: boolean;
+  score: number | null;
+  total_marks: number | null;
+  percentage: number | null;
+  is_passed: boolean | null;
+  results_available: boolean;
   is_submitted: boolean;
   is_completed: boolean;
   started_at: string | null;
@@ -279,6 +281,7 @@ export interface StudentQuizResultData {
   unanswered?: number;
   school_info?: QuizResultSchoolInfo;
   allow_review: boolean;
+  results_available: boolean;
   show_correct_answers: boolean;
   questions: StudentReviewQuestion[];
 }
@@ -301,16 +304,17 @@ export interface SaveResponseResult {
 export interface SubmitQuizResponse {
   success: boolean;
   attempt_id: number;
-  score: number;
-  total_marks: number;
+  score: number | null;
+  total_marks: number | null;
   section_scores?: Array<{
     section_id: number;
     title: string;
     score: number;
     total_marks: number;
   }>;
-  percentage: number;
-  is_passed: boolean;
+  percentage: number | null;
+  is_passed: boolean | null;
+  results_available: boolean;
   message: string;
 }
 

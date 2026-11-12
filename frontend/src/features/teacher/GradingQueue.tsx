@@ -55,7 +55,7 @@ export const GradingQueue: React.FC = () => {
       align: 'center',
       accessor: (row) => (
         <span className="core-badge core-surface--warning-subtle core-text--warning-emphasis core-border">
-          {row.ungraded_responses_count} essay {row.ungraded_responses_count === 1 ? 'question' : 'questions'}
+          {row.ungraded_responses_count} response{row.ungraded_responses_count === 1 ? '' : 's'}
         </span>
       ),
     },
@@ -86,7 +86,7 @@ export const GradingQueue: React.FC = () => {
         <div>
           <h2 className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-bottom-1">Manual Grading Queue</h2>
           <p className="core-text--muted core-space--margin-bottom-0">
-            Student submissions with essay questions awaiting instructor evaluation
+            Submitted answers that need instructor evaluation
           </p>
         </div>
         <div className="core-display-flex core-layout--gap-2">
@@ -132,7 +132,7 @@ export const GradingQueue: React.FC = () => {
             searchable={true}
             searchPlaceholder="Search by student name or quiz title..."
             emptyTitle="All Caught Up!"
-            emptyDescription="There are currently no student essay submissions awaiting manual evaluation."
+            emptyDescription="There are currently no student responses awaiting manual evaluation."
           />
         </div>
       </div>

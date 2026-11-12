@@ -77,8 +77,11 @@ function quizPayloadFromForm(formData: FormData): Record<string, unknown> {
   return data;
 }
 
-export async function saveQuiz(quizId: number | null, formData: FormData): Promise<{success: boolean; quiz_id: number; message: string}> {
-  const payload = quizPayloadFromForm(formData);
+export async function saveQuiz(
+  quizId: number | null,
+  data: FormData | Record<string, unknown>
+): Promise<{ success: boolean; quiz_id: number; message: string }> {
+  const payload = data instanceof FormData ? quizPayloadFromForm(data) : data;
   if (quizId) {
     return apiClient(`/api/v1/teacher/quizzes/${quizId}/`, {
       method: 'PATCH',
@@ -95,6 +98,15 @@ export async function updateQuizStatus(quizId: number, status: string): Promise<
   return apiClient(`/api/v1/teacher/quizzes/${quizId}/status/`, {
     method: 'POST',
     body: { status },
+  });
+}
+
+export async function releaseQuizResults(
+  quizId: number
+): Promise<{ success: boolean; results_released_at: string; message: string }> {
+  return apiClient(`/api/v1/teacher/quizzes/${quizId}/release-results/`, {
+    method: 'POST',
+    body: {},
   });
 }
 
@@ -157,7 +169,16 @@ export async function reorderQuizQuestions(
   return apiClient(`/api/v1/teacher/quizzes/${quizId}/questions/reorder/`, {
     method: 'POST',
     body: { question_ids: questionIds },
-<<<<<<< HEAD
+  });
+}
+
+export async function bulkDeleteQuestions(
+  quizId: number,
+  questionIds: number[]
+): Promise<{ success: boolean; message: string }> {
+  return apiClient(`/api/v1/teacher/quizzes/${quizId}/questions/bulk-delete/`, {
+    method: 'POST',
+    body: { question_ids: questionIds },
   });
 }
 
@@ -240,8 +261,6 @@ export async function assignQuizQuestions(
   return apiClient(`/api/v1/teacher/quizzes/${quizId}/questions/assign/`, {
     method: 'POST',
     body: payload,
-=======
->>>>>>> 92c7848b7ae0d1cbc9f2cd6123c6ba97d96f8810
   });
 }
 

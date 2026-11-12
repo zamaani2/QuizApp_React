@@ -1,16 +1,47 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchTeacherQuizzes } from '../../api/teacher';
+import { fetchTeacherQuizzes, updateQuizStatus, deleteQuiz } from '../../api/teacher';
 import type { QuizListItem } from '../../types';
-import { DataTable, type Column } from '../../components/table/DataTable';
 import { Alert } from '../../components/common/Alert';
 import { Button } from '../../components/common/Button';
+import { LoadingSpinner } from '../../components/common/LoadingSpinner';
+import { ConfirmDialog } from '../../components/common/ConfirmDialog';
+
+function formatClasses(classes?: { id: number; name: string }[]): string {
+  if (!classes || classes.length === 0) return 'No classes';
+  const firstTwo = classes.slice(0, 2).map((c) => c.name).join(', ');
+  const remaining = classes.length - 2;
+  return remaining > 0 ? `${firstTwo} (+${remaining})` : firstTwo;
+}
+
+function formatSchedule(from?: string | null, until?: string | null): string {
+  if (!from && !until) return 'No schedule';
+  const fmt = (d: string) => {
+    const dt = new Date(d);
+    return Number.isNaN(dt.getTime())
+      ? d
+      : dt.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  };
+  if (from && until) return `${fmt(from)} – ${fmt(until)}`;
+  if (from) return `From ${fmt(from)}`;
+  if (until) return `Until ${fmt(until)}`;
+  return 'No schedule';
+}
 
 export const QuizList: React.FC = () => {
   const [quizzes, setQuizzes] = useState<QuizListItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Row menu state
+  const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
+
+  // Delete modal state
+  const [deleteQuizItem, setDeleteQuizItem] = useState<QuizListItem | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const loadQuizzes = useCallback(async () => {
     setLoading(true);
@@ -31,108 +62,64 @@ export const QuizList: React.FC = () => {
     loadQuizzes();
   }, [loadQuizzes]);
 
-  const columns: Column<QuizListItem>[] = [
-    {
-      id: 'title',
-      header: 'Quiz Title & Subject',
-      sortable: true,
-      accessor: (row) => (
-        <div>
-          <Link to={`/teacher/quizzes/${row.id}`} className="core-type--weight-bold core-text--dark core-text--decoration-none">
-            {row.title}
-          </Link>
-          <div className="core-type--small core-text--muted">{row.subject_name || 'General Subject'}</div>
-        </div>
-      ),
-    },
-    {
-      id: 'academic',
-      header: 'Academic Term',
-      sortable: true,
-      accessor: (row) => (
-        <div className="core-type--small">
-          <div>{row.academic_year || '—'}</div>
-          {row.term && <span className="core-text--muted">{row.term}</span>}
-        </div>
-      ),
-    },
-    {
-      id: 'duration',
-      header: 'Timing & Marks',
-      sortable: true,
-      accessor: (row) => (
-        <div className="core-type--small">
-          <div>{row.duration_minutes ? `${row.duration_minutes} mins` : 'No limit'}</div>
-          <span className="core-text--muted">{row.total_questions} Qs · {row.total_marks} Marks</span>
-        </div>
-      ),
-    },
-    {
-      id: 'attempts',
-      header: 'Submissions',
-      sortable: true,
-      align: 'center',
-      accessor: (row) => (
-        <div>
-          <span className="core-badge core-surface--primary-subtle core-text--primary core-border">
-            {row.total_attempts} attempts
-          </span>
-          {row.total_attempts > 0 && (
-            <div className="core-type--small core-text--muted core-space--margin-top-1">Avg: {row.avg_score}%</div>
-          )}
-        </div>
-      ),
-    },
-    {
-      id: 'status',
-      header: 'Status',
-      sortable: true,
-      align: 'center',
-      accessor: (row) => (
-        <span
-          className={`core-badge ${
-            row.status === 'published'
-              ? 'core-surface--success'
-              : row.status === 'draft'
-              ? 'core-surface--warning core-text--dark'
-              : 'core-surface--secondary'
-          }`}
-        >
-          {row.status}
-        </span>
-      ),
-    },
-    {
-      id: 'actions',
-      header: 'Actions',
-      align: 'center',
-      accessor: (row) => (
-        <div className="core-display-flex core-layout--justify-center core-layout--gap-1">
-          <Link to={`/teacher/quizzes/${row.id}`} className="core-button core-button--sm core-button--outline-primary core-space--padding-y-0 core-space--padding-x-2">
-            Details
-          </Link>
-          <Link to={`/teacher/quizzes/${row.id}/edit`} className="core-button core-button--sm core-button--outline-secondary core-space--padding-y-0 core-space--padding-x-2">
-            Edit
-          </Link>
-        </div>
-      ),
-    },
-  ];
+  const handleStatusChange = async (quizId: number, nextStatus: string) => {
+    setActiveMenuId(null);
+    setError(null);
+    try {
+      await updateQuizStatus(quizId, nextStatus);
+      setMessage(`Quiz status updated to ${nextStatus}.`);
+      await loadQuizzes();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update quiz status.');
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteQuizItem) return;
+    setDeleteLoading(true);
+    setError(null);
+    try {
+      await deleteQuiz(deleteQuizItem.id);
+      setMessage(`Quiz "${deleteQuizItem.title}" deleted.`);
+      setDeleteQuizItem(null);
+      await loadQuizzes();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete quiz.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  // Filter quizzes by search query
+  const filteredQuizzes = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return quizzes;
+    return quizzes.filter(
+      (item) =>
+        item.title.toLowerCase().includes(q) ||
+        (item.subject_name && item.subject_name.toLowerCase().includes(q))
+    );
+  }, [quizzes, searchQuery]);
 
   return (
     <div className="assessment-page core-container core-space--padding-y-4" data-testid="teacher-quiz-list">
+      {/* Title row */}
       <div className="core-display-flex core-layout--wrap core-layout--justify-between core-layout--align-center core-space--margin-bottom-4 core-layout--gap-3">
         <div>
-          <h2 className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-bottom-1">Quiz Catalog</h2>
+          <h1 className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-bottom-1">
+            Quizzes
+          </h1>
           <p className="core-text--muted core-space--margin-bottom-0">
-            View, search, and inspect your quizzes and assessments
+            Quiz Catalog & assessment management
           </p>
         </div>
         <div className="core-display-flex core-layout--gap-2">
-          <Button variant="secondary" size="sm" onClick={loadQuizzes} disabled={loading}>
-            Refresh
-          </Button>
-          <Link to="/teacher/quizzes/new" className="core-button core-button--sm core-button--primary">Create Quiz</Link>
+          <Link
+            to="/teacher/quizzes/new"
+            className="core-button core-button--primary core-button--sm core-display-inline-flex core-layout--align-center core-layout--gap-1"
+          >
+            + New quiz
+          </Link>
         </div>
       </div>
 
@@ -141,37 +128,331 @@ export const QuizList: React.FC = () => {
           {error}
         </Alert>
       )}
+      {message && (
+        <Alert variant="success" dismissible onDismiss={() => setMessage(null)}>
+          {message}
+        </Alert>
+      )}
 
-      {/* Filter Tabs */}
-      <div className="core-button-group core-space--margin-bottom-4" role="group" aria-label="Status filters">
-        {['all', 'published', 'draft', 'archived'].map((status) => (
-          <button
-            key={status}
-            type="button"
-            className={`core-button core-button--sm ${
-              statusFilter === status ? 'core-button--primary' : 'core-button--outline-secondary'
-            } core-text--capitalize`}
-            onClick={() => setStatusFilter(status)}
-          >
-            {status}
-          </button>
-        ))}
-      </div>
+      {/* Controls row: Search & Status Filters */}
+      <div className="core-display-flex core-layout--wrap core-layout--justify-between core-layout--align-center core-space--margin-bottom-4 core-layout--gap-3">
+        {/* Status filter tabs */}
+        <div className="core-button-group" role="group" aria-label="Status filters">
+          {(['all', 'draft', 'published', 'archived'] as const).map((status) => (
+            <button
+              key={status}
+              type="button"
+              className={`core-button core-button--sm ${
+                statusFilter === status
+                  ? 'core-button--primary'
+                  : 'core-button--outline-secondary'
+              } core-text--capitalize`}
+              onClick={() => {
+                setStatusFilter(status);
+                setActiveMenuId(null);
+              }}
+            >
+              {status === 'all' ? 'All' : status.charAt(0).toUpperCase() + status.slice(1)}
+            </button>
+          ))}
+        </div>
 
-      <div className="core-card core-shadow--sm core-border--none">
-        <div className="core-card__body core-space--padding-0">
-          <DataTable<QuizListItem>
-            columns={columns}
-            data={quizzes}
-            keyExtractor={(row) => row.id}
-            loading={loading}
-            searchable={true}
-            searchPlaceholder="Search by quiz title or subject..."
-            emptyTitle="No Quizzes Found"
-            emptyDescription="There are no quizzes matching your selected filter."
+        {/* Search */}
+        <div style={{ maxWidth: '320px', width: '100%' }}>
+          <input
+            type="text"
+            className="core-field__input core-field__input--sm"
+            placeholder="Search quizzes..."
+            aria-label="Search quizzes"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
       </div>
+
+      {loading && quizzes.length === 0 ? (
+        <div className="core-display-flex core-layout--justify-center core-space--padding-y-5">
+          <LoadingSpinner size="lg" message="Loading quizzes..." />
+        </div>
+      ) : filteredQuizzes.length === 0 ? (
+        <div className="core-card core-shadow--sm core-border--none core-surface--white core-space--padding-5 core-text--center">
+          <div className="core-type--heading-5 core-type--weight-bold core-text--dark core-space--margin-bottom-2">
+            No Quizzes Found
+          </div>
+          <p className="core-text--muted core-space--margin-bottom-3">
+            {searchQuery
+              ? `No quizzes matched "${searchQuery}".`
+              : `There are no ${statusFilter !== 'all' ? statusFilter : ''} quizzes yet.`}
+          </p>
+          <Link to="/teacher/quizzes/new" className="core-button core-button--primary core-button--sm">
+            Create a New Quiz
+          </Link>
+        </div>
+      ) : (
+        <>
+          {/* Desktop Table View */}
+          <div className="core-card core-shadow--sm core-border--none core-display-none core-display-md-block core-space--margin-bottom-4">
+            <div className="core-card__body core-space--padding-0">
+              <div className="data-table-container">
+                <div className="data-table__viewport">
+                  <table className="data-table__table">
+                    <thead>
+                      <tr>
+                        <th scope="col" style={{ textAlign: 'left' }}>Quiz Title & Subject</th>
+                        <th scope="col" style={{ textAlign: 'center' }}>Status</th>
+                        <th scope="col" style={{ textAlign: 'center' }}>Questions</th>
+                        <th scope="col" style={{ textAlign: 'left' }}>Assigned Classes</th>
+                        <th scope="col" style={{ textAlign: 'left' }}>Schedule Summary</th>
+                        <th scope="col" style={{ textAlign: 'center' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredQuizzes.map((quiz) => (
+                        <tr key={quiz.id}>
+                          <td>
+                            <div>
+                              <Link
+                                to={`/teacher/quizzes/${quiz.id}`}
+                                className="core-type--weight-bold core-text--dark core-text--decoration-none"
+                              >
+                                {quiz.title}
+                              </Link>
+                              <div className="core-type--small core-text--muted">
+                                {quiz.subject_name || 'General Subject'}
+                                {quiz.academic_year && ` · ${quiz.academic_year}`}
+                              </div>
+                            </div>
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <span
+                              className={`core-badge ${
+                                quiz.status === 'published'
+                                  ? 'core-surface--success'
+                                  : quiz.status === 'draft'
+                                  ? 'core-surface--warning core-text--dark'
+                                  : 'core-surface--secondary'
+                              }`}
+                            >
+                              {quiz.status.toUpperCase()}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <span className="core-type--weight-semibold">{quiz.total_questions}</span>
+                            <div className="core-type--small core-text--muted">
+                              {quiz.total_marks} marks
+                            </div>
+                          </td>
+                          <td>
+                            <span className="core-type--small core-text--dark">
+                              {formatClasses(quiz.classes)}
+                            </span>
+                          </td>
+                          <td>
+                            <span className="core-type--small core-text--muted">
+                              {formatSchedule(quiz.available_from, quiz.available_until)}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <div className="core-dropdown" style={{ position: 'relative', display: 'inline-block' }}>
+                              <Button
+                                size="sm"
+                                variant="outline-secondary"
+                                aria-label={`Actions for ${quiz.title}`}
+                                onClick={() =>
+                                  setActiveMenuId(activeMenuId === quiz.id ? null : quiz.id)
+                                }
+                              >
+                                Actions ▾
+                              </Button>
+                              {activeMenuId === quiz.id && (
+                                <div
+                                  className="core-card core-shadow--md core-border core-surface--white"
+                                  style={{
+                                    position: 'absolute',
+                                    right: 0,
+                                    top: '100%',
+                                    minWidth: '150px',
+                                    zIndex: 50,
+                                    padding: '0.25rem 0',
+                                  }}
+                                >
+                                  <Link
+                                    to={`/teacher/quizzes/${quiz.id}`}
+                                    className="core-dropdown__item core-display-block core-space--padding-x-3 core-space--padding-y-2 core-text--dark core-text--decoration-none core-type--small"
+                                    onClick={() => setActiveMenuId(null)}
+                                  >
+                                    Open
+                                  </Link>
+                                  <Link
+                                    to={`/teacher/quizzes/${quiz.id}/settings`}
+                                    className="core-dropdown__item core-display-block core-space--padding-x-3 core-space--padding-y-2 core-text--dark core-text--decoration-none core-type--small"
+                                    onClick={() => setActiveMenuId(null)}
+                                  >
+                                    Settings
+                                  </Link>
+                                  <button
+                                    type="button"
+                                    className="core-dropdown__item core-display-block core-width--100 core-space--padding-x-3 core-space--padding-y-2 core-text--start core-border--none core-surface--transparent core-text--dark core-type--small core-cursor--pointer"
+                                    onClick={() =>
+                                      handleStatusChange(
+                                        quiz.id,
+                                        quiz.status === 'archived' ? 'draft' : 'archived'
+                                      )
+                                    }
+                                  >
+                                    {quiz.status === 'archived' ? 'Unarchive' : 'Archive'}
+                                  </button>
+                                  <div className="core-border--top core-space--margin-y-1" />
+                                  <button
+                                    type="button"
+                                    className="core-dropdown__item core-display-block core-width--100 core-space--padding-x-3 core-space--padding-y-2 core-text--start core-border--none core-surface--transparent core-text--danger core-type--small core-cursor--pointer"
+                                    onClick={() => {
+                                      setActiveMenuId(null);
+                                      setDeleteQuizItem(quiz);
+                                    }}
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile Cards View */}
+          <div className="core-display-block core-display-md-none core-space--margin-bottom-4">
+            <div className="core-display-flex core-layout--column core-layout--gap-3">
+              {filteredQuizzes.map((quiz) => (
+                <div key={quiz.id} className="core-card core-shadow--sm core-border--none">
+                  <div className="core-card__body">
+                    <div className="core-display-flex core-layout--justify-between core-layout--align-start core-space--margin-bottom-2">
+                      <div>
+                        <Link
+                          to={`/teacher/quizzes/${quiz.id}`}
+                          className="core-type--weight-bold core-type--heading-5 core-text--dark core-text--decoration-none"
+                        >
+                          {quiz.title}
+                        </Link>
+                        <div className="core-type--small core-text--muted">{quiz.subject_name}</div>
+                      </div>
+                      <span
+                        className={`core-badge ${
+                          quiz.status === 'published'
+                            ? 'core-surface--success'
+                            : quiz.status === 'draft'
+                            ? 'core-surface--warning core-text--dark'
+                            : 'core-surface--secondary'
+                        }`}
+                      >
+                        {quiz.status.toUpperCase()}
+                      </span>
+                    </div>
+
+                    <div className="core-grid core-grid--gap-2 core-type--small core-space--margin-bottom-3 core-surface--light core-space--padding-2 core-radius">
+                      <div className="core-grid__span-6">
+                        <span className="core-text--muted">Questions: </span>
+                        <span className="core-type--weight-semibold">{quiz.total_questions} ({quiz.total_marks} marks)</span>
+                      </div>
+                      <div className="core-grid__span-6">
+                        <span className="core-text--muted">Classes: </span>
+                        <span>{formatClasses(quiz.classes)}</span>
+                      </div>
+                      <div className="core-grid__span-12">
+                        <span className="core-text--muted">Schedule: </span>
+                        <span>{formatSchedule(quiz.available_from, quiz.available_until)}</span>
+                      </div>
+                    </div>
+
+                    <div className="core-display-flex core-layout--justify-end">
+                      <div className="core-dropdown" style={{ position: 'relative' }}>
+                        <Button
+                          size="sm"
+                          variant="outline-secondary"
+                          aria-label={`Actions for ${quiz.title}`}
+                          aria-expanded={activeMenuId === quiz.id}
+                          onClick={() => setActiveMenuId(activeMenuId === quiz.id ? null : quiz.id)}
+                        >
+                          ⋮ Actions
+                        </Button>
+                        {activeMenuId === quiz.id && (
+                          <div
+                            className="core-card core-shadow--md core-border core-surface--white"
+                            style={{
+                              position: 'absolute',
+                              right: 0,
+                              top: '100%',
+                              minWidth: '150px',
+                              zIndex: 50,
+                              padding: '0.25rem 0',
+                            }}
+                          >
+                            <Link
+                              to={`/teacher/quizzes/${quiz.id}`}
+                              className="core-dropdown__item core-display-block core-space--padding-x-3 core-space--padding-y-2 core-text--dark core-text--decoration-none core-type--small"
+                              onClick={() => setActiveMenuId(null)}
+                            >
+                              Open
+                            </Link>
+                            <Link
+                              to={`/teacher/quizzes/${quiz.id}/settings`}
+                              className="core-dropdown__item core-display-block core-space--padding-x-3 core-space--padding-y-2 core-text--dark core-text--decoration-none core-type--small"
+                              onClick={() => setActiveMenuId(null)}
+                            >
+                              Settings
+                            </Link>
+                            <button
+                              type="button"
+                              className="core-dropdown__item core-display-block core-width--100 core-space--padding-x-3 core-space--padding-y-2 core-text--start core-border--none core-surface--transparent core-text--dark core-type--small core-cursor--pointer"
+                              onClick={() =>
+                                handleStatusChange(
+                                  quiz.id,
+                                  quiz.status === 'archived' ? 'draft' : 'archived'
+                                )
+                              }
+                            >
+                              {quiz.status === 'archived' ? 'Unarchive' : 'Archive'}
+                            </button>
+                            <div className="core-border--top core-space--margin-y-1" />
+                            <button
+                              type="button"
+                              className="core-dropdown__item core-display-block core-width--100 core-space--padding-x-3 core-space--padding-y-2 core-text--start core-border--none core-surface--transparent core-text--danger core-type--small core-cursor--pointer"
+                              onClick={() => {
+                                setActiveMenuId(null);
+                                setDeleteQuizItem(quiz);
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={Boolean(deleteQuizItem)}
+        title="Delete Quiz"
+        message={`Are you sure you want to delete "${deleteQuizItem?.title}"? All questions and student attempts associated with this quiz will be permanently removed.`}
+        confirmLabel={deleteLoading ? 'Deleting...' : 'Delete Quiz'}
+        confirmVariant="danger"
+        loading={deleteLoading}
+        onConfirm={handleDeleteConfirm}
+        onClose={() => setDeleteQuizItem(null)}
+      />
     </div>
   );
 };
