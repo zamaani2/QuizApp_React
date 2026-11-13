@@ -230,7 +230,7 @@ describe('Teacher and Admin Responsive Verification', () => {
       expect(await screen.findByRole('heading', { name: 'Add Question' })).toBeInTheDocument();
       expect(screen.getByLabelText('Question *')).toBeInTheDocument();
       expect(screen.getByText('Add choice')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Add Question' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
     });
 
     it('renders QuizEditor with responsive grid fields at 390px', async () => {

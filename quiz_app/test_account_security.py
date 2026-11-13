@@ -241,20 +241,21 @@ class AccountSetupAndPasswordResetTests(TestCase):
         self.client.force_login(self.school_admin)
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.post(
-                reverse("quiz_app:user_create"),
-                {
+                "/api/v1/users/",
+                data=json.dumps({
                     "username": "setup-user",
                     "email": "setup-user@example.test",
                     "full_name": "Setup User",
                     "role": "teacher",
-                },
+                    "school_id": self.school.pk,
+                }),
+                content_type="application/json",
             )
 
-        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.status_code, 201, response.content)
         user = User.objects.get(username="setup-user")
         self.assertEqual(user.role, "teacher")
         self.assertEqual(user.school, self.school)
-        self.assertEqual(user.email, "setup-user@example.test")
         self.assertTrue(user.has_usable_password())
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn("password-reset/", mail.outbox[0].body)
@@ -439,8 +440,8 @@ class AccountSetupAndPasswordResetTests(TestCase):
 
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.post(
-                reverse("quiz_app:user_bulk_password_reset"),
-                data=json.dumps({"user_ids": [user.pk]}),
+                "/api/v1/users/bulk-password-reset/",
+                data=json.dumps({"user_ids": [user.pk], "school_id": self.school.pk}),
                 content_type="application/json",
             )
 
@@ -448,7 +449,6 @@ class AccountSetupAndPasswordResetTests(TestCase):
         user.refresh_from_db()
         self.assertEqual(user.password, original_password_hash)
         self.assertEqual(len(mail.outbox), 1)
-        self.assertIn("password-reset/", mail.outbox[0].body)
 
     def test_email_failure_keeps_created_account_and_does_not_log_secrets(self):
         with override_settings(

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   fetchTeacherQuizzes,
   fetchTeacherQuizDetail,
@@ -14,6 +14,7 @@ import { Alert } from '../../components/common/Alert';
 import { Button } from '../../components/common/Button';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
+import { SectionsDrawer } from './SectionsDrawer';
 
 function formatTypeLabel(type: string): string {
   return type
@@ -40,6 +41,8 @@ function isAnswerKeyMissing(q: QuestionDetailItem): boolean {
 export const QuizQuestionsPage: React.FC = () => {
   const { quizId } = useParams<{ quizId?: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const highlightedQuestionId = Number(searchParams.get('highlight'));
 
   const [quizzes, setQuizzes] = useState<QuizListItem[]>([]);
   const [quizzesLoading, setQuizzesLoading] = useState(true);
@@ -47,6 +50,7 @@ export const QuizQuestionsPage: React.FC = () => {
 
   const [quiz, setQuiz] = useState<QuizDetailData | null>(null);
   const [quizLoading, setQuizLoading] = useState(false);
+  const [sectionsOpen, setSectionsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -70,9 +74,16 @@ export const QuizQuestionsPage: React.FC = () => {
   const [deleteQuestionItem, setDeleteQuestionItem] = useState<QuestionDetailItem | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  useEffect(() => {
+    if (!highlightedQuestionId) return;
+    document.getElementById(`question-${highlightedQuestionId}`)
+      ?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+  }, [highlightedQuestionId, quiz?.questions]);
+
   // Load quiz list
   useEffect(() => {
     let active = true;
+    setSectionsOpen(false);
     setQuizzesLoading(true);
     fetchTeacherQuizzes()
       .then((res) => {
@@ -110,13 +121,13 @@ export const QuizQuestionsPage: React.FC = () => {
   }, [quizId]);
 
   // Load selected quiz details
-  const loadQuizDetails = useCallback(async (id: number) => {
+  const loadQuizDetails = useCallback(async (id: number, preserveSelection = false) => {
     setQuizLoading(true);
     setError(null);
     try {
       const data = await fetchTeacherQuizDetail(id);
       setQuiz(data);
-      setSelectedQuestionIds([]);
+      if (!preserveSelection) setSelectedQuestionIds([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load quiz questions.');
     } finally {
@@ -132,6 +143,7 @@ export const QuizQuestionsPage: React.FC = () => {
 
   // Handle quiz selector change
   const handleQuizSelectChange = (newQuizId: number) => {
+    setSectionsOpen(false);
     setSelectedQuizId(newQuizId);
     localStorage.setItem('last_selected_quiz_id', String(newQuizId));
     navigate(`/teacher/questions/${newQuizId}`);
@@ -392,9 +404,6 @@ export const QuizQuestionsPage: React.FC = () => {
         </Alert>
       )}
 
-      {/* Clearly named slot for SectionsPanel (Phase 9) */}
-      <div data-slot="sections-panel" className="core-display-none" id="quiz-sections-slot" />
-
       {quizLoading ? (
         <div className="core-display-flex core-layout--justify-center core-space--padding-y-5">
           <LoadingSpinner size="lg" message="Loading questions..." />
@@ -442,6 +451,15 @@ export const QuizQuestionsPage: React.FC = () => {
                   >
                     Import
                   </Link>
+                  <Button
+                    size="sm"
+                    variant="outline-secondary"
+                    aria-expanded={sectionsOpen}
+                    aria-controls="quiz-section-drawer"
+                    onClick={() => setSectionsOpen(true)}
+                  >
+                    Manage sections{quiz.sections?.length ? ` (${quiz.sections.length})` : ''}
+                  </Button>
                   {selectedQuestionIds.length > 0 && (
                     <Button
                       size="sm"
@@ -560,11 +578,14 @@ export const QuizQuestionsPage: React.FC = () => {
                 const typeDef = questionTypeRegistry[q.question_type];
                 const ReviewComponent = typeDef?.Review;
                 const questionIndex = quiz.questions.findIndex((item) => item.id === q.id);
+                const questionSection = quiz.sections?.find((section) => section.id === q.section_id);
+                const sectionLabel = q.section_id == null ? 'Unassigned' : questionSection?.title ?? 'Section';
 
                 return (
                   <article
                     key={q.id}
-                    className="core-card core-shadow--sm core-border--none core-surface--white"
+                    id={`question-${q.id}`}
+                    className={`core-card core-shadow--sm core-border--none core-surface--white${q.id === highlightedQuestionId ? ' question-editor-highlighted' : ''}`}
                     onDragOver={(event) => {
                       if (draggedQuestionId !== null) event.preventDefault();
                     }}
@@ -648,6 +669,17 @@ export const QuizQuestionsPage: React.FC = () => {
                       <div
                         className="core-display-flex core-layout--align-center core-layout--gap-2 quiz-question-badges"
                       >
+                        <button
+                          type="button"
+                          className={`quiz-question-section-badge${q.section_id == null ? ' quiz-question-section-badge--unassigned' : ''}`}
+                          aria-label={`Change section for question ${questionIndex + 1} (currently ${sectionLabel})`}
+                          onClick={() => {
+                            setSelectedQuestionIds([q.id]);
+                            setSectionsOpen(true);
+                          }}
+                        >
+                          Section: {sectionLabel}
+                        </button>
                         {answerMissing && (
                           <span className="core-badge core-surface--warning-subtle core-text--dark core-border">
                             Missing answer key
@@ -781,6 +813,15 @@ export const QuizQuestionsPage: React.FC = () => {
         onConfirm={handleBulkDeleteConfirm}
         onClose={() => setBulkDeleteOpen(false)}
       />
+
+      {sectionsOpen && quiz && quiz.id === selectedQuizId && (
+        <SectionsDrawer
+          quiz={quiz}
+          selectedQuestionIds={selectedQuestionIds}
+          onUpdated={() => loadQuizDetails(quiz.id, true)}
+          onClose={() => setSectionsOpen(false)}
+        />
+      )}
     </div>
   );
 };

@@ -133,6 +133,18 @@ export async function unassignQuizClass(quizId: number, classId: number): Promis
   });
 }
 
+export async function setQuizClasses(quizId: number, classIds: number[]): Promise<{
+  success: boolean;
+  added_count: number;
+  removed_count: number;
+  message: string;
+}> {
+  return apiClient(`/api/v1/teacher/quizzes/${quizId}/assignments/set/`, {
+    method: 'POST',
+    body: { class_ids: classIds },
+  });
+}
+
 export async function saveQuestion(
   quizId: number,
   questionId: number | null,
@@ -264,12 +276,45 @@ export async function assignQuizQuestions(
   });
 }
 
-export async function importQuizQuestions(quizId: number, formData: FormData): Promise<{
+export interface QuestionImportRow {
+  row: number;
+  status: 'valid' | 'invalid';
+  type: string;
+  text_preview: string;
+  errors: { field: string; message: string }[];
+}
+
+export interface QuestionImportSummary {
+  total: number;
+  valid: number;
+  invalid: number;
+}
+
+export interface QuestionImportPreview {
+  rows: QuestionImportRow[];
+  summary: QuestionImportSummary;
+}
+
+export async function previewQuizQuestions(quizId: number, file: File): Promise<QuestionImportPreview> {
+  const formData = new FormData();
+  formData.set('import_file', file);
+  formData.set('dry_run', 'true');
+  return apiClient(`/api/v1/teacher/quizzes/${quizId}/questions/import/`, {
+    method: 'POST',
+    body: formData,
+  });
+}
+
+export async function importQuizQuestions(quizId: number, formData: FormData, skipInvalid = false): Promise<{
   success: boolean;
   message: string;
   imported: number;
   errors?: string[];
+  skipped: number;
+  rows: QuestionImportRow[];
+  summary: QuestionImportSummary;
 }> {
+  formData.set('skip_invalid', String(skipInvalid));
   return apiClient(`/api/v1/teacher/quizzes/${quizId}/questions/import/`, {
     method: 'POST',
     body: formData,

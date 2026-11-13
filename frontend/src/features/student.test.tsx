@@ -217,6 +217,7 @@ describe('Phase 5 Student Feature Components', () => {
               is_passed: true,
               is_submitted: true,
               is_completed: true,
+              results_available: true,
               started_at: '2026-11-04T09:00:00Z',
               submitted_at: '2026-11-04T09:25:00Z',
             },
@@ -351,6 +352,125 @@ describe('Phase 5 Student Feature Components', () => {
       expect(screen.getByText('Bowing with continuous eye contact')).toBeInTheDocument();
       expect(screen.getByText('Submit Quiz')).toBeInTheDocument();
       expect(screen.getByTestId('quiz-timer')).toBeInTheDocument();
+    });
+
+    it('advances untimed sections directly and confirms before leaving a timed section', async () => {
+      const questions = [
+        { id: 61, order: 1, question_type: 'essay', question_text: 'Reading question', marks: 1, choices: [] },
+        { id: 62, order: 2, question_type: 'essay', question_text: 'Timed question', marks: 1, choices: [] },
+        { id: 63, order: 3, question_type: 'essay', question_text: 'Final question', marks: 1, choices: [] },
+      ];
+      const sections = [
+        {
+          id: 301,
+          title: 'Reading',
+          instructions: 'Read the passage.',
+          order: 1,
+          time_limit_minutes: null,
+          choose_n: 1,
+          questions: [questions[0]],
+          groups: [{
+            id: 401,
+            title: 'Shared passage',
+            stimulus_text: 'A short passage.',
+            order: 1,
+            questions: [questions[0]],
+          }],
+          started_at: null,
+          submitted_at: null,
+          is_active: true,
+          is_locked: false,
+          remaining_seconds: null,
+          time_expired: false,
+        },
+        {
+          id: 302,
+          title: 'Timed section',
+          instructions: '',
+          order: 2,
+          time_limit_minutes: 2,
+          choose_n: null,
+          questions: [questions[1]],
+          groups: [],
+          started_at: '2026-11-07T05:00:00Z',
+          submitted_at: null,
+          is_active: false,
+          is_locked: false,
+          remaining_seconds: 120,
+          time_expired: false,
+        },
+        {
+          id: 303,
+          title: 'Final section',
+          instructions: '',
+          order: 3,
+          time_limit_minutes: null,
+          choose_n: null,
+          questions: [questions[2]],
+          groups: [],
+          started_at: null,
+          submitted_at: null,
+          is_active: false,
+          is_locked: false,
+          remaining_seconds: null,
+          time_expired: false,
+        },
+      ];
+      let activeSectionId = 301;
+      const fetchMock = vi.fn().mockImplementation((url: string) => {
+        if (url.includes('/sections/301/submit/')) activeSectionId = 302;
+        if (url.includes('/sections/302/submit/')) activeSectionId = 303;
+        const takeData = {
+          attempt_id: 202,
+          quiz_id: 12,
+          quiz_title: 'Sectioned assessment',
+          started_at: '2026-11-07T05:00:00Z',
+          time_remaining_seconds: 1800,
+          is_submitted: false,
+          total_questions: questions.length,
+          answered_count: 0,
+          questions,
+          sections: sections.map((section) => ({
+            ...section,
+            is_active: section.id === activeSectionId,
+            is_locked: section.id < activeSectionId,
+          })),
+          active_section_id: activeSectionId,
+          section_timing_enabled: true,
+          existing_responses: {},
+        };
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => url.includes('/sections/') ? {
+            success: true,
+            active_section_id: activeSectionId,
+            section_timing_enabled: true,
+          } : takeData,
+        });
+      });
+      global.fetch = fetchMock as typeof fetch;
+
+      render(
+        <MemoryRouter initialEntries={['/student/take/202']}>
+          <Routes>
+            <Route path="/student/take/:attemptId" element={<StudentQuizTake />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      expect(await screen.findByText('Reading question')).toBeInTheDocument();
+      expect(screen.getByText('A short passage.')).toBeInTheDocument();
+      expect(screen.getByText(/Answer 0 of 1 questions/)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Next section →' }));
+      expect(await screen.findByText('Timed question')).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Leave this timed section?' })).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Next section →' }));
+      expect(await screen.findByRole('heading', { name: 'Leave this timed section?' })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Submit section and continue' }));
+      expect(await screen.findByText('Final question')).toBeInTheDocument();
+      expect(screen.getByText('Question 1 of 1')).toBeInTheDocument();
     });
   });
 

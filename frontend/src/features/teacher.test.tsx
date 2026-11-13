@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { BrowserRouter, MemoryRouter, Routes, Route } from 'react-router-dom';
 import { TeacherDashboard } from './teacher/TeacherDashboard';
 import { QuizList } from './teacher/QuizList';
@@ -65,7 +65,7 @@ describe('Phase 4 Teacher Feature Components', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Prof. Minerva McGonagall — Teaching Workspace')
+          screen.getByText('Prof. Minerva McGonagall — Home')
         ).toBeInTheDocument();
       });
 
@@ -363,6 +363,169 @@ describe('Phase 4 Teacher Feature Components', () => {
         'href',
         '/teacher/questions/1/new'
       );
+    });
+
+    it('uses the section drawer to create sections, assign questions, and add stimulus', async () => {
+      let sections: Array<{
+        id: number;
+        title: string;
+        instructions: string;
+        order: number;
+        time_limit_minutes: number | null;
+        choose_n: number | null;
+        question_ids: number[];
+        groups: Array<{ id: number; title: string; stimulus_text: string; order: number }>;
+      }> = [];
+      let questions = quizDetailResponse.questions;
+      const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input);
+        const requestBody = init?.body ? JSON.parse(String(init.body)) : {};
+        const response = (body: unknown) => Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => body,
+        });
+
+        if (path.endsWith('/sections/') && init?.method === 'POST') {
+          const section = {
+            id: sections.length ? 22 : 21,
+            title: requestBody.title,
+            instructions: requestBody.instructions,
+            order: sections.length + 1,
+            time_limit_minutes: requestBody.time_limit_minutes,
+            choose_n: null,
+            question_ids: [],
+            groups: [],
+          };
+          sections.push(section);
+          return response({ success: true, section });
+        }
+        if (path.endsWith('/sections/21/') && init?.method === 'PATCH') {
+          sections[0] = { ...sections[0], ...requestBody };
+          return response({ success: true, section: sections[0] });
+        }
+        if (path.endsWith('/sections/reorder/') && init?.method === 'POST') {
+          sections = requestBody.section_ids.map((id: number) => {
+            const section = sections.find((item) => item.id === id);
+            return { ...section, order: requestBody.section_ids.indexOf(id) + 1 };
+          });
+          return response({ success: true });
+        }
+        if (path.endsWith('/groups/') && init?.method === 'POST') {
+          const group = {
+            id: 31,
+            title: requestBody.title,
+            stimulus_text: requestBody.stimulus_text,
+            order: 1,
+          };
+          sections[0].groups.push(group);
+          return response({ success: true, group });
+        }
+        if (path.endsWith('/questions/assign/')) {
+          sections[0].question_ids = requestBody.question_ids;
+          questions = questions.map((question) => requestBody.question_ids.includes(question.id)
+            ? { ...question, section_id: requestBody.section_id, group_id: requestBody.group_id }
+            : question);
+          return response({ success: true, assigned_count: requestBody.question_ids.length });
+        }
+        if (path.endsWith('/teacher/quizzes/1/')) {
+          return response({ ...quizDetailResponse, questions, sections });
+        }
+        if (path.includes('/teacher/quizzes')) return response(quizListResponse);
+        throw new Error(`Unexpected request: ${path}`);
+      });
+      global.fetch = fetchMock as typeof fetch;
+      vi.stubGlobal('localStorage', {
+        getItem: vi.fn().mockReturnValue(null),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+      });
+
+      render(
+        <MemoryRouter initialEntries={['/teacher/questions/1']}>
+          <Routes>
+            <Route path="/teacher/questions/:quizId" element={<QuizQuestionsPage />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      const sectionBadge = await screen.findByRole('button', {
+        name: 'Change section for question 1 (currently Unassigned)',
+      });
+      fireEvent.click(sectionBadge);
+      const drawer = await screen.findByRole('dialog', { name: 'Sections' });
+      fireEvent.click(within(drawer).getByText('Add a section'));
+      fireEvent.change(screen.getByLabelText('Section title'), { target: { value: 'Reading' } });
+      fireEvent.change(screen.getByLabelText('Instructions (optional)'), { target: { value: 'Read carefully.' } });
+      fireEvent.click(within(drawer).getByRole('button', { name: 'Add section' }));
+      await waitFor(() => {
+        expect(fetchMock.mock.calls.some(([url, request]) =>
+          String(url).endsWith('/sections/') && request?.method === 'POST'
+        )).toBe(true);
+      });
+      expect(await within(drawer).findByText('Section added.')).toBeInTheDocument();
+      expect(await within(drawer).findByText('Reading', { selector: 'strong' })).toBeInTheDocument();
+
+      fireEvent.change(within(drawer).getByLabelText('Destination section'), { target: { value: '21' } });
+      fireEvent.click(within(drawer).getByText('Reading', { selector: 'strong' }));
+      fireEvent.click(within(drawer).getByText('Shared passages (0)'));
+      fireEvent.click(within(drawer).getByText('Add a shared passage'));
+      fireEvent.change(within(drawer).getByLabelText('Passage title'), { target: { value: 'Shared passage' } });
+      fireEvent.change(within(drawer).getByLabelText('Passage text'), { target: { value: 'A short passage.' } });
+      fireEvent.click(within(drawer).getByRole('button', { name: 'Add passage' }));
+      await waitFor(() => {
+        expect(fetchMock.mock.calls.some(([url, request]) =>
+          String(url).endsWith('/groups/') && request?.method === 'POST'
+        )).toBe(true);
+      });
+      await within(drawer).findByText('Shared passage', { selector: 'summary' });
+      fireEvent.change(within(drawer).getByLabelText('Shared passage (optional)'), { target: { value: '31' } });
+      fireEvent.click(within(drawer).getByRole('button', { name: 'Assign selected questions' }));
+
+      await waitFor(() => {
+        const assignment = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/questions/assign/'));
+        expect(assignment).toBeDefined();
+        expect(JSON.parse(String(assignment?.[1]?.body))).toMatchObject({
+          question_ids: [11],
+          section_id: 21,
+          group_id: 31,
+        });
+      });
+      expect(await screen.findByRole('button', { name: 'Change section for question 1 (currently Reading)' })).toBeInTheDocument();
+
+      fireEvent.click(within(drawer).getByText('Reading', { selector: 'strong' }));
+      const updatedSection = within(drawer);
+      fireEvent.change(updatedSection.getByLabelText('Time limit (minutes)'), { target: { value: '5' } });
+      fireEvent.change(updatedSection.getByLabelText('Choose N'), { target: { value: '1' } });
+      fireEvent.click(updatedSection.getByRole('button', { name: 'Save section' }));
+      await waitFor(() => {
+        const update = fetchMock.mock.calls.find(([url, request]) =>
+          String(url).endsWith('/sections/21/') && request?.method === 'PATCH'
+        );
+        expect(JSON.parse(String(update?.[1]?.body))).toMatchObject({
+          time_limit_minutes: 5,
+          choose_n: 1,
+        });
+      });
+
+      const addDetails = within(drawer).getByText('Add a section').closest('details') as HTMLDetailsElement;
+      if (!addDetails.open) fireEvent.click(within(drawer).getByText('Add a section'));
+      const addSectionButton = within(drawer).getByRole('button', { name: 'Add section' });
+      await waitFor(() => expect(addSectionButton).toBeEnabled());
+      fireEvent.change(screen.getByLabelText('Section title'), { target: { value: 'Review' } });
+      fireEvent.click(addSectionButton);
+      await waitFor(() => {
+        expect(fetchMock.mock.calls.filter(([url, request]) =>
+          String(url).endsWith('/sections/') && request?.method === 'POST'
+        )).toHaveLength(2);
+      });
+      expect(await within(drawer).findByText('Review', { selector: 'strong' })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Move Review up' }));
+      await waitFor(() => {
+        const reorder = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/sections/reorder/'));
+        expect(JSON.parse(String(reorder?.[1]?.body))).toEqual({ section_ids: [22, 21] });
+      });
+      vi.unstubAllGlobals();
     });
 
     it('rolls back a keyboard reorder when the API rejects it', async () => {

@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Document status | **Authoritative API Specification** |
-| Version | 1.2 |
-| Last updated | 2026-11-11 |
+| Version | 1.3 |
+| Last updated | 2026-11-12 |
 | Governed by | `REACT_FRONTEND_MIGRATION_PLAN.md` |
 
 This document defines the formal request and response schemas for all `/api/v1/` endpoints, plus the React response mode planned for Django's existing `/login/` handler. Contracts must be documented here before backend implementation and frontend consumption.
@@ -646,8 +646,9 @@ Teacher and school-admin quiz, question, assignment, and grading writes use the 
 | `PATCH, DELETE` | `/api/v1/teacher/quizzes/{id}/groups/{group_id}/` | Update or remove a stimulus group |
 | `POST` | `/api/v1/teacher/quizzes/{id}/questions/assign/` | Assign questions using `{ "question_ids": [...], "section_id": id|null, "group_id": id|null, "replace": true }` |
 | `POST` | `/api/v1/teacher/quizzes/{id}/questions/bulk-delete/` | Bulk delete `{ "question_ids": [...] }` |
-| `POST` multipart | `/api/v1/teacher/quizzes/{id}/questions/import/` | Import CSV/XLSX; returns `imported`, `errors`, `partial_success` |
+| `POST` multipart | `/api/v1/teacher/quizzes/{id}/questions/import/` | Preview CSV/XLSX with `dry_run=true`, or import it with optional `skip_invalid=true` |
 | `POST` | `/api/v1/teacher/quizzes/{id}/assignments/` | Assign `{ "class_ids": [...] }` |
+| `POST` | `/api/v1/teacher/quizzes/{id}/assignments/set/` | Atomically set the complete class list with `{ "class_ids": [...] }`; an empty list removes all assignments |
 | `DELETE` | `/api/v1/teacher/quizzes/{id}/assignments/{class_id}/` | Unassign one class |
 | `POST` | `/api/v1/teacher/quizzes/{id}/assignments/bulk-delete/` | Unassign `{ "class_ids": [...] }` |
 | `POST` | `/api/v1/teacher/responses/{response_id}/grade/` | Grade one response; marks cannot exceed the question's marks |
@@ -656,9 +657,17 @@ Teacher and school-admin quiz, question, assignment, and grading writes use the 
 
 Manual grading includes essays and responses whose attempt snapshot has no usable answer key. Matching, ordering, choice, short-answer, and fill-blank questions with valid keys remain automatically graded and do not enter the queue.
 
-When `show_results_immediately` is false and `results_released_at` is null, student-facing result endpoints return `403 RESULTS_NOT_RELEASED`; student attempt lists, quiz summaries, submission responses, and progress metrics omit unreleased scores. Releasing results sets the timestamp once. Changing the immediate-results setting clears that timestamp. `show_correct_answers` and `allow_review` continue to determine which details are available after release. `pass_percentage` remains the write contract; a total-mark recalculation keeps `passing_marks` synchronized.
+When `show_results_immediately` is false and `results_released_at` is null, results stay hidden until explicitly released, except that an individual attempt becomes visible to its student once all its manual responses have been graded. Pending manual attempts and automatically graded attempts remain hidden until the teacher releases results. Student attempt lists, quiz summaries, submission responses, and progress metrics follow the same per-attempt visibility. Releasing results sets the timestamp once. Changing the immediate-results setting clears that timestamp. `show_correct_answers` and `allow_review` continue to determine which details are available after results are visible. `pass_percentage` remains the write contract; a total-mark recalculation keeps `passing_marks` synchronized.
 
 Quiz `total_marks` is recalculated after question create, update, delete, duplicate, import, and section-rule updates. A Choose-N section requires at least N questions with equal marks and contributes `N × question marks` to the quiz total. Each attempt snapshots section rules, stimulus, question membership, and question configuration; edits do not change existing attempts. Per-section scores are calculated from the attempt's responses and are not stored separately.
+
+#### Question import preview and confirmation
+- `POST /api/v1/teacher/quizzes/{id}/questions/import/` accepts multipart fields `import_file` (CSV or XLSX, maximum 5 MB), optional `dry_run=true`, and optional `skip_invalid=true`. Files are limited to 5,000 data rows and 64 columns.
+- A dry run creates no questions and returns `{ "rows": [{ "row", "status", "type", "text_preview", "errors": [{ "field", "message" }] }], "summary": { "total", "valid", "invalid" } }`.
+- A real import with invalid rows and no `skip_invalid=true` returns `400 INVALID_IMPORT_ROWS` and creates nothing. With `skip_invalid=true`, only valid rows are created; the response includes `imported`, `skipped`, `rows`, and `summary`.
+- Import is restricted to the staff member's writable quiz and school. Supported question types are `multiple_choice`, `true_false`, `short_answer`, `fill_blank`, `matching`, `ordering`, and `essay`.
+- The template columns are `question_text`, `question_type`, `marks`, `difficulty`, `correct_answer`, `choice1`–`choice4`, and `explanation`. Multiple-choice correct answers are 1-based choice numbers or exact choice text (comma-separated for multiple correct choices); short-answer aliases use `;` or `|`; fill-blank answer groups use `;` with alternatives separated by `|`; matching pairs and ordering items use `;`.
+- Quiz-scoped CSV and XLSX templates remain available at `/quizzes/{id}/questions/import-template/csv/` and `/quizzes/{id}/questions/import-template/xlsx/`; both require staff access to the quiz.
 
 #### Choose-N and snapshot rules
 - Sections and groups are scoped to the quiz's school. A group and its section must belong to the same quiz; questions assigned to a group must also match its section.

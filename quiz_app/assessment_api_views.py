@@ -31,6 +31,7 @@ from .services.assessment_management import (
     save_question,
     save_quiz,
     save_quiz_section,
+    set_quiz_classes,
     unassign_class,
     update_quiz_status,
     writable_quiz,
@@ -474,19 +475,45 @@ def teacher_question_import_api_view(request, quiz_id):
     upload = request.FILES.get("import_file") or request.FILES.get("file")
     if upload is not None and upload.size > MAX_IMPORT_FILE_SIZE:
         return _error("PAYLOAD_TOO_LARGE", "File exceeds the 5 MB import limit.", 413)
+    dry_run = str(request.POST.get("dry_run", "")).lower() in {"1", "true", "yes", "on"}
+    skip_invalid = str(request.POST.get("skip_invalid", "")).lower() in {"1", "true", "yes", "on"}
 
     def mutate():
+        if dry_run:
+            quiz = writable_quiz(request.user, school, quiz_id)
+            result = import_questions(quiz, school, upload, dry_run=True)
+            return JsonResponse(result)
         with transaction.atomic():
             quiz = writable_quiz(request.user, school, quiz_id, lock=True)
-            imported, errors = import_questions(quiz, school, upload)
-        message = f"Successfully imported {imported} question(s)." if imported else "No questions were imported."
+            result = import_questions(
+                quiz, school, upload, skip_invalid=skip_invalid
+            )
+        if result.get("refused", False):
+            return JsonResponse({
+                "code": "INVALID_IMPORT_ROWS",
+                "message": "Correct the invalid rows or choose to skip them before importing.",
+                "rows": result["rows"],
+                "summary": result["summary"],
+                "imported": 0,
+                "skipped": result["skipped"],
+            }, status=400)
+        imported = result["imported"]
+        skipped = result["skipped"]
+        message = f"Successfully imported {imported} question(s)."
         return JsonResponse({
             "success": True,
-            "complete": not errors,
-            "partial_success": bool(imported and errors),
+            "complete": skipped == 0,
+            "partial_success": bool(imported and skipped),
             "imported": imported,
-            "errors": errors,
-            "error_count": len(errors),
+            "skipped": skipped,
+            "rows": result["rows"],
+            "summary": result["summary"],
+            "errors": [
+                f"Row {row['row']}: {error['message']}"
+                for row in result["rows"]
+                for error in row["errors"]
+            ],
+            "error_count": skipped,
             "message": message,
         })
 
@@ -549,6 +576,29 @@ def teacher_quiz_assignment_bulk_delete_api_view(request, quiz_id):
         return JsonResponse({
             "success": True,
             "message": f"{count} class(es) unassigned successfully.",
+        })
+
+    return _handle(mutate)
+
+
+@require_http_methods(["POST"])
+def teacher_quiz_assignment_set_api_view(request, quiz_id):
+    school, denied = _staff(request)
+    if denied:
+        return denied
+
+    def mutate():
+        class_ids = _data(request).get("class_ids")
+        with transaction.atomic():
+            quiz = writable_quiz(request.user, school, quiz_id, lock=True)
+            added_count, removed_count = set_quiz_classes(
+                request.user, quiz, school, class_ids
+            )
+        return JsonResponse({
+            "success": True,
+            "added_count": added_count,
+            "removed_count": removed_count,
+            "message": "Class assignments updated successfully.",
         })
 
     return _handle(mutate)

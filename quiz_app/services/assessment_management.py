@@ -1,6 +1,8 @@
 import csv
 import io
 import json
+import re
+import zipfile
 from datetime import datetime
 from itertools import islice
 
@@ -816,193 +818,256 @@ def duplicate_question(quiz, school, question):
     return new_question
 
 
-def _import_choice_question(question, row, fieldnames, school, row_num, errors):
-    question_type = question.question_type
-    choices = []
-    if question_type == "true_false":
-        choices = ["True", "False"]
-    else:
-        for index in range(1, 11):
-            key = f"choice{index}"
-            if key in fieldnames:
-                text = (row.get(key) or "").strip()
-                if text:
-                    choices.append(text)
-        if len(choices) < 2:
-            errors.append(f"Row {row_num}: Multiple choice questions need at least 2 choices")
-            question.delete()
-            return False
-    correct_answer = (row.get("correct_answer") or "").strip()
-    correct_indices = set()
-    if question_type == "true_false":
-        lowered = correct_answer.lower()
-        if lowered in {"true", "t", "1"}:
-            correct_indices.add(0)
-        elif lowered in {"false", "f", "2"}:
-            correct_indices.add(1)
-        else:
-            correct_indices.add(0)
-    else:
-        if correct_answer:
-            for sep in [",", ";", "|"]:
-                if sep in correct_answer:
-                    for part in correct_answer.split(sep):
-                        part = part.strip()
-                        try:
-                            idx = int(float(part)) - 1
-                        except (TypeError, ValueError):
-                            continue
-                        if 0 <= idx < len(choices):
-                            correct_indices.add(idx)
-                    break
-            else:
-                try:
-                    idx = int(float(correct_answer)) - 1
-                    if 0 <= idx < len(choices):
-                        correct_indices.add(idx)
-                except (TypeError, ValueError):
-                    for idx, choice in enumerate(choices):
-                        if choice.strip().lower() == correct_answer.lower():
-                            correct_indices.add(idx)
-                            break
-        if not correct_indices:
-            correct_indices.add(0)
-    for idx, choice_text in enumerate(choices):
-        AnswerChoice.objects.create(
-            question=question,
-            choice_text=choice_text,
-            is_correct=idx in correct_indices,
-            order=idx + 1,
-            school=school,
-        )
-    return True
-
-
-def import_question_rows(quiz, school, rows, fieldnames):
-    imported = 0
-    errors = []
-    max_order = Question.objects.filter(quiz=quiz).aggregate(max_order=Max("order"))["max_order"] or 0
-    with transaction.atomic():
-        for row_num, row in enumerate(rows, start=2):
-            try:
-                question_text = (row.get("question_text") or "").strip()
-                if not question_text:
-                    errors.append(f"Row {row_num}: Missing question text")
-                    continue
-                question_type = (row.get("question_type") or "multiple_choice").strip().lower()
-                valid_types = ["multiple_choice", "true_false", "short_answer", "fill_blank", "essay"]
-                if question_type not in valid_types:
-                    errors.append(f'Row {row_num}: Invalid question_type "{question_type}". Using "multiple_choice"')
-                    question_type = "multiple_choice"
-                marks = 1
-                if row.get("marks"):
-                    try:
-                        marks = int(float(row.get("marks")))
-                        if marks < 1:
-                            marks = 1
-                    except (TypeError, ValueError):
-                        marks = 1
-                difficulty = (row.get("difficulty") or "medium").strip().lower()
-                if difficulty not in {"easy", "medium", "hard"}:
-                    difficulty = "medium"
-                max_order += 1
-                question = Question(
-                    quiz=quiz,
-                    question_type=question_type,
-                    question_text=question_text,
-                    marks=marks,
-                    difficulty=difficulty,
-                    order=max_order,
-                    explanation=(row.get("explanation") or "").strip() or None,
-                    school=school,
-                )
-                if question_type in {"short_answer", "fill_blank"}:
-                    question.correct_answer_text = (row.get("correct_answer") or "").strip() or None
-                    question.save()
-                elif question_type == "essay":
-                    question.save()
-                else:
-                    question.save()
-                    if not _import_choice_question(question, row, fieldnames, school, row_num, errors):
-                        continue
-                imported += 1
-            except Exception as error:
-                errors.append(f"Row {row_num}: {error}")
-    quiz.calculate_total_marks()
-    return imported, errors
-
-
-def import_questions_from_csv(quiz, csv_file, school):
-    errors = []
-    try:
-        try:
-            file_data = csv_file.read().decode("utf-8")
-        except UnicodeDecodeError:
-            csv_file.seek(0)
-            file_data = csv_file.read().decode("utf-8-sig")
-        reader = csv.DictReader(io.StringIO(file_data))
-        fieldnames = reader.fieldnames or []
-        if len(fieldnames) > MAX_IMPORT_COLUMNS:
-            return 0, [f"File exceeds the {MAX_IMPORT_COLUMNS}-column import limit"]
-        if "question_text" not in fieldnames:
-            return 0, ['CSV file must contain "question_text" column']
-        rows = list(islice(reader, MAX_IMPORT_ROWS + 1))
-        if len(rows) > MAX_IMPORT_ROWS:
-            return 0, [f"File exceeds the {MAX_IMPORT_ROWS}-row import limit"]
-        return import_question_rows(quiz, school, rows, fieldnames)
-    except Exception as error:
-        errors.append(f"Error reading CSV file: {error}")
-        return 0, errors
-
-
-def import_questions_from_excel(quiz, excel_file, school):
-    from openpyxl import load_workbook
-
-    excel_file.seek(0)
-    workbook = load_workbook(excel_file, read_only=True, data_only=True)
-    sheet = workbook.active
-    headers = []
-    for cell in sheet[1]:
-        if cell.value:
-            headers.append(str(cell.value).strip())
-        else:
-            break
-    if len(headers) > MAX_IMPORT_COLUMNS:
-        workbook.close()
-        return 0, [f"File exceeds the {MAX_IMPORT_COLUMNS}-column import limit"]
-    if not headers or "question_text" not in headers:
-        workbook.close()
-        return 0, ['Excel file must contain "question_text" column in the first row']
-    rows = []
-    for row in sheet.iter_rows(min_row=2, values_only=True):
-        if any(cell is not None for cell in row):
-            if len(rows) >= MAX_IMPORT_ROWS:
-                workbook.close()
-                return 0, [f"File exceeds the {MAX_IMPORT_ROWS}-row import limit"]
-            rows.append({
-                header: str(row[idx]).strip() if idx < len(row) and row[idx] is not None else ""
-                for idx, header in enumerate(headers)
-            })
-    workbook.close()
-    return import_question_rows(quiz, school, rows, headers)
-
-
-def import_questions(quiz, school, upload):
+def _read_question_import_rows(upload):
     if upload is None:
         raise ValidationError({"import_file": ["No file uploaded."]})
     if upload.size > MAX_IMPORT_FILE_SIZE:
         raise ValidationError({"import_file": ["File exceeds the 5 MB import limit."]})
     name = upload.name.lower()
-    if name.endswith(".xls"):
-        raise ValidationError({"import_file": ["Only CSV and XLSX files are supported."]})
-    if name.endswith(".xlsx"):
+    if name.endswith(".csv"):
         try:
-            return import_questions_from_excel(quiz, upload, school)
+            content = upload.read().decode("utf-8-sig")
+            reader = csv.DictReader(io.StringIO(content), restkey="_extra_columns")
+            headers = [str(header or "").strip().lower() for header in (reader.fieldnames or [])]
+            rows = list(enumerate(islice(reader, MAX_IMPORT_ROWS + 1), start=2))
+        except (UnicodeDecodeError, csv.Error) as error:
+            raise ValidationError({"import_file": ["Unable to read the CSV file."]}) from error
+    elif name.endswith(".xlsx"):
+        try:
+            from openpyxl import load_workbook
+            from openpyxl.utils.exceptions import InvalidFileException
+
+            upload.seek(0)
+            workbook = load_workbook(upload, read_only=True, data_only=True)
+            try:
+                sheet = workbook.active
+                header_row = next(sheet.iter_rows(min_row=1, max_row=1, values_only=True), ())
+                headers = []
+                for header in header_row:
+                    if header is None or not str(header).strip():
+                        break
+                    headers.append(str(header).strip().lower())
+                if len(headers) > MAX_IMPORT_COLUMNS:
+                    raise ValidationError({
+                        "import_file": [f"File exceeds the {MAX_IMPORT_COLUMNS}-column import limit."]
+                    })
+                rows = []
+                for row_num, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
+                    if any(value is not None for value in row):
+                        if len(rows) >= MAX_IMPORT_ROWS:
+                            raise ValidationError({
+                                "import_file": [f"File exceeds the {MAX_IMPORT_ROWS}-row import limit."]
+                            })
+                        rows.append((row_num, {
+                            header: str(row[index]).strip() if index < len(row) and row[index] is not None else ""
+                            for index, header in enumerate(headers)
+                        }))
+            finally:
+                workbook.close()
         except ImportError as error:
             raise ValidationError({"import_file": ["Excel support requires openpyxl."]}) from error
-    if name.endswith(".csv"):
-        return import_questions_from_csv(quiz, upload, school)
-    raise ValidationError({"import_file": ["Unsupported file format. Please use CSV or XLSX."]})
+        except (zipfile.BadZipFile, OSError, ValueError, EOFError, InvalidFileException) as error:
+            raise ValidationError({"import_file": ["Unable to read the XLSX file."]}) from error
+    else:
+        raise ValidationError({"import_file": ["Unsupported file format. Please use CSV or XLSX."]})
+
+    if len(headers) > MAX_IMPORT_COLUMNS:
+        raise ValidationError({
+            "import_file": [f"File exceeds the {MAX_IMPORT_COLUMNS}-column import limit."]
+        })
+    if not headers or "question_text" not in headers:
+        raise ValidationError({"import_file": ['File must contain a "question_text" column.']})
+    if len(set(headers)) != len(headers):
+        raise ValidationError({"import_file": ["Column names must be unique."]})
+    if len(rows) > MAX_IMPORT_ROWS:
+        raise ValidationError({
+            "import_file": [f"File exceeds the {MAX_IMPORT_ROWS}-row import limit."]
+        })
+    normalized_rows = []
+    for row_num, row in rows:
+        values = {header: str(row.get(header) or "").strip() for header in headers}
+        if row.get("_extra_columns"):
+            values["_extra_columns"] = True
+        normalized_rows.append({"row": row_num, "values": values})
+    return normalized_rows
+
+
+def _validate_question_import_row(row):
+    from ..question_types import get_question_type
+
+    question_text = row["question_text"].strip()
+    question_type = (row.get("question_type") or "multiple_choice").strip().lower()
+    marks_text = row.get("marks", "").strip()
+    difficulty = (row.get("difficulty") or "medium").strip().lower()
+    correct_answer = row.get("correct_answer", "").strip()
+    errors = []
+    if row.get("_extra_columns"):
+        errors.append({"field": "row", "message": "Row has more values than the header columns."})
+
+    if not question_text:
+        errors.append({"field": "question_text", "message": "Question text is required."})
+    if question_type not in VALID_QUESTION_TYPES:
+        errors.append({"field": "question_type", "message": f"Unsupported question type: {question_type}."})
+    try:
+        marks_number = float(marks_text or 1)
+        if not marks_number.is_integer() or marks_number < 1:
+            raise ValueError
+        marks = int(marks_number)
+    except (TypeError, ValueError):
+        marks = 1
+        errors.append({"field": "marks", "message": "Marks must be a positive whole number."})
+    if difficulty not in {"easy", "medium", "hard"}:
+        errors.append({"field": "difficulty", "message": "Difficulty must be easy, medium, or hard."})
+
+    config = {}
+    choices = []
+    tf_correct = ""
+    if question_type == "multiple_choice":
+        choice_texts = [
+            row.get(f"choice{index}", "").strip()
+            for index in range(1, 11)
+            if row.get(f"choice{index}", "").strip()
+        ]
+        if len(choice_texts) < 2:
+            errors.append({"field": "choices", "message": "Add at least two non-empty choices."})
+        correct_parts = [part.strip() for part in re.split(r"[,;|]", correct_answer) if part.strip()]
+        correct_indices = set()
+        for part in correct_parts:
+            try:
+                index = int(part) - 1
+                if str(index + 1) != part or not 0 <= index < len(choice_texts):
+                    raise ValueError
+                correct_indices.add(index)
+            except ValueError:
+                matched = [index for index, choice in enumerate(choice_texts) if choice.casefold() == part.casefold()]
+                if len(matched) != 1:
+                    errors.append({"field": "correct_answer", "message": f"Could not identify one choice matching “{part}”."})
+                else:
+                    correct_indices.add(matched[0])
+        if not correct_indices:
+            errors.append({"field": "correct_answer", "message": "Specify at least one correct choice by number or exact text."})
+        choices = [
+            {"text": choice, "is_correct": index in correct_indices}
+            for index, choice in enumerate(choice_texts)
+        ]
+        config = {"allow_multiple": len(correct_indices) > 1}
+    elif question_type == "true_false":
+        answer = correct_answer.casefold()
+        if answer not in {"true", "t", "1", "false", "f", "2"}:
+            errors.append({"field": "correct_answer", "message": "Use true or false as the correct answer."})
+        else:
+            tf_correct = "false" if answer in {"false", "f", "2"} else "true"
+            choices = [
+                {"text": "True", "is_correct": tf_correct == "true"},
+                {"text": "False", "is_correct": tf_correct == "false"},
+            ]
+    elif question_type == "short_answer":
+        answers = [answer.strip() for answer in re.split(r"[;|]", correct_answer) if answer.strip()]
+        if not answers:
+            errors.append({"field": "correct_answer", "message": "Provide at least one accepted answer."})
+        config = {"accepted_answers": answers}
+    elif question_type == "fill_blank":
+        marker_count = len(re.findall(r"_{5,}", question_text))
+        blank_groups = [
+            [answer.strip() for answer in group.split("|") if answer.strip()]
+            for group in correct_answer.split(";")
+        ]
+        blank_groups = [group for group in blank_groups if group]
+        if marker_count == 0:
+            errors.append({"field": "question_text", "message": "Add at least one blank marker (_____)."})
+        if not blank_groups:
+            errors.append({"field": "correct_answer", "message": "Provide accepted answers for each blank; use | for alternatives and ; between blanks."})
+        elif len(blank_groups) != marker_count:
+            errors.append({"field": "correct_answer", "message": f"Provide one answer group for each of the {marker_count} blank(s)."})
+        config = {"accepted_answers": [], "blanks": blank_groups}
+    elif question_type == "matching":
+        pairs = []
+        for part in correct_answer.split(";"):
+            part = part.strip()
+            if not part:
+                continue
+            if "=" not in part:
+                errors.append({"field": "correct_answer", "message": "Each pair must use left=right, with pairs separated by semicolons."})
+                continue
+            left, right = part.split("=", 1)
+            if not left.strip() or not right.strip():
+                errors.append({"field": "correct_answer", "message": "Both sides of each matching pair are required."})
+                continue
+            pairs.append({"left": left.strip(), "right": right.strip()})
+        if len(pairs) < 2:
+            errors.append({"field": "correct_answer", "message": "Provide at least two matching pairs."})
+        config = {"pairs": pairs}
+    elif question_type == "ordering":
+        items = [item.strip() for item in correct_answer.split(";") if item.strip()]
+        if len(items) < 2 or len({item.casefold() for item in items}) != len(items):
+            errors.append({"field": "correct_answer", "message": "Provide at least two distinct items separated by semicolons."})
+        config = {"items": items}
+    elif question_type == "essay":
+        config = {"rubric": ""}
+
+    if question_type in VALID_QUESTION_TYPES and not errors:
+        try:
+            config = get_question_type(question_type).validate_config(config)
+        except (TypeError, ValueError) as error:
+            errors.append({"field": "correct_answer", "message": str(error)})
+
+    return {
+        "question_type": question_type,
+        "question_text": question_text,
+        "marks": marks,
+        "difficulty": difficulty,
+        "explanation": row.get("explanation", "").strip(),
+        "correct_answer": correct_answer,
+        "tf_correct": tf_correct,
+        "choices": choices,
+        "config": config,
+    }, errors
+
+
+def import_questions(quiz, school, upload, dry_run=False, skip_invalid=False):
+    rows = _read_question_import_rows(upload)
+    checked_rows = []
+    valid_payloads = []
+    for item in rows:
+        payload, errors = _validate_question_import_row(item["values"])
+        checked_rows.append({
+            "row": item["row"],
+            "status": "invalid" if errors else "valid",
+            "type": payload["question_type"],
+            "text_preview": payload["question_text"][:120],
+            "errors": errors,
+        })
+        if not errors:
+            valid_payloads.append((item["row"], payload))
+
+    invalid_count = len(checked_rows) - len(valid_payloads)
+    summary = {
+        "total": len(checked_rows),
+        "valid": len(valid_payloads),
+        "invalid": invalid_count,
+    }
+    if dry_run:
+        return {"rows": checked_rows, "summary": summary}
+    if invalid_count and not skip_invalid:
+        return {
+            "refused": True,
+            "rows": checked_rows,
+            "summary": summary,
+            "imported": 0,
+            "skipped": invalid_count,
+        }
+
+    imported = 0
+    with transaction.atomic():
+        for _, payload in valid_payloads:
+            save_question(quiz, school, payload)
+            imported += 1
+    return {
+        "rows": checked_rows,
+        "summary": summary,
+        "imported": imported,
+        "skipped": invalid_count,
+    }
 
 
 def assign_classes(user, quiz, school, class_ids):
@@ -1055,6 +1120,30 @@ def bulk_unassign_classes(quiz, school, class_ids):
         raise ValidationError({"class_ids": ["One or more classes are invalid or not assigned to this quiz."]})
     quiz.classes.remove(*classes)
     return classes.count()
+
+
+def set_quiz_classes(user, quiz, school, class_ids):
+    if not isinstance(class_ids, (list, tuple)):
+        raise ValidationError({"class_ids": ["Provide a list of class IDs."]})
+    ids = _ids(class_ids)
+    if len(ids) != len(set(ids)):
+        raise ValidationError({"class_ids": ["Class IDs must be unique."]})
+    if Class.objects.filter(pk__in=ids, school=school).count() != len(ids):
+        raise ValidationError({"class_ids": ["One or more selected classes are invalid."]})
+
+    assigned_ids = set(
+        quiz.classes.filter(school=school).values_list("pk", flat=True)
+    )
+    selected_ids = set(ids)
+    added_ids = selected_ids - assigned_ids
+    removed_ids = assigned_ids - selected_ids
+
+    if added_ids:
+        assign_classes(user, quiz, school, list(added_ids))
+    if removed_ids:
+        bulk_unassign_classes(quiz, school, list(removed_ids))
+
+    return len(added_ids), len(removed_ids)
 
 
 def _response_queryset(user, school):

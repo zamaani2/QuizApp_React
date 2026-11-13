@@ -714,7 +714,7 @@ const AppShellWithRoutes: FC = () => {
           <Route path="/teacher/questions/:quizId/new" element={<RoleGuard allowedRoles={['teacher', 'admin']}><QuestionEditor /></RoleGuard>} />
           <Route path="/teacher/questions/:quizId/:questionId/edit" element={<RoleGuard allowedRoles={['teacher', 'admin']}><QuestionEditor /></RoleGuard>} />
           <Route path="/teacher/questions/:quizId/import" element={<RoleGuard allowedRoles={['teacher', 'admin']}><QuestionImport /></RoleGuard>} />
-          <Route path="/teacher/assignments" element={<RoleGuard allowedRoles={['teacher', 'admin', 'superadmin']}><QuizAssignments /></RoleGuard>} />
+          <Route path="/teacher/assignments" element={<RoleGuard allowedRoles={['teacher', 'admin']}><QuizAssignments /></RoleGuard>} />
           <Route path="/teacher/quizzes/:id/questions" element={<LegacyQuizQuestionsRedirect />} />
           <Route
             path="/teacher/quizzes/:id/questions/new"

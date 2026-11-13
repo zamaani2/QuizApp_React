@@ -53,6 +53,7 @@ describe('question type registry', () => {
     };
 
     render(<Player question={question} response={emptyResponse} onChange={onChange} />);
+    expect(screen.getByRole('group', { name: 'Match items' })).toBeInTheDocument();
     fireEvent.change(screen.getByRole('combobox', { name: 'Match for A' }), {
       target: { value: 'right:x' },
     });
@@ -64,6 +65,24 @@ describe('question type registry', () => {
       ...emptyResponse,
       answer_data: { matches: { 'left:a': 'right:x' } },
     })).toBe(true);
+  });
+
+  it('renders fill-in-the-blank answers as separate labelled fields', () => {
+    const Player = getQuestionType('fill_blank').Player;
+    const question: StudentTakeQuestion = {
+      id: 4,
+      order: 1,
+      question_type: 'fill_blank',
+      question_text: 'Complete the sentence',
+      marks: 2,
+      choices: [],
+      config: { blank_count: 2 },
+    };
+
+    render(<Player question={question} response={emptyResponse} onChange={vi.fn()} />);
+
+    expect(screen.getByLabelText('Blank 1')).toBeInTheDocument();
+    expect(screen.getByLabelText('Blank 2')).toBeInTheDocument();
   });
 
   it('reorders items using focusable move buttons', () => {
@@ -85,6 +104,7 @@ describe('question type registry', () => {
     };
 
     render(<Player question={question} response={emptyResponse} onChange={onChange} />);
+    expect(screen.getByRole('list', { name: 'Reorder items' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Move Second up' }));
 
     expect(onChange).toHaveBeenCalledWith({

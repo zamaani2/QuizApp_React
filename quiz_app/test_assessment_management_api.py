@@ -1,4 +1,5 @@
 import json
+from io import BytesIO
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
@@ -153,22 +154,226 @@ class AssessmentManagementApiTests(TestCase):
 
     def test_import_reports_row_errors_and_partial_success(self):
         self.client.force_login(self.teacher_user)
-        upload = SimpleUploadedFile(
-            "questions.csv",
-            b"question_text,question_type,marks\nValid essay,essay,2\n,essay,1\n",
-            content_type="text/csv",
-        )
+        content = b"question_text,question_type,marks\nValid essay,essay,2\n,essay,1\n"
         response = self.client.post(
             reverse("quiz_app:api_teacher_question_import", args=[self.quiz.pk]),
-            {"import_file": upload},
+            {
+                "import_file": SimpleUploadedFile("questions.csv", content, content_type="text/csv"),
+                "dry_run": "true",
+            },
         )
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["summary"], {"total": 2, "valid": 1, "invalid": 1})
+        response = self.client.post(
+            reverse("quiz_app:api_teacher_question_import", args=[self.quiz.pk]),
+            {
+                "import_file": SimpleUploadedFile("questions.csv", content, content_type="text/csv"),
+                "skip_invalid": "true",
+            },
+        )
+        self.assertEqual(response.status_code, 200, response.content)
         payload = response.json()
         self.assertEqual(payload["imported"], 1)
         self.assertTrue(payload["partial_success"])
         self.assertTrue(payload["errors"])
         self.quiz.refresh_from_db()
         self.assertEqual(self.quiz.total_marks, 2)
+
+    def test_question_import_dry_run_reports_row_fields_without_creating_questions(self):
+        self.client.force_login(self.teacher_user)
+        upload = SimpleUploadedFile(
+            "questions.csv",
+            (
+                b"question_text,question_type,marks,difficulty,correct_answer\n"
+                b"Explain gravity,essay,3,medium,\n"
+                b"Unsupported prompt,not_a_type,1,easy,\n"
+                b"Order the steps,ordering,2,medium,Plan; Build; Test\n"
+            ),
+            content_type="text/csv",
+        )
+
+        response = self.client.post(
+            reverse("quiz_app:api_teacher_question_import", args=[self.quiz.pk]),
+            {"import_file": upload, "dry_run": "true"},
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        payload = response.json()
+        self.assertEqual(payload["summary"], {"total": 3, "valid": 2, "invalid": 1})
+        self.assertEqual(
+            [(row["row"], row["status"]) for row in payload["rows"]],
+            [(2, "valid"), (3, "invalid"), (4, "valid")],
+        )
+        self.assertEqual(payload["rows"][1]["errors"][0]["field"], "question_type")
+        self.assertEqual(self.quiz.questions.count(), 0)
+
+    def test_question_import_requires_skip_confirmation_and_skips_only_invalid_rows(self):
+        self.client.force_login(self.teacher_user)
+        csv_content = (
+            b"question_text,question_type,marks,difficulty,correct_answer\n"
+            b"Valid essay,essay,2,medium,\n"
+            b"Invalid type,not_a_type,1,easy,\n"
+        )
+        response = self.client.post(
+            reverse("quiz_app:api_teacher_question_import", args=[self.quiz.pk]),
+            {"import_file": SimpleUploadedFile("questions.csv", csv_content, content_type="text/csv")},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "INVALID_IMPORT_ROWS")
+        self.assertEqual(self.quiz.questions.count(), 0)
+
+        response = self.client.post(
+            reverse("quiz_app:api_teacher_question_import", args=[self.quiz.pk]),
+            {
+                "import_file": SimpleUploadedFile("questions.csv", csv_content, content_type="text/csv"),
+                "skip_invalid": "true",
+            },
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        payload = response.json()
+        self.assertEqual(payload["imported"], 1)
+        self.assertEqual(payload["skipped"], 1)
+        self.assertEqual(self.quiz.questions.count(), 1)
+        self.assertEqual(payload["rows"][1]["status"], "invalid")
+
+    def test_question_import_validates_matching_and_blank_rows_before_write(self):
+        self.client.force_login(self.teacher_user)
+        upload = SimpleUploadedFile(
+            "questions.csv",
+            (
+                b"question_text,question_type,marks,difficulty,correct_answer\n"
+                b"Match each item,matching,2,medium,Cat=Mammal; Rose=Flower\n"
+                b"The sky is _____,fill_blank,1,easy,blue|azure\n"
+                b"Missing marker,fill_blank,1,easy,green\n"
+            ),
+            content_type="text/csv",
+        )
+
+        response = self.client.post(
+            reverse("quiz_app:api_teacher_question_import", args=[self.quiz.pk]),
+            {"import_file": upload, "dry_run": "true"},
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        payload = response.json()
+        self.assertEqual(payload["summary"], {"total": 3, "valid": 2, "invalid": 1})
+        self.assertEqual(payload["rows"][2]["errors"][0]["field"], "question_text")
+        self.assertEqual(self.quiz.questions.count(), 0)
+
+    def test_question_import_creates_every_supported_question_type(self):
+        self.client.force_login(self.teacher_user)
+        upload = SimpleUploadedFile(
+            "questions.csv",
+            (
+                b"question_text,question_type,marks,difficulty,correct_answer,choice1,choice2\n"
+                b"Pick the answer,multiple_choice,1,easy,2,Wrong,Right\n"
+                b"The Earth orbits the Sun.,true_false,1,easy,false,,\n"
+                b"Largest planet,short_answer,1,medium,Jupiter|JOVE,,\n"
+                b"The sky is _____,fill_blank,1,easy,blue|azure,,\n"
+                b"Match each item,matching,2,medium,Cat=Mammal; Rose=Flower,,\n"
+                b"Order the steps,ordering,2,medium,Plan; Build; Test,,\n"
+                b"Explain your reasoning,essay,5,hard,,,\n"
+            ),
+            content_type="text/csv",
+        )
+
+        response = self.client.post(
+            reverse("quiz_app:api_teacher_question_import", args=[self.quiz.pk]),
+            {"import_file": upload},
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["imported"], 7)
+        questions = list(self.quiz.questions.order_by("order"))
+        self.assertEqual(
+            [question.question_type for question in questions],
+            ["multiple_choice", "true_false", "short_answer", "fill_blank", "matching", "ordering", "essay"],
+        )
+        self.assertEqual(
+            [choice.choice_text for choice in questions[0].answer_choices.order_by("order")],
+            ["Wrong", "Right"],
+        )
+        self.assertEqual(questions[0].config["allow_multiple"], False)
+        self.assertEqual(questions[1].answer_choices.get(is_correct=True).choice_text, "False")
+        self.assertEqual(questions[2].config["accepted_answers"], ["Jupiter", "JOVE"])
+        self.assertEqual(questions[3].config["blanks"], [["blue", "azure"]])
+        self.assertEqual(len(questions[4].config["pairs"]), 2)
+        self.assertEqual(questions[5].config["items"], ["Plan", "Build", "Test"])
+
+    def test_question_import_previews_xlsx(self):
+        from openpyxl import Workbook
+
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.append(["question_text", "question_type", "marks", "difficulty", "correct_answer"])
+        sheet.append(["Explain gravity", "essay", 3, "medium", ""])
+        output = BytesIO()
+        workbook.save(output)
+        workbook.close()
+        self.client.force_login(self.teacher_user)
+
+        response = self.client.post(
+            reverse("quiz_app:api_teacher_question_import", args=[self.quiz.pk]),
+            {
+                "import_file": SimpleUploadedFile(
+                    "questions.xlsx",
+                    output.getvalue(),
+                    content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                ),
+                "dry_run": "true",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["summary"], {"total": 1, "valid": 1, "invalid": 0})
+        self.assertEqual(self.quiz.questions.count(), 0)
+
+    def test_question_import_enforces_file_type_and_size_limits(self):
+        self.client.force_login(self.teacher_user)
+        endpoint = reverse("quiz_app:api_teacher_question_import", args=[self.quiz.pk])
+
+        unsupported = self.client.post(
+            endpoint,
+            {"import_file": SimpleUploadedFile("questions.xls", b"legacy", content_type="application/vnd.ms-excel"),
+             "dry_run": "true"},
+        )
+        self.assertEqual(unsupported.status_code, 400)
+        self.assertIn("CSV or XLSX", unsupported.json()["fields"]["import_file"][0])
+
+        oversized = self.client.post(
+            endpoint,
+            {"import_file": SimpleUploadedFile("large.csv", b"x" * (5 * 1024 * 1024 + 1), content_type="text/csv")},
+        )
+        self.assertEqual(oversized.status_code, 413)
+        self.assertEqual(self.quiz.questions.count(), 0)
+
+    def test_question_import_respects_quiz_ownership_and_school_scope(self):
+        self.client.force_login(self.teacher_user)
+        endpoint = reverse("quiz_app:api_teacher_question_import", args=[self.other_quiz.pk])
+        payload = {
+            "import_file": SimpleUploadedFile(
+                "questions.csv",
+                b"question_text,question_type\nUnauthorized,essay\n",
+                content_type="text/csv",
+            ),
+            "dry_run": "true",
+        }
+        response = self.client.post(endpoint, payload)
+        self.assertEqual(response.status_code, 404)
+
+        self.client.force_login(self.admin)
+        cross_school = self.client.post(
+            reverse("quiz_app:api_teacher_question_import", args=[self.beta_quiz.pk]),
+            {
+                "import_file": SimpleUploadedFile(
+                    "questions.csv",
+                    b"question_text,question_type\nCross school,essay\n",
+                    content_type="text/csv",
+                ),
+                "dry_run": "true",
+            },
+        )
+        self.assertEqual(cross_school.status_code, 404)
 
     def test_grading_cannot_exceed_question_marks(self):
         question = Question.objects.create(
@@ -379,3 +584,150 @@ class AssessmentManagementApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["score"], 7)
         self.assertTrue(response.json()["results_available"])
+
+    def test_delayed_results_become_available_when_manual_grading_is_complete(self):
+        self.quiz.status = "published"
+        self.quiz.show_results_immediately = False
+        self.quiz.allow_review = True
+        self.quiz.total_marks = 20
+        self.quiz.classes.add(self.class_a)
+        self.quiz.save()
+        first_question = Question.objects.create(
+            quiz=self.quiz,
+            question_text="Explain the first point",
+            question_type="essay",
+            marks=10,
+            school=self.school_a,
+        )
+        second_question = Question.objects.create(
+            quiz=self.quiz,
+            question_text="Explain the second point",
+            question_type="essay",
+            marks=10,
+            school=self.school_a,
+        )
+        attempt = QuizAttempt.objects.create(
+            quiz=self.quiz,
+            student=self.student,
+            school=self.school_a,
+            attempt_number=1,
+            is_submitted=True,
+            is_completed=True,
+            configuration_snapshot={
+                "quiz": {
+                    "show_results_immediately": False,
+                    "show_correct_answers": False,
+                    "allow_review": True,
+                    "total_marks": 20,
+                    "passing_marks": 10,
+                },
+                "questions": {
+                    str(first_question.pk): {
+                        "question_type": "essay",
+                        "marks": 10,
+                        "config": {"rubric": ""},
+                    },
+                    str(second_question.pk): {
+                        "question_type": "essay",
+                        "marks": 10,
+                        "config": {"rubric": ""},
+                    },
+                },
+                "sections": [],
+            },
+        )
+        first_response = QuizResponse.objects.create(
+            attempt=attempt,
+            question=first_question,
+            school=self.school_a,
+            text_answer="My first explanation",
+        )
+        second_response = QuizResponse.objects.create(
+            attempt=attempt,
+            question=second_question,
+            school=self.school_a,
+            text_answer="My second explanation",
+        )
+
+        self.client.force_login(self.student_user)
+        result_url = reverse("quiz_app:api_student_quiz_result", args=[attempt.pk])
+        hidden_result = self.client.get(result_url)
+        self.assertEqual(hidden_result.status_code, 403)
+        history = self.client.get(reverse("quiz_app:api_student_attempts")).json()
+        self.assertFalse(history["attempts"][0]["results_available"])
+
+        self.client.force_login(self.teacher_user)
+        graded = self.client.post(
+            reverse("quiz_app:api_teacher_response_grade", args=[first_response.pk]),
+            data=json.dumps({"marks_awarded": 6, "grading_notes": "Good explanation"}),
+            content_type="application/json",
+        )
+        self.assertEqual(graded.status_code, 200)
+        self.assertFalse(graded.json()["all_graded"])
+
+        self.client.force_login(self.student_user)
+        history = self.client.get(reverse("quiz_app:api_student_attempts")).json()
+        self.assertFalse(history["attempts"][0]["results_available"])
+        still_hidden = self.client.get(result_url)
+        self.assertEqual(still_hidden.status_code, 403)
+
+        self.client.force_login(self.teacher_user)
+        final_grade = self.client.post(
+            reverse("quiz_app:api_teacher_response_grade", args=[second_response.pk]),
+            data=json.dumps({"marks_awarded": 4, "grading_notes": "Good explanation"}),
+            content_type="application/json",
+        )
+        self.assertEqual(final_grade.status_code, 200)
+        self.assertTrue(final_grade.json()["all_graded"])
+
+        self.client.force_login(self.student_user)
+        history = self.client.get(reverse("quiz_app:api_student_attempts")).json()
+        self.assertTrue(history["attempts"][0]["results_available"])
+        self.assertEqual(history["attempts"][0]["score"], 10)
+        visible_result = self.client.get(result_url)
+        self.assertEqual(visible_result.status_code, 200)
+        self.assertEqual(visible_result.json()["score"], 10)
+
+    def test_delayed_results_remain_hidden_for_fully_graded_objective_attempts(self):
+        self.quiz.status = "published"
+        self.quiz.show_results_immediately = False
+        self.quiz.classes.add(self.class_a)
+        self.quiz.save()
+        question = Question.objects.create(
+            quiz=self.quiz,
+            question_text="Choose an answer",
+            question_type="multiple_choice",
+            marks=1,
+            school=self.school_a,
+        )
+        attempt = QuizAttempt.objects.create(
+            quiz=self.quiz,
+            student=self.student,
+            school=self.school_a,
+            attempt_number=1,
+            is_submitted=True,
+            is_completed=True,
+            is_graded=True,
+            configuration_snapshot={
+                "quiz": {"show_results_immediately": False},
+                "questions": {
+                    str(question.pk): {
+                        "question_type": "multiple_choice",
+                        "choices": {"1": {"is_correct": True, "text": "Option"}},
+                    },
+                },
+            },
+        )
+        QuizResponse.objects.create(
+            attempt=attempt,
+            question=question,
+            school=self.school_a,
+            is_graded=True,
+        )
+
+        self.client.force_login(self.student_user)
+        response = self.client.get(
+            reverse("quiz_app:api_student_quiz_result", args=[attempt.pk])
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["code"], "RESULTS_NOT_RELEASED")

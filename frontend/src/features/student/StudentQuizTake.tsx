@@ -67,6 +67,7 @@ export const StudentQuizTake: React.FC = () => {
         return;
       }
 
+      setCurrentIndex(0);
       setData(res);
       setSecondsRemaining(res.time_remaining_seconds);
       setSelectedSectionId(
@@ -111,7 +112,7 @@ export const StudentQuizTake: React.FC = () => {
     ? data.active_section_id ?? (sections.some((section) => section.id === null) ? null : undefined)
     : selectedSectionId;
   const currentSection = sections.find((section) => section.id === currentSectionId);
-  const visibleQuestions = currentSection?.questions ?? data?.questions ?? [];
+  const visibleQuestions = currentSection?.questions ?? (data?.section_timing_enabled ? [] : data?.questions ?? []);
   const activeGroup = currentSection?.groups.find(
     (group) => group.questions.some((question) => question.id === visibleQuestions[currentIndex]?.id)
   );
@@ -199,8 +200,8 @@ export const StudentQuizTake: React.FC = () => {
             setSectionError(err instanceof Error ? err.message : 'Unable to submit the timed section.');
           }
         } finally {
-          sectionSubmittingRef.current = false;
           await loadAttempt();
+          sectionSubmittingRef.current = false;
         }
       })();
       return;
@@ -305,6 +306,19 @@ export const StudentQuizTake: React.FC = () => {
           } catch {
             // A rejected answer must not remain in the local draft.
           }
+        } else if (
+          err instanceof ApiError
+          && (err.code === 'SECTION_TIME_EXPIRED' || err.code === 'SECTION_LOCKED')
+        ) {
+          const restored = { ...responses };
+          if (alreadyAnswered) restored[String(questionId)] = base;
+          else delete restored[String(questionId)];
+          setResponses(restored);
+          try {
+            localStorage.setItem(`quiz_draft_${attemptId}`, JSON.stringify(restored));
+          } catch {
+            // A rejected answer must not remain in the local draft.
+          }
         }
       }
     })();
@@ -328,12 +342,17 @@ export const StudentQuizTake: React.FC = () => {
     const currentPosition = sections.findIndex((section) => section.id === currentSection.id);
     const targetPosition = sections.findIndex((section) => section.id === sectionId);
     if (targetPosition === currentPosition + 1) {
-      setShowSectionConfirm(true);
+      if (currentSection.time_limit_minutes === null) {
+        void confirmSectionNavigation();
+      } else {
+        setShowSectionConfirm(true);
+      }
     }
   };
 
   const confirmSectionNavigation = async () => {
-    if (!attemptId || !currentSection || currentSection.id === null) return;
+    if (!attemptId || !currentSection || currentSection.id === null || sectionSubmittingRef.current) return;
+    sectionSubmittingRef.current = true;
     setSectionSubmitting(true);
     setSectionError(null);
     try {
@@ -349,6 +368,7 @@ export const StudentQuizTake: React.FC = () => {
         setSectionError(err instanceof Error ? err.message : 'Unable to move to the next section.');
       }
     } finally {
+      sectionSubmittingRef.current = false;
       setSectionSubmitting(false);
     }
   };
@@ -442,7 +462,7 @@ export const StudentQuizTake: React.FC = () => {
               {saveStatus === 'error' && (
                 <span className="core-text--warning core-type--weight-semibold" title={saveErrorMessage || ''}>
                   <AppIcon name="cloudOff" className="core-space--margin-end-1" />
-                  Saved Offline
+                  Save issue
                 </span>
               )}
             </div>
@@ -537,6 +557,14 @@ export const StudentQuizTake: React.FC = () => {
       {/* Main Examination Area */}
       <main className="stu-exam-body" id="quiz-question-container">
         {sectionError && <Alert variant="danger" dismissible onDismiss={() => setSectionError(null)}>{sectionError}</Alert>}
+        {saveStatus === 'error' && saveErrorMessage && (
+          <Alert variant="warning" dismissible onDismiss={() => setSaveErrorMessage(null)}>
+            {saveErrorMessage}
+          </Alert>
+        )}
+        {data.section_timing_enabled && !currentSection && (
+          <Alert variant="info">All sections are complete. Submit your quiz to finish.</Alert>
+        )}
         {currentSection && (
           <section className="stu-exam-section-header" aria-label={`${currentSection.title} instructions`}>
             <h2>{currentSection.title}</h2>
@@ -568,17 +596,19 @@ export const StudentQuizTake: React.FC = () => {
 
             {/* Large Readable Question Text */}
             <div className="stu-exam-question-text">
-              {currentQuestion.question_text}
+              {currentQuestion.question_text.replace(/_{5,}/g, '__________')}
             </div>
 
             {currentAnswer && (() => {
               const Player = getQuestionType(currentQuestion.question_type).Player;
               return (
-                <Player
-                  question={currentQuestion}
-                  response={currentAnswer}
-                  onChange={(answer, persist) => saveAnswer(currentQuestion.id, answer, persist)}
-                />
+                <div className={`stu-exam-player stu-exam-player--${currentQuestion.question_type}`}>
+                  <Player
+                    question={currentQuestion}
+                    response={currentAnswer}
+                    onChange={(answer, persist) => saveAnswer(currentQuestion.id, answer, persist)}
+                  />
+                </div>
               );
             })()}
           </div>

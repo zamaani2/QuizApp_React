@@ -1928,11 +1928,60 @@ def _student_quiz_results_available(quiz):
     return bool(quiz.show_results_immediately or quiz.results_released_at)
 
 
-def _student_visible_attempts(attempts):
+def _student_attempt_has_completed_manual_grading(attempt):
+    if not attempt.is_submitted or not attempt.is_graded:
+        return False
+
+    from .services.assessment_management import get_manual_grading_responses
+
+    manual_responses = get_manual_grading_responses(attempt, attempt.school)
+    return bool(manual_responses) and all(
+        response.is_graded for response in manual_responses
+    )
+
+
+def _student_attempt_results_available(attempt):
+    return (
+        _student_quiz_results_available(attempt.quiz)
+        or _student_attempt_has_completed_manual_grading(attempt)
+    )
+
+
+def _student_attempts_with_grading_responses(attempts, school):
+    responses = QuizResponse.objects.filter(
+        school=school,
+        question__school=school,
+        question__quiz_id=F("attempt__quiz_id"),
+    ).filter(
+        Q(selected_choice__isnull=True) | Q(selected_choice__school=school)
+    ).select_related("question")
+    return attempts.prefetch_related(
+        Prefetch(
+            "responses",
+            queryset=responses,
+            to_attr="prefetched_grading_responses",
+        )
+    )
+
+
+def _student_visible_attempts(attempts, school):
+    graded_attempts = _student_attempts_with_grading_responses(
+        attempts.filter(
+            is_submitted=True,
+            is_graded=True,
+        ),
+        school,
+    )
+    graded_manual_attempt_ids = [
+        attempt.pk
+        for attempt in graded_attempts
+        if _student_attempt_has_completed_manual_grading(attempt)
+    ]
     return attempts.filter(
         Q(quiz__show_results_immediately=True)
         | Q(quiz__results_released_at__isnull=False)
-    )
+        | Q(pk__in=graded_manual_attempt_ids)
+    ).distinct()
 
 
 @require_http_methods(["GET"])
@@ -1990,7 +2039,7 @@ def student_dashboard_api_view(request):
     completed_attempts = all_attempts.filter(is_submitted=True)
     in_progress_attempts = all_attempts.filter(is_submitted=False, is_completed=False)
 
-    visible_completed_attempts = _student_visible_attempts(completed_attempts)
+    visible_completed_attempts = _student_visible_attempts(completed_attempts, school)
     avg_score = visible_completed_attempts.aggregate(avg=Avg("percentage"))["avg"] or 0.0
     best_attempt = visible_completed_attempts.order_by("-percentage", "-score").first()
     best_score = best_attempt.percentage if best_attempt else 0.0
@@ -2022,19 +2071,23 @@ def student_dashboard_api_view(request):
         })
 
     recent_list = []
-    for a in completed_attempts.order_by("-submitted_at")[:5]:
+    recent_attempts = _student_attempts_with_grading_responses(
+        completed_attempts.order_by("-submitted_at")[:5],
+        school,
+    )
+    for a in recent_attempts:
         recent_list.append({
             "id": a.pk,
             "quiz_id": a.quiz.pk,
             "quiz_title": a.quiz.title,
             "subject_name": a.quiz.subject.subject_name if a.quiz.subject else "General",
-            "score": a.score if _student_quiz_results_available(a.quiz) else None,
-            "total_marks": a.quiz.total_marks if _student_quiz_results_available(a.quiz) else None,
-            "percentage": a.percentage if _student_quiz_results_available(a.quiz) else None,
+            "score": a.score if _student_attempt_results_available(a) else None,
+            "total_marks": a.quiz.total_marks if _student_attempt_results_available(a) else None,
+            "percentage": a.percentage if _student_attempt_results_available(a) else None,
             "is_passed": (
                 a.is_passed() if callable(getattr(a, "is_passed", None)) else False
-            ) if _student_quiz_results_available(a.quiz) else None,
-            "results_available": _student_quiz_results_available(a.quiz),
+            ) if _student_attempt_results_available(a) else None,
+            "results_available": _student_attempt_results_available(a),
             "submitted_at": a.submitted_at.isoformat() if a.submitted_at else None,
         })
 
@@ -2105,14 +2158,27 @@ def student_quizzes_api_view(request):
     quiz_results = []
 
     for quiz in quizzes:
-        attempts = QuizAttempt.objects.filter(quiz=quiz, student=student, school=school)
+        attempts = _student_attempts_with_grading_responses(
+            QuizAttempt.objects.filter(quiz=quiz, student=student, school=school),
+            school,
+        )
         attempts_count = attempts.count()
         can_attempt, attempt_message = quiz.can_student_attempt(student)
         in_prog = attempts.filter(is_submitted=False, is_completed=False).first()
 
-        completed = attempts.filter(is_submitted=True)
-        results_available = _student_quiz_results_available(quiz)
-        best_att = completed.order_by("-percentage").first() if results_available else None
+        completed = list(attempts.filter(is_submitted=True))
+        visible_completed = [
+            attempt for attempt in completed
+            if _student_attempt_results_available(attempt)
+        ]
+        results_available = (
+            _student_quiz_results_available(quiz) or bool(visible_completed)
+        )
+        best_att = max(
+            visible_completed,
+            key=lambda attempt: (attempt.percentage, attempt.score),
+            default=None,
+        )
 
         if attempts_count >= quiz.max_attempts:
             item_status = "completed"
@@ -2185,18 +2251,28 @@ def student_quiz_detail_api_view(request, quiz_id):
             status=403,
         )
 
-    attempts = QuizAttempt.objects.filter(
-        quiz=quiz,
-        student=student,
-        school=school,
-    ).order_by("-started_at")
+    attempts = _student_attempts_with_grading_responses(
+        QuizAttempt.objects.filter(
+            quiz=quiz,
+            student=student,
+            school=school,
+        ).order_by("-started_at"),
+        school,
+    )
 
     attempts_count = attempts.count()
-    completed_attempts = attempts.filter(is_submitted=True)
-    results_available = _student_quiz_results_available(quiz)
-    best_attempt = (
-        completed_attempts.order_by("-percentage", "-score").first()
-        if results_available else None
+    completed_attempts = list(attempts.filter(is_submitted=True))
+    visible_completed = [
+        attempt for attempt in completed_attempts
+        if _student_attempt_results_available(attempt)
+    ]
+    results_available = (
+        _student_quiz_results_available(quiz) or bool(visible_completed)
+    )
+    best_attempt = max(
+        visible_completed,
+        key=lambda attempt: (attempt.percentage, attempt.score),
+        default=None,
     )
     in_prog = attempts.filter(is_submitted=False, is_completed=False).first()
     can_attempt, attempt_message = quiz.can_student_attempt(student)
@@ -2204,16 +2280,17 @@ def student_quiz_detail_api_view(request, quiz_id):
 
     past_attempts = []
     for a in attempts:
+        attempt_results_available = _student_attempt_results_available(a)
         past_attempts.append({
             "id": a.pk,
             "attempt_number": a.attempt_number,
-            "score": a.score if results_available and a.is_submitted else None,
-            "total_marks": a.quiz.total_marks if results_available and a.is_submitted else None,
-            "percentage": a.percentage if results_available and a.is_submitted else None,
+            "score": a.score if attempt_results_available and a.is_submitted else None,
+            "total_marks": a.quiz.total_marks if attempt_results_available and a.is_submitted else None,
+            "percentage": a.percentage if attempt_results_available and a.is_submitted else None,
             "is_passed": (
                 a.is_passed() if callable(getattr(a, "is_passed", None)) else False
-            ) if results_available and a.is_submitted else None,
-            "results_available": results_available,
+            ) if attempt_results_available and a.is_submitted else None,
+            "results_available": attempt_results_available,
             "is_submitted": a.is_submitted,
             "started_at": a.started_at.isoformat() if a.started_at else None,
             "submitted_at": a.submitted_at.isoformat() if a.submitted_at else None,
@@ -3083,7 +3160,7 @@ def student_quiz_submit_api_view(request, attempt_id):
     )
 
     attempt = _submit_attempt_safely(attempt_id, student, school)
-    results_available = _student_quiz_results_available(attempt.quiz)
+    results_available = _student_attempt_results_available(attempt)
     return JsonResponse({
         "success": True,
         "attempt_id": attempt.id,
@@ -3110,10 +3187,13 @@ def student_attempts_api_view(request):
     if err:
         return err
 
-    attempts = QuizAttempt.objects.filter(
-        student=student,
-        school=school,
-    ).select_related("quiz", "quiz__subject").order_by("-submitted_at", "-started_at")
+    attempts = _student_attempts_with_grading_responses(
+        QuizAttempt.objects.filter(
+            student=student,
+            school=school,
+        ).select_related("quiz", "quiz__subject").order_by("-submitted_at", "-started_at"),
+        school,
+    )
 
     quiz_filter = request.GET.get("quiz", "").strip()
     if quiz_filter:
@@ -3129,9 +3209,12 @@ def student_attempts_api_view(request):
     elif status_filter == "in_progress":
         attempts = attempts.filter(is_submitted=False, is_completed=False)
     elif status_filter == "passed":
-        attempts = _student_visible_attempts(attempts).filter(is_passed=True)
+        attempts = _student_visible_attempts(attempts, school).filter(is_passed=True)
     elif status_filter == "failed":
-        attempts = _student_visible_attempts(attempts).filter(is_submitted=True, is_passed=False)
+        attempts = _student_visible_attempts(attempts, school).filter(
+            is_submitted=True,
+            is_passed=False,
+        )
 
     search_query = request.GET.get("search", "").strip()
     if search_query:
@@ -3142,7 +3225,7 @@ def student_attempts_api_view(request):
 
     all_student_attempts = QuizAttempt.objects.filter(student=student, school=school)
     completed = all_student_attempts.filter(is_submitted=True, is_completed=True)
-    visible_completed = _student_visible_attempts(completed)
+    visible_completed = _student_visible_attempts(completed, school)
     total_attempts = all_student_attempts.count()
     completed_count = completed.count()
     avg_score = visible_completed.aggregate(avg=Avg("score"))["avg"] or 0.0
@@ -3151,7 +3234,7 @@ def student_attempts_api_view(request):
 
     attempts_data = []
     for a in attempts[:100]:
-        results_available = _student_quiz_results_available(a.quiz)
+        results_available = _student_attempt_results_available(a)
         attempts_data.append({
             "id": a.pk,
             "quiz_id": a.quiz.pk,
@@ -3205,7 +3288,7 @@ def student_quiz_result_api_view(request, attempt_id):
         )
 
     quiz = attempt.quiz
-    results_available = _student_quiz_results_available(quiz)
+    results_available = _student_attempt_results_available(attempt)
     if not results_available:
         return JsonResponse(
             {
@@ -3387,7 +3470,7 @@ def student_profile_api_view(request):
         school=school,
         is_submitted=True,
     ).select_related("quiz", "quiz__subject")
-    visible_completed_attempts = _student_visible_attempts(completed_attempts)
+    visible_completed_attempts = _student_visible_attempts(completed_attempts, school)
 
     total_completed = visible_completed_attempts.count()
     passed_count = sum(1 for a in visible_completed_attempts if (a.is_passed() if callable(getattr(a, "is_passed", None)) else False))

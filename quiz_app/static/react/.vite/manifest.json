@@ -125,6 +125,7 @@
       "src/features/teacher/TeacherDashboard.tsx",
       "src/features/teacher/QuizList.tsx",
       "src/features/teacher/QuizDetail.tsx",
+      "src/features/teacher/QuizQuestionsPage.tsx",
       "src/features/teacher/QuizEditor.tsx",
       "src/features/teacher/QuestionEditor.tsx",
       "src/features/teacher/QuestionImport.tsx",
@@ -584,6 +585,9 @@
       "_teacher.js",
       "index.html",
       "_index2.js"
+    ],
+    "css": [
+      "assets/QuestionEditor.css"
     ]
   },
   "src/features/teacher/QuestionImport.tsx": {
@@ -595,6 +599,9 @@
       "_me.js",
       "_teacher.js",
       "index.html"
+    ],
+    "css": [
+      "assets/QuestionImport.css"
     ]
   },
   "src/features/teacher/QuizAssignments.tsx": {
@@ -608,6 +615,9 @@
       "index.html",
       "_ConfirmDialog.js",
       "_Modal.js"
+    ],
+    "css": [
+      "assets/QuizAssignments.css"
     ]
   },
   "src/features/teacher/QuizDetail.tsx": {
@@ -617,8 +627,8 @@
     "isDynamicEntry": true,
     "imports": [
       "_me.js",
-      "index.html",
       "_teacher.js",
+      "index.html",
       "_ConfirmDialog.js",
       "_Modal.js"
     ]
@@ -631,7 +641,8 @@
     "imports": [
       "_me.js",
       "_teacher.js",
-      "index.html"
+      "index.html",
+      "_Modal.js"
     ]
   },
   "src/features/teacher/QuizList.tsx": {
@@ -642,8 +653,26 @@
     "imports": [
       "_me.js",
       "_teacher.js",
-      "_DataTable.js",
-      "index.html"
+      "index.html",
+      "_ConfirmDialog.js",
+      "_Modal.js"
+    ]
+  },
+  "src/features/teacher/QuizQuestionsPage.tsx": {
+    "file": "assets/QuizQuestionsPage.js",
+    "name": "QuizQuestionsPage",
+    "src": "src/features/teacher/QuizQuestionsPage.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "_teacher.js",
+      "_index2.js",
+      "index.html",
+      "_ConfirmDialog.js",
+      "_Modal.js"
+    ],
+    "css": [
+      "assets/QuizQuestionsPage.css"
     ]
   },
   "src/features/teacher/QuizResultDetail.tsx": {

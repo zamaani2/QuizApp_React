@@ -98,17 +98,23 @@ def question_import_template_view(request, quiz_id, format_type="csv"):
     _quiz_for_user(request, quiz_id)
     headers = [
         "question_text", "question_type", "marks", "difficulty", "correct_answer",
-        "choice1", "choice2", "choice3", "choice4", "choice5", "explanation",
+        "choice1", "choice2", "choice3", "choice4", "explanation",
     ]
     examples = [
-        ["What is the capital of France?", "multiple_choice", "1", "easy", "3",
-         "London", "Berlin", "Paris", "Madrid", "", "Paris is the capital and largest city of France."],
-        ["Python is a programming language.", "true_false", "1", "easy", "true",
-         "", "", "", "", "", "Python is indeed a programming language."],
-        ["What is 2 + 2?", "short_answer", "1", "easy", "4",
-         "", "", "", "", "", "The answer is 4."],
+        ["What is 2 + 2?", "multiple_choice", "1", "easy", "2",
+         "3", "4", "", "", "The answer is 4."],
+        ["The Earth orbits the Sun.", "true_false", "1", "easy", "true",
+         "", "", "", "", "This is true."],
+        ["Name the largest planet.", "short_answer", "1", "medium", "Jupiter|JUPITER",
+         "", "", "", "", "Jupiter is the largest planet."],
         ["The capital of England is _____.", "fill_blank", "1", "easy", "London",
-         "", "", "", "", "", "London is the capital of England."],
+         "", "", "", "", "London is the capital of England."],
+        ["Match each item.", "matching", "2", "medium", "Cat=Mammal; Rose=Flower",
+         "", "", "", "", ""],
+        ["Order the steps.", "ordering", "2", "medium", "Plan; Build; Test",
+         "", "", "", "", ""],
+        ["Explain your reasoning.", "essay", "5", "hard", "",
+         "", "", "", "", "Essay questions are manually graded."],
     ]
     if format_type == "csv":
         response = HttpResponse(content_type="text/csv; charset=utf-8")

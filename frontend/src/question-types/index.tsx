@@ -146,10 +146,10 @@ const TextPlayer: React.FC<QuestionTypePlayerProps> = ({ question, response, onC
   if (question.question_type === 'fill_blank' && blankCount > 0) {
     const answers = Array.isArray(text) ? text : [];
     return (
-      <div className="core-display-flex core-layout--column core-layout--gap-2">
+      <div className="stu-exam-fill-blank">
         {Array.from({ length: blankCount }, (_, index) => (
-          <label key={index} className="core-field__label">
-            Blank {index + 1}
+          <label key={index} className="stu-exam-fill-blank__field">
+            <span>Blank {index + 1}</span>
             <input className="core-field__input" value={answers[index] || ''}
               onChange={(event) => {
                 const next = Array.from({ length: blankCount }, (_, itemIndex) =>
@@ -169,13 +169,13 @@ const TextPlayer: React.FC<QuestionTypePlayerProps> = ({ question, response, onC
     );
   }
   return (
-    <div className="core-space--margin-bottom-3">
-      <label htmlFor={`answer-${question.id}`} className="core-field__label">
+    <div className="stu-exam-text-answer">
+      <label htmlFor={`answer-${question.id}`} className="stu-exam-text-answer__label">
         {question.question_type === 'essay' ? 'Write your response:' : 'Type your response:'}
       </label>
       <textarea
         id={`answer-${question.id}`}
-        className="core-field__input"
+        className="core-field__input stu-exam-text-answer__input"
         rows={question.question_type === 'essay' ? 8 : 3}
         value={typeof text === 'string' ? text : response.text_answer || ''}
         onChange={(event) => onChange({
@@ -223,14 +223,14 @@ const MatchingPlayer: React.FC<QuestionTypePlayerProps> = ({ question, response,
   }
 
   return (
-    <div className="core-display-flex core-layout--column core-layout--gap-2">
+    <div className="stu-exam-matching" role="group" aria-label="Match items">
       {pairs.map((pair) => {
         const item = pair as { id: string; text: string };
         return (
-          <label key={item.id} className="core-grid core-grid--gap-2 core-layout--align-center">
-            <span className="core-grid__span-6">{item.text}</span>
+          <div key={item.id} className="stu-exam-matching__row">
+            <span className="stu-exam-matching__prompt">{item.text}</span>
             <select
-              className="core-field__select core-grid__span-6"
+              className="core-field__select stu-exam-matching__select"
               aria-label={`Match for ${item.text}`}
               value={matches[item.id] || ''}
               onChange={(event) => onChange({
@@ -245,7 +245,7 @@ const MatchingPlayer: React.FC<QuestionTypePlayerProps> = ({ question, response,
                 return <option key={right.id} value={right.id}>{right.text}</option>;
               })}
             </select>
-          </label>
+          </div>
         );
       })}
     </div>
@@ -289,16 +289,18 @@ const OrderingPlayer: React.FC<QuestionTypePlayerProps> = ({ question, response,
   const labels = new Map(configItems.map((item) => [item.id, item.text]));
 
   return (
-    <ol aria-label="Reorder items" className="core-display-flex core-layout--column core-layout--gap-2">
+    <ol aria-label="Reorder items" className="stu-exam-ordering">
       {items.map((itemId, index) => (
-        <li key={itemId} className="core-display-flex core-layout--align-center core-layout--gap-2">
-          <span>{labels.get(itemId) || itemId}</span>
-          <button type="button" className="core-button core-button--sm core-button--outline-secondary"
-            aria-label={`Move ${labels.get(itemId) || itemId} up`}
-            disabled={index === 0} onClick={() => move(index, -1)}>Move up</button>
-          <button type="button" className="core-button core-button--sm core-button--outline-secondary"
-            aria-label={`Move ${labels.get(itemId) || itemId} down`}
-            disabled={index === items.length - 1} onClick={() => move(index, 1)}>Move down</button>
+        <li key={itemId} className="stu-exam-ordering__item">
+          <span className="stu-exam-ordering__label">{labels.get(itemId) || itemId}</span>
+          <div className="stu-exam-ordering__actions">
+            <button type="button" className="stu-btn-outline"
+              aria-label={`Move ${labels.get(itemId) || itemId} up`}
+              disabled={index === 0} onClick={() => move(index, -1)}>Move up</button>
+            <button type="button" className="stu-btn-outline"
+              aria-label={`Move ${labels.get(itemId) || itemId} down`}
+              disabled={index === items.length - 1} onClick={() => move(index, 1)}>Move down</button>
+          </div>
         </li>
       ))}
     </ol>

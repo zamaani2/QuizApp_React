@@ -1335,6 +1335,165 @@
   color: var(--stu-navy);
 }
 
+.stu-exam-player {
+  min-width: 0;
+  width: 100%;
+}
+
+.stu-exam-text-answer {
+  display: grid;
+  gap: 0.55rem;
+  width: 100%;
+}
+
+.stu-exam-text-answer__label {
+  color: var(--stu-navy);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.stu-exam-text-answer__input {
+  display: block;
+  width: 100%;
+  min-height: 7rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--stu-border);
+  border-radius: var(--stu-radius-md);
+  background: var(--stu-surface);
+  color: var(--stu-text-main);
+  font: inherit;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.stu-exam-player--essay .stu-exam-text-answer__input {
+  min-height: 15rem;
+}
+
+.stu-exam-fill-blank {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: 0.85rem;
+  width: 100%;
+}
+
+.stu-exam-fill-blank__field {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+  color: var(--stu-navy);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.stu-exam-fill-blank__field .core-field__input {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--stu-border);
+  border-radius: var(--stu-radius-md);
+  background: var(--stu-surface);
+  color: var(--stu-text-main);
+  font: inherit;
+  font-weight: 400;
+}
+
+.stu-exam-matching {
+  display: grid;
+  gap: 0.65rem;
+  width: 100%;
+}
+
+.stu-exam-matching__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  align-items: center;
+  gap: 0.9rem;
+  min-width: 0;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--stu-border);
+  border-radius: var(--stu-radius-md);
+  background: var(--stu-surface-alt);
+}
+
+.stu-exam-matching__prompt {
+  min-width: 0;
+  color: var(--stu-text-main);
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.stu-exam-matching__select {
+  width: 100%;
+  min-width: 0;
+  min-height: 3rem;
+  padding: 0.6rem 2rem 0.6rem 0.75rem;
+  border: 1px solid var(--stu-border);
+  border-radius: var(--stu-radius-sm);
+  background-color: var(--stu-surface);
+  color: var(--stu-text-main);
+}
+
+.stu-exam-ordering {
+  display: grid;
+  gap: 0.65rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stu-exam-ordering__item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  min-height: 4rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--stu-border);
+  border-radius: var(--stu-radius-md);
+  background: var(--stu-surface-alt);
+}
+
+.stu-exam-ordering__label {
+  min-width: 0;
+  color: var(--stu-text-main);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.stu-exam-ordering__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.stu-exam-ordering__actions .stu-btn-outline {
+  min-height: 2.75rem;
+  padding: 0.55rem 0.75rem;
+}
+
+.stu-exam-player button:focus-visible,
+.stu-exam-player select:focus-visible,
+.stu-exam-player textarea:focus-visible,
+.stu-exam-player input:focus-visible {
+  outline: 3px solid var(--stu-sky);
+  outline-offset: 2px;
+}
+
+@media (max-width: 560px) {
+  .stu-exam-matching__row,
+  .stu-exam-ordering__item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .stu-exam-ordering__actions {
+    justify-content: flex-start;
+  }
+}
+
 /* Sticky Bottom Action Bar for Assessment */
 .stu-exam-bottom-bar {
   position: fixed;

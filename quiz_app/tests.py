@@ -2062,6 +2062,42 @@ class SchoolScopedManagementEndpointTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertTrue(self.quiz_a.classes.filter(pk=self.class_a.pk).exists())
 
+    def test_set_quiz_classes_is_atomic_and_enforces_quiz_and_school_scope(self):
+        self.client.force_login(self.admin_a)
+        path = reverse("quiz_app:api_teacher_quiz_assignment_set", args=[self.quiz_a.pk])
+
+        invalid_response = self.client.post(
+            path,
+            data=json.dumps({"class_ids": [self.class_b.pk]}),
+            content_type="application/json",
+        )
+        self.assertEqual(invalid_response.status_code, 400)
+        self.assertTrue(self.quiz_a.classes.filter(pk=self.class_a.pk).exists())
+
+        missing_list_response = self.client.post(
+            path,
+            data=json.dumps({}),
+            content_type="application/json",
+        )
+        self.assertEqual(missing_list_response.status_code, 400)
+        self.assertTrue(self.quiz_a.classes.filter(pk=self.class_a.pk).exists())
+
+        clear_response = self.client.post(
+            path,
+            data=json.dumps({"class_ids": []}),
+            content_type="application/json",
+        )
+        self.assertEqual(clear_response.status_code, 200, clear_response.content)
+        self.assertFalse(self.quiz_a.classes.filter(pk=self.class_a.pk).exists())
+
+        self.client.force_login(self.teacher_user_a)
+        foreign_quiz_response = self.client.post(
+            reverse("quiz_app:api_teacher_quiz_assignment_set", args=[self.quiz_a_other_teacher.pk]),
+            data=json.dumps({"class_ids": []}),
+            content_type="application/json",
+        )
+        self.assertEqual(foreign_quiz_response.status_code, 404)
+
     def test_school_admin_assignment_overview_has_school_quizzes_without_profile(self):
         response = self.client.get(reverse("quiz_app:quiz_assignment_overview"))
 
@@ -3074,9 +3110,8 @@ class SchoolScopedManagementEndpointTests(TestCase):
                 },
             )
 
-        self.assertEqual(response.status_code, 200)
-        self.assertFalse(response.json()["complete"])
-        self.assertEqual(response.json()["imported"], 0)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "VALIDATION_ERROR")
         self.assertEqual(self.quiz_a.questions.count(), question_count)
 
     def test_student_and_teacher_imports_reject_row_limit_overflow(self):
