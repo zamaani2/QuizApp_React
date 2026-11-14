@@ -5,6 +5,7 @@ import { fetchTeacherResult } from '../api/teacher';
 import { studentApi } from '../api/student';
 import { Alert } from '../components/common/Alert';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { getQuestionType } from '../question-types';
 import type { QuizResultSchoolInfo, TeacherResultDetail } from '../types';
 import type { StudentQuizResultData } from '../types/student';
 import './quiz-result-print.css';
@@ -41,6 +42,9 @@ interface QuizResultPrintReportProps {
 
 const formatDate = (value: string | null) =>
   value ? new Date(value).toLocaleString() : 'Not available';
+const formatMarks = (value: number) => new Intl.NumberFormat(undefined, {
+  maximumFractionDigits: 2,
+}).format(value);
 
 const QuizResultPrintReport: React.FC<QuizResultPrintReportProps> = ({
   quizTitle,
@@ -116,11 +120,11 @@ const QuizResultPrintReport: React.FC<QuizResultPrintReportProps> = ({
           <h2 className="quiz-print__summary-title">Result summary</h2>
           <div className="quiz-print__score">
             <span>Final score</span>
-            <strong>{score} <small>/ {totalMarks}</small></strong>
+            <strong>{formatMarks(score)} <small>/ {formatMarks(totalMarks)}</small></strong>
           </div>
           <div className="quiz-print__percentage">
             <span>Percentage</span>
-            <strong>{percentage}%</strong>
+            <strong>{formatMarks(percentage)}%</strong>
           </div>
           {durationMinutes !== undefined && durationMinutes !== null && (
             <div className="quiz-print__metric">
@@ -138,7 +142,7 @@ const QuizResultPrintReport: React.FC<QuizResultPrintReportProps> = ({
               {sectionScores.map((section) => (
                 <div key={section.section_id}>
                   <span>{section.title}</span>
-                  <strong>{section.score} / {section.total_marks}</strong>
+                  <strong>{formatMarks(section.score)} / {formatMarks(section.total_marks)}</strong>
                 </div>
               ))}
             </div>
@@ -199,24 +203,29 @@ const TeacherResultReport: React.FC<{
       const answer = response.selected_choices.length
         ? response.selected_choices.join(', ')
         : response.selected_choice || response.text_answer || 'No answer provided';
-      const correctAnswers = response.correct_choices.length
-        ? response.correct_choices
-        : response.answer_key ? [response.answer_key] : [];
+      const Review = getQuestionType(response.question_type).Review;
 
       return (
-        <article className="quiz-print__question" key={response.id}>
-          <div className="quiz-print__question-heading">
-            <h3>Question {index + 1}</h3>
-            <span>{response.marks_awarded} / {response.marks} marks</span>
+        <article
+          className={`quiz-print__question ${response.is_correct
+            ? 'quiz-print__question--correct'
+            : 'quiz-print__question--incorrect'}`}
+          key={response.id}
+        >
+          <div className="quiz-print__question-heading question-review__header">
+            <h3 className="question-review__number">Question {index + 1}</h3>
+            <span className="question-review__score">{response.marks_awarded} / {response.marks} marks</span>
           </div>
-          <p className="quiz-print__question-text">{response.question_text}</p>
-          <p className="quiz-print__answer"><strong>Student answer:</strong> {answer}</p>
+          <p className="quiz-print__question-text question-review__question-title">{response.question_text}</p>
+          <Review
+            answer={response.review_data?.student_answer ?? answer}
+            correctAnswer={response.review_data?.correct_answer
+              ?? (response.correct_choices.length ? response.correct_choices : response.answer_key)}
+            showCorrectAnswers
+          />
           <p className={`quiz-print__answer-status ${!hasAnswer ? 'is-unanswered' : response.is_correct ? 'is-correct' : 'is-incorrect'}`}>
             {!hasAnswer ? 'Unanswered' : response.is_correct ? 'Correct' : 'Incorrect'}
           </p>
-          {correctAnswers.length > 0 && (
-            <p className="quiz-print__answer"><strong>Correct answer:</strong> {correctAnswers.join(', ')}</p>
-          )}
           {response.grading_notes && (
             <p className="quiz-print__notes"><strong>Grading notes:</strong> {response.grading_notes}</p>
           )}
@@ -381,39 +390,37 @@ export const StudentQuizResultPrint: React.FC = () => {
     >
       {!result.allow_review ? (
         <p className="quiz-print__empty">Score summary only; answer review is not available for this quiz.</p>
-      ) : result.questions.length ? result.questions.map((question, index) => (
-        <article className="quiz-print__question" key={question.id}>
-          <div className="quiz-print__question-heading">
-            <h3>Question {index + 1}</h3>
-            <span>{question.marks_obtained} / {question.marks} marks</span>
-          </div>
-          <p className="quiz-print__question-text">{question.question_text}</p>
-          {question.choices.length ? (
-            <ul className="quiz-print__choices">
-              {question.choices.map((choice) => (
-                <li key={choice.id}>
-                  <span>{choice.choice_text}</span>
-                  <span className="quiz-print__choice-labels">
-                    {choice.is_selected && <strong>Your answer</strong>}
-                    {result.show_correct_answers && choice.is_correct && <strong>Correct answer</strong>}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="quiz-print__answer"><strong>Your answer:</strong> {question.student_answer || 'No response provided'}</p>
-          )}
-          <p className={`quiz-print__answer-status ${question.is_correct ? 'is-correct' : 'is-incorrect'}`}>
-            {question.is_correct ? 'Correct' : 'Incorrect'}
-          </p>
-          {result.show_correct_answers && question.correct_answer && (
-            <p className="quiz-print__answer"><strong>Correct answer:</strong> {question.correct_answer}</p>
-          )}
-          {result.show_correct_answers && question.explanation && (
-            <p className="quiz-print__notes"><strong>Explanation:</strong> {question.explanation}</p>
-          )}
-        </article>
-      )) : <p className="quiz-print__empty">No questions are available for review.</p>}
+      ) : result.questions.length ? result.questions.map((question, index) => {
+        const Review = getQuestionType(question.question_type).Review;
+        return (
+          <article
+            className={`quiz-print__question ${question.is_correct
+              ? 'quiz-print__question--correct'
+              : 'quiz-print__question--incorrect'}`}
+            key={question.id}
+          >
+            <div className="quiz-print__question-heading question-review__header">
+              <h3 className="question-review__number">Question {index + 1}</h3>
+              <span className="question-review__score">{formatMarks(question.marks_obtained)} / {formatMarks(question.marks)} marks</span>
+            </div>
+            <p className="quiz-print__question-text question-review__question-title">{question.question_text}</p>
+            <Review
+              answer={question.review_data?.student_answer ?? question.student_answer}
+              correctAnswer={result.show_correct_answers
+                ? question.review_data?.correct_answer ?? question.correct_answer
+                : null}
+              choices={question.choices}
+              showCorrectAnswers={result.show_correct_answers}
+            />
+            <p className={`quiz-print__answer-status ${question.is_correct ? 'is-correct' : 'is-incorrect'}`}>
+              {question.is_correct ? 'Correct' : 'Incorrect'}
+            </p>
+            {result.show_correct_answers && question.explanation && (
+              <p className="quiz-print__notes"><strong>Explanation:</strong> {question.explanation}</p>
+            )}
+          </article>
+        );
+      }) : <p className="quiz-print__empty">No questions are available for review.</p>}
     </QuizResultPrintReport>
   );
 };

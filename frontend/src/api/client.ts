@@ -5,6 +5,47 @@ export interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: unknown;
 }
 
+export interface DownloadedFile {
+  blob: Blob;
+  filename: string;
+}
+
+export async function downloadAuthenticatedFile(url: string): Promise<DownloadedFile> {
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: { Accept: 'application/octet-stream, text/csv, application/json' },
+    credentials: 'same-origin',
+  });
+  if (!response.ok) {
+    let payload: ApiErrorPayload;
+    try {
+      payload = await response.json();
+    } catch {
+      payload = {
+        code: response.status === 401 ? 'UNAUTHORIZED' : response.status === 403 ? 'FORBIDDEN' : 'HTTP_ERROR',
+        message: response.statusText || `Request failed with status ${response.status}`,
+      };
+    }
+    throw new ApiError(response.status, payload);
+  }
+
+  const disposition = response.headers.get('Content-Disposition') || '';
+  const filenameMatch = disposition.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i);
+  const filename = filenameMatch?.[1]?.replace(/["']/g, '').trim() || 'download';
+  return { blob: await response.blob(), filename };
+}
+
+export function saveDownloadedFile(file: DownloadedFile): void {
+  const objectUrl = URL.createObjectURL(file.blob);
+  const link = document.createElement('a');
+  link.href = objectUrl;
+  link.download = file.filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+}
+
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS', 'TRACE']);
 
 export async function apiClient<T>(url: string, options: RequestOptions = {}): Promise<T> {

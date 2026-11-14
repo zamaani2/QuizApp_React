@@ -9,7 +9,7 @@ import type {
 import { DataTable, type Column } from '../../components/table/DataTable';
 import { Alert } from '../../components/common/Alert';
 import { Button } from '../../components/common/Button';
-import { Modal } from '../../components/common/Modal';
+import { SideDrawer } from '../../components/common/SideDrawer';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 
 export const TeacherAssignmentsManager: React.FC = () => {
@@ -545,16 +545,18 @@ export const TeacherAssignmentsManager: React.FC = () => {
         </div>
       </div>
 
-      <Modal
+      <SideDrawer
         isOpen={isBulkModalOpen}
         onClose={() => setIsBulkModalOpen(false)}
         title="Bulk Assign Teacher"
-        size="lg"
+        closeDisabled={bulkSubmitting}
         footer={
-          <div className="core-modal__actions">
+          <div className="side-drawer__actions">
             <span className="allocation-bulk__selection-count">{bulkAssignments.length} class-subject pairs selected</span>
-            <Button variant="secondary" size="sm" onClick={() => setIsBulkModalOpen(false)} disabled={bulkSubmitting}>Cancel</Button>
-            <Button variant="primary" size="sm" onClick={handleBulkSubmit} loading={bulkSubmitting} disabled={bulkAssignments.length === 0}>Assign selected</Button>
+            <div className="core-display-flex core-layout--justify-end core-layout--gap-2">
+              <Button variant="secondary" size="sm" onClick={() => setIsBulkModalOpen(false)} disabled={bulkSubmitting}>Cancel</Button>
+              <Button variant="primary" size="sm" onClick={handleBulkSubmit} loading={bulkSubmitting} disabled={bulkAssignments.length === 0}>Assign selected</Button>
+            </div>
           </div>
         }
       >
@@ -612,13 +614,13 @@ export const TeacherAssignmentsManager: React.FC = () => {
             )}
           </section>
         </form>
-      </Modal>
+      </SideDrawer>
 
-      {/* Single Assign Modal */}
-      <Modal
+      <SideDrawer
         isOpen={isSingleModalOpen}
         onClose={() => setIsSingleModalOpen(false)}
         title="Assign Teacher to Subject & Class"
+        closeDisabled={singleSubmitting}
         footer={
           <div className="core-display-flex core-layout--justify-end core-layout--gap-2 core-size--width-full">
             <Button
@@ -744,13 +746,13 @@ export const TeacherAssignmentsManager: React.FC = () => {
             )}
           </div>
         </form>
-      </Modal>
+      </SideDrawer>
 
-      {/* Edit / Reassign Modal */}
-      <Modal
+      <SideDrawer
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         title={`Reassign: ${editingAssignment?.subject_name} (${editingAssignment?.class_name})`}
+        closeDisabled={editSubmitting}
         footer={
           <div className="core-display-flex core-layout--justify-end core-layout--gap-2 core-size--width-full">
             <Button
@@ -815,7 +817,7 @@ export const TeacherAssignmentsManager: React.FC = () => {
             </label>
           </div>
         </form>
-      </Modal>
+      </SideDrawer>
 
       {/* Delete Confirmation */}
       <ConfirmDialog

@@ -56,6 +56,13 @@ export const STUDENT_NAV_ITEMS: StudentNavItem[] = [
     isActive: (p) => p.startsWith('/student/attempts'),
   },
   {
+    id: 'progress',
+    label: 'Progress',
+    to: '/student/progress',
+    icon: Award,
+    isActive: (p) => p.startsWith('/student/progress'),
+  },
+  {
     id: 'account',
     label: 'Account',
     to: '/student/profile',
@@ -174,7 +181,7 @@ export const StudentAppLayout: FC<StudentAppLayoutProps> = ({ children }) => {
           </Link>
 
           <a
-            href="/auth-app/?next=%2Fapp%2F"
+            href="/?next=%2Fapp%2F"
             className={`stu-sidebar__link core-text--danger ${isCollapsed ? 'core-layout--justify-center core-space--padding-x-0' : ''}`}
             title="Sign out of student account"
             aria-label="Sign out"
@@ -228,9 +235,17 @@ export const StudentAppLayout: FC<StudentAppLayoutProps> = ({ children }) => {
               <Bell size={18} aria-hidden="true" />
               <span className="stu-icon-btn__badge">1</span>
             </Link>
+            <Link
+              to="/account"
+              className="stu-icon-btn"
+              title="Account settings"
+              aria-label="Account settings"
+            >
+              <User size={18} aria-hidden="true" />
+            </Link>
 
             <a
-              href="/auth-app/?next=%2Fapp%2F"
+              href="/?next=%2Fapp%2F"
               className="stu-icon-btn core-display-none core-display-md-flex"
               title="Sign Out / Switch Session"
               aria-label="Sign Out"

@@ -775,10 +775,16 @@
   transition: all 0.15s ease;
 }
 
+.stu-card--result-correct { border-left: 4px solid var(--stu-success); }
+.stu-card--result-incorrect { border-left: 4px solid var(--stu-danger); }
+
 .stu-card:hover {
   border-color: #cbd5e1;
   box-shadow: var(--stu-shadow);
 }
+
+.stu-card--result-correct:hover { border-left-color: var(--stu-success); }
+.stu-card--result-incorrect:hover { border-left-color: var(--stu-danger); }
 
 .stu-card--interactive {
   cursor: pointer;

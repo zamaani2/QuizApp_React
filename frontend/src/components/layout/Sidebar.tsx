@@ -147,7 +147,7 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen, onClose, activePath = '/app/
                   <span className="core-nav__mark" aria-hidden="true">
                     <AppIcon name="gauge" />
                   </span>
-                  <span>React Workspace</span>
+                  <span>Dashboard</span>
                 </Link>
               </li>
 
@@ -160,7 +160,7 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen, onClose, activePath = '/app/
                       icon: 'badgeHelp',
                       subItems: [
                         { title: 'All Quizzes', href: '/app/teacher/quizzes' },
-                        { title: 'Class Assignments', href: '/app/teacher/quizzes' },
+                        { title: 'Class Assignments', href: '/app/teacher/assignments' },
                         { title: 'Grading', href: '/app/teacher/grading' },
                         { title: 'Results & Reports', href: '/app/teacher/results' },
                       ],
@@ -243,7 +243,7 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen, onClose, activePath = '/app/
                     { title: 'Grading Queue', icon: 'squarePen', href: '/app/teacher/grading' },
                     { title: 'Results & Analytics', icon: 'chartColumn', href: '/app/teacher/results' },
                     { title: 'Create Quiz', icon: 'circlePlus', href: '/app/teacher/quizzes/new' },
-                    { title: 'Quiz Catalog & Class Assignments', icon: 'clipboardCheck', href: '/app/teacher/quizzes' },
+                    { title: 'Assignments', icon: 'clipboardCheck', href: '/app/teacher/assignments' },
                   ])}
                 </>
               )}
@@ -254,6 +254,7 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen, onClose, activePath = '/app/
                     { title: 'Student Portal', icon: 'gauge', href: '/app/student/dashboard' },
                     { title: 'Available Quizzes', icon: 'badgeHelp', href: '/app/student/quizzes' },
                     { title: 'My Attempts', icon: 'history', href: '/app/student/attempts' },
+                    { title: 'Student Progress', icon: 'chartUp', href: '/app/student/progress' },
                   ])}
                   {renderNavGroup('ACCOUNT', [
                     { title: 'My Profile', icon: 'contact', href: '/app/student/profile' },

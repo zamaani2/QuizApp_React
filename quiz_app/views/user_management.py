@@ -50,9 +50,6 @@ def user_create_view(request):
     POST: Creates user and returns JSON response
     """
     return legacy_write_gone("/api/v1/users/")
-    if request.user.role not in ["admin", "superadmin"]:
-        messages.error(request, "You don't have permission to perform this action.")
-        return redirect("quiz_app:user_list")
     
     school = request.user.school
     
@@ -162,9 +159,6 @@ def user_edit_view(request, user_id):
     POST: Updates user and returns JSON response
     """
     return legacy_write_gone("/api/v1/users/")
-    if request.user.role not in ["admin", "superadmin"]:
-        messages.error(request, "You don't have permission to perform this action.")
-        return redirect("quiz_app:user_list")
     
     school = request.user.school
     

@@ -1,6 +1,7 @@
 import { AppIcon } from '../common/AppIcon';
 import { SignOutForm } from '../SignOutForm';
 import { useState, useRef, useEffect, type FC } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { ThemeSelector } from './ThemeSelector';
 import { SessionTimer } from './SessionTimer';
@@ -114,13 +115,13 @@ export const Header: FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen }) => {
                   <strong>{user?.full_name || user?.username}</strong>
                   <span>{user?.role}</span>
                 </div>
+                <Link to="/account" onClick={() => setIsUserMenuOpen(false)}>
+                  <AppIcon name="shield" aria-hidden="true" /> Account settings
+                </Link>
                 {role === 'student' && (
-                  <>
-                      <a href="/app/student/profile">
-                        <AppIcon name="contact" aria-hidden="true" />{' '}
-                        My Profile
-                      </a>
-                  </>
+                  <Link to="/student/profile" onClick={() => setIsUserMenuOpen(false)}>
+                    <AppIcon name="contact" aria-hidden="true" /> My Profile
+                  </Link>
                 )}
                 <SignOutForm
                   action={role === 'superadmin' ? '/superadmin/logout/' : '/logout/'}

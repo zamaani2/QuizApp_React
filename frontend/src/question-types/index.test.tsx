@@ -156,4 +156,13 @@ describe('question type registry', () => {
       answer_data: { items: ['item:1', 'item:0'] },
     });
   });
+
+  it('omits empty correct answers from review output', () => {
+    const Review = getQuestionType('essay').Review;
+
+    render(<Review answer="A student response" correctAnswer="" showCorrectAnswers />);
+
+    expect(screen.getByText('A student response')).toBeInTheDocument();
+    expect(screen.queryByText(/Correct answer:/)).not.toBeInTheDocument();
+  });
 });

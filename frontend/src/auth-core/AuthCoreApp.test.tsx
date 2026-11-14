@@ -7,7 +7,7 @@ describe('Authentication and System Core', () => {
     vi.restoreAllMocks();
     document.head.innerHTML = '<meta name="csrf-token" content="test-csrf-token">';
     document.cookie = 'csrftoken=test-csrf-token; path=/';
-    window.history.replaceState({}, '', '/auth-app/');
+    window.history.replaceState({}, '', '/');
   });
 
   it('shows a Django-backed sign-in form for an anonymous session', async () => {
@@ -25,7 +25,7 @@ describe('Authentication and System Core', () => {
     expect(screen.getByLabelText('Password')).toHaveAttribute('name', 'password');
     expect(screen.getByRole('link', { name: 'Forgot password?' })).toHaveAttribute(
       'href',
-      '/auth-app/?flow=password-reset'
+      '/?flow=password-reset'
     );
     expect(document.querySelector('form')).toHaveAttribute('action', '/login/?next=%2Fapp%2F');
     expect(document.querySelector('form')).toHaveAttribute('method', 'post');
@@ -98,7 +98,7 @@ describe('Authentication and System Core', () => {
     };
     const fetchMock = vi.fn().mockResolvedValueOnce(unauthorized).mockResolvedValueOnce(accepted);
     global.fetch = fetchMock;
-    window.history.replaceState({}, '', '/auth-app/?flow=password-reset');
+    window.history.replaceState({}, '', '/?flow=password-reset');
 
     render(<AuthCoreApp />);
     await screen.findByRole('heading', { name: 'Reset your password' });
@@ -135,7 +135,7 @@ describe('Authentication and System Core', () => {
     window.history.replaceState(
       {},
       '',
-      '/auth-app/?flow=password-reset-confirm&uid=MTI&token=token-value'
+      '/?flow=password-reset-confirm&uid=MTI&token=token-value'
     );
 
     render(<AuthCoreApp />);
@@ -156,7 +156,7 @@ describe('Authentication and System Core', () => {
   });
 
   it('shows the separate superadmin sign-in portal', async () => {
-    window.history.replaceState({}, '', '/auth-app/?portal=superadmin');
+    window.history.replaceState({}, '', '/?portal=superadmin');
     global.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 401,
@@ -173,7 +173,7 @@ describe('Authentication and System Core', () => {
     );
     expect(screen.getByRole('link', { name: 'Use school sign-in' })).toHaveAttribute(
       'href',
-      '/auth-app/'
+      '/'
     );
     expect(screen.queryByRole('link', { name: /classic sign in/i })).not.toBeInTheDocument();
   });
@@ -196,7 +196,7 @@ describe('Authentication and System Core', () => {
     };
     const fetchMock = vi.fn().mockResolvedValueOnce(unauthorized).mockResolvedValueOnce(forbidden);
     global.fetch = fetchMock;
-    window.history.replaceState({}, '', '/auth-app/?portal=superadmin');
+    window.history.replaceState({}, '', '/?portal=superadmin');
 
     render(<AuthCoreApp />);
     await screen.findByRole('heading', { name: 'Superadmin sign in' });

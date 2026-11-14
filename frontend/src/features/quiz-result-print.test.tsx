@@ -26,20 +26,44 @@ describe('Quiz result print reports', () => {
         percentage: 80,
         submitted_at: '2026-11-06T12:00:00Z',
         is_graded: true,
-        responses: [{
-          id: 31,
-          question_text: 'Name a mammal.',
-          question_type: 'short_answer',
-          marks: 10,
-          marks_awarded: 8,
-          text_answer: 'Dolphin',
-          selected_choice: '',
-          selected_choices: [],
-          is_correct: true,
-          answer_key: 'Whale',
-          correct_choices: [],
-          grading_notes: 'Good example.',
-        }],
+        responses: [
+          {
+            id: 31,
+            question_text: 'Name a mammal.',
+            question_type: 'short_answer',
+            marks: 10,
+            marks_awarded: 8,
+            text_answer: 'Dolphin',
+            selected_choice: '',
+            selected_choices: [],
+            is_correct: true,
+            answer_key: 'Whale',
+            correct_choices: [],
+            grading_notes: 'Good example.',
+          },
+          {
+            id: 32,
+            question_text: 'Match the software types.',
+            question_type: 'matching',
+            marks: 2,
+            marks_awarded: 2,
+            text_answer: 'left:opaque-left=right:opaque-right;',
+            selected_choice: '',
+            selected_choices: [],
+            is_correct: true,
+            answer_key: '',
+            correct_choices: [],
+            review_data: {
+              student_answer: [
+                { left: 'Microsoft Word', right: 'Application software' },
+              ],
+              correct_answer: [
+                { left: 'Microsoft Word', right: 'Application software' },
+              ],
+            },
+            grading_notes: '',
+          },
+        ],
       }),
     });
 
@@ -55,6 +79,12 @@ describe('Quiz result print reports', () => {
     expect(screen.getByText('Alex Student')).toBeInTheDocument();
     expect(screen.getByText('Dolphin')).toBeInTheDocument();
     expect(screen.getByText('Whale')).toBeInTheDocument();
+    expect(document.querySelectorAll('.question-review')).toHaveLength(2);
+    expect(screen.getAllByRole('listitem').filter((item) => {
+      const text = item.textContent || '';
+      return text.includes('Microsoft Word') && text.includes('Application software');
+    })).toHaveLength(2);
+    expect(screen.queryByText(/opaque-/)).not.toBeInTheDocument();
     expect(screen.getByText('Grading complete')).toBeInTheDocument();
   });
 
@@ -123,6 +153,82 @@ describe('Quiz result print reports', () => {
     expect(screen.getByText('A student answer')).toBeInTheDocument();
     expect(screen.queryByText('Private answer key')).not.toBeInTheDocument();
     expect(screen.queryByText('Private explanation')).not.toBeInTheDocument();
+  });
+
+  it('prints readable matching and ordering answers from structured review data', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        attempt_id: 25,
+        quiz_id: 10,
+        quiz_title: 'Computer science assessment',
+        subject_name: 'Computer science',
+        student_name: 'Alex Student',
+        admission_number: 'ADM-25',
+        score: 2,
+        total_marks: 4,
+        percentage: 50,
+        passing_marks: 2,
+        is_passed: true,
+        started_at: null,
+        submitted_at: null,
+        allow_review: true,
+        show_correct_answers: true,
+        questions: [
+          {
+            id: 1,
+            question_text: 'Match each software example.',
+            question_type: 'matching',
+            marks: 2,
+            marks_obtained: 2,
+            is_correct: true,
+            student_answer: 'left:opaque-left=right:opaque-right;',
+            correct_answer: 'left:opaque-left=right:opaque-right;',
+            review_data: {
+              student_answer: [
+                { left: 'Microsoft Word', right: 'Application software' },
+              ],
+              correct_answer: [
+                { left: 'Microsoft Word', right: 'Application software' },
+              ],
+            },
+            choices: [],
+          },
+          {
+            id: 2,
+            question_text: 'Arrange the development stages.',
+            question_type: 'ordering',
+            marks: 2,
+            marks_obtained: 0,
+            is_correct: false,
+            student_answer: 'item:opaque-one; item:opaque-two',
+            correct_answer: 'Requirements analysis; Design',
+            review_data: {
+              student_answer: ['Requirements analysis', 'Design'],
+              correct_answer: ['Requirements analysis', 'Design'],
+            },
+            choices: [],
+          },
+        ],
+      }),
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/student/attempts/25/result/print']}>
+        <Routes>
+          <Route path="/student/attempts/:id/result/print" element={<StudentQuizResultPrint />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByText('Computer science assessment')).toBeInTheDocument());
+    expect(screen.getAllByRole('listitem').filter((item) => {
+      const text = item.textContent || '';
+      return text.includes('Microsoft Word') && text.includes('Application software');
+    })).toHaveLength(2);
+    expect(screen.getAllByText('Requirements analysis')).toHaveLength(2);
+    expect(screen.queryByText(/opaque-/)).not.toBeInTheDocument();
   });
 
   it('renders each selected attempt in a bulk print report', async () => {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   deleteQuiz,
@@ -26,6 +26,8 @@ export const QuizDetail: React.FC = () => {
 
   // Menu state
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuContainerRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   // Delete quiz dialog
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -48,6 +50,48 @@ export const QuizDetail: React.FC = () => {
   useEffect(() => {
     loadDetail();
   }, [loadDetail]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const menu = menuRef.current;
+    const focusableItems = () =>
+      Array.from(menu?.querySelectorAll<HTMLElement>('[role="menuitem"]:not(:disabled)') ?? []);
+    focusableItems()[0]?.focus();
+
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (event.target instanceof Node && !menu?.parentElement?.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    };
+    const handleMenuKeys = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setMenuOpen(false);
+        menuContainerRef.current?.querySelector('button')?.focus();
+        return;
+      }
+
+      const items = focusableItems();
+      const currentIndex = items.indexOf(document.activeElement as HTMLElement);
+      let nextIndex: number | null = null;
+      if (event.key === 'ArrowDown') nextIndex = (currentIndex + 1) % items.length;
+      if (event.key === 'ArrowUp') nextIndex = (currentIndex - 1 + items.length) % items.length;
+      if (event.key === 'Home') nextIndex = 0;
+      if (event.key === 'End') nextIndex = items.length - 1;
+      if (nextIndex !== null && items.length) {
+        event.preventDefault();
+        items[nextIndex]?.focus();
+      }
+    };
+
+    document.addEventListener('mousedown', closeOnOutsideClick);
+    menu?.addEventListener('keydown', handleMenuKeys);
+    return () => {
+      document.removeEventListener('mousedown', closeOnOutsideClick);
+      menu?.removeEventListener('keydown', handleMenuKeys);
+    };
+  }, [menuOpen]);
 
   const handleStatusToggle = async (nextStatus: string) => {
     if (!quiz) return;
@@ -94,13 +138,31 @@ export const QuizDetail: React.FC = () => {
     }
   };
 
+  const classesAssigned = quiz?.assigned_classes?.length ?? 0;
+  const emptySections = quiz?.sections?.filter((section) => section.question_ids.length === 0) ?? [];
+  const unsectionedCount = quiz && (quiz.sections?.length ?? 0) > 0
+    ? quiz.questions.filter((question) => question.section_id == null).length
+    : 0;
+  const publishReasons = quiz
+    ? [
+        ...(quiz.total_questions === 0 ? ['Add at least one question before publishing.'] : []),
+        ...(classesAssigned === 0 ? ['Assign at least one class before publishing.'] : []),
+        ...emptySections.map((section) => `Section "${section.title}" has no questions.`),
+        ...(unsectionedCount > 0
+          ? [`${unsectionedCount} question(s) need to be assigned to a section before publishing.`]
+          : []),
+      ]
+    : [];
+  const canPublish = Boolean(quiz && publishReasons.length === 0);
+  const publishDisabledReason = quiz && !canPublish ? publishReasons.join(' ') : null;
+  const hasAttempts = Boolean(quiz?.has_attempts) || (quiz?.total_attempts ?? 0) > 0;
+
   // Checklist calculations
   const checklist = useMemo(() => {
     if (!quiz) return { completedCount: 0, items: [] };
 
     const questionsDone = quiz.total_questions > 0;
     const classesDone = (quiz.assigned_classes?.length ?? 0) > 0;
-    const settingsDone = Boolean(quiz.title && quiz.subject_name);
     const publishDone = quiz.status === 'published';
 
     const items = [
@@ -121,17 +183,11 @@ export const QuizDetail: React.FC = () => {
         buttonText: classesDone ? 'Manage Classes' : 'Assign Classes',
       },
       {
-        id: 'settings',
-        label: 'Review settings',
-        detail: 'Timing, score thresholds, security',
-        done: settingsDone,
-        link: `/teacher/quizzes/${quiz.id}/settings`,
-        buttonText: 'Settings',
-      },
-      {
         id: 'publish',
         label: 'Publish quiz',
-        detail: quiz.status === 'published' ? 'Published to assigned classes' : 'Draft only',
+        detail: quiz.status === 'published'
+          ? 'Published to assigned classes'
+          : publishDisabledReason || 'Ready to publish',
         done: publishDone,
         action: 'publish',
       },
@@ -139,7 +195,7 @@ export const QuizDetail: React.FC = () => {
 
     const completedCount = items.filter((i) => i.done).length;
     return { completedCount, items };
-  }, [quiz]);
+  }, [quiz, publishDisabledReason]);
 
   if (loading && !quiz) {
     return (
@@ -160,14 +216,6 @@ export const QuizDetail: React.FC = () => {
   const isDraft = quiz.status === 'draft';
   const isPublished = quiz.status === 'published';
   const isArchived = quiz.status === 'archived';
-
-  const classesAssigned = quiz.assigned_classes?.length ?? 0;
-  const canPublish = quiz.total_questions > 0 && classesAssigned > 0;
-  const publishDisabledReason = canPublish
-    ? null
-    : quiz.total_questions === 0
-    ? 'Add at least one question before publishing.'
-    : 'Assign at least one class before publishing.';
 
   return (
     <div className="assessment-page core-container core-space--padding-y-4" data-testid="teacher-quiz-detail">
@@ -235,30 +283,28 @@ export const QuizDetail: React.FC = () => {
           )}
 
           {/* Action menu */}
-          <div className="core-dropdown" style={{ position: 'relative' }}>
+          <div className="quiz-options" ref={menuContainerRef}>
             <Button
               variant="outline-secondary"
               size="sm"
               aria-label="Quiz options menu"
-              onClick={() => setMenuOpen(!menuOpen)}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((open) => !open)}
             >
               ⋮ More
             </Button>
             {menuOpen && (
               <div
-                className="core-card core-shadow--md core-border core-surface--white"
-                style={{
-                  position: 'absolute',
-                  right: 0,
-                  top: '100%',
-                  minWidth: '160px',
-                  zIndex: 50,
-                  padding: '0.25rem 0',
-                }}
+                ref={menuRef}
+                className="quiz-options__menu core-card core-shadow--md core-border core-surface--white"
+                role="menu"
+                aria-label="Quiz options"
               >
                 <Link
                   to={`/teacher/quizzes/${quiz.id}/settings`}
                   className="core-dropdown__item core-display-block core-space--padding-x-3 core-space--padding-y-2 core-text--dark core-text--decoration-none core-type--small"
+                  role="menuitem"
                   onClick={() => setMenuOpen(false)}
                 >
                   Settings
@@ -267,6 +313,7 @@ export const QuizDetail: React.FC = () => {
                   <button
                     type="button"
                     className="core-dropdown__item core-display-block core-width--100 core-space--padding-x-3 core-space--padding-y-2 core-text--start core-border--none core-surface--transparent core-text--dark core-type--small core-cursor--pointer"
+                    role="menuitem"
                     disabled={releaseLoading}
                     onClick={() => {
                       setMenuOpen(false);
@@ -279,6 +326,7 @@ export const QuizDetail: React.FC = () => {
                 <button
                   type="button"
                   className="core-dropdown__item core-display-block core-width--100 core-space--padding-x-3 core-space--padding-y-2 core-text--start core-border--none core-surface--transparent core-text--dark core-type--small core-cursor--pointer"
+                  role="menuitem"
                   onClick={() => {
                     setMenuOpen(false);
                     handleStatusToggle(isArchived ? 'draft' : 'archived');
@@ -286,10 +334,13 @@ export const QuizDetail: React.FC = () => {
                 >
                   {isArchived ? 'Restore' : 'Archive'}
                 </button>
-                <div className="core-border--top core-space--margin-y-1" />
+                <div className="core-border--top core-space--margin-y-1" role="separator" />
                 <button
                   type="button"
                   className="core-dropdown__item core-display-block core-width--100 core-space--padding-x-3 core-space--padding-y-2 core-text--start core-border--none core-surface--transparent core-text--danger core-type--small core-cursor--pointer"
+                  role="menuitem"
+                  disabled={hasAttempts}
+                  title={hasAttempts ? 'This quiz has recorded attempts and cannot be deleted. Archive it instead.' : undefined}
                   onClick={() => {
                     setMenuOpen(false);
                     setDeleteOpen(true);
@@ -297,6 +348,11 @@ export const QuizDetail: React.FC = () => {
                 >
                   Delete
                 </button>
+                {hasAttempts && (
+                  <p className="quiz-options__help core-type--small core-text--muted">
+                    This quiz has recorded attempts and cannot be deleted. Archive it instead.
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -407,12 +463,12 @@ export const QuizDetail: React.FC = () => {
                   >
                     <div className="core-display-flex core-layout--align-center core-layout--gap-3">
                       <span
-                        className={`core-badge ${
+                        className={`quiz-checklist__status core-badge ${
                           item.done
                             ? 'core-surface--success core-text--white'
                             : 'core-surface--light core-text--secondary core-border'
                         }`}
-                        style={{ width: '24px', height: '24px', borderRadius: '50%', textAlign: 'center', lineHeight: '20px' }}
+                        aria-hidden="true"
                       >
                         {item.done ? '✓' : '○'}
                       </span>
@@ -446,6 +502,18 @@ export const QuizDetail: React.FC = () => {
                     </div>
                   </div>
                 ))}
+                <div className="core-list__item core-display-flex core-layout--justify-between core-layout--align-center core-space--padding-3">
+                  <div>
+                    <div className="core-type--weight-semibold core-text--dark">Review settings</div>
+                    <div className="core-type--small core-text--muted">Timing, score thresholds, security</div>
+                  </div>
+                  <Link
+                    to={`/teacher/quizzes/${quiz.id}/settings`}
+                    className="core-button core-button--sm core-button--outline-primary"
+                  >
+                    Settings
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
@@ -484,7 +552,7 @@ export const QuizDetail: React.FC = () => {
       <ConfirmDialog
         isOpen={deleteOpen}
         title="Delete Quiz"
-        message={`Are you sure you want to permanently delete "${quiz.title}"? All questions, settings, and attempts will be permanently erased.`}
+        message={`Are you sure you want to delete "${quiz.title}"? The quiz and its questions will be removed.`}
         confirmLabel={deleteLoading ? 'Deleting...' : 'Delete Quiz'}
         confirmVariant="danger"
         loading={deleteLoading}

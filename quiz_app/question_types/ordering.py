@@ -120,16 +120,23 @@ class OrderingQuestionType(QuestionType):
         items = self.items(question, snapshot)
         answer_data = getattr(response, "answer_data", None) or {}
         submitted = answer_data.get("items", []) if isinstance(answer_data, dict) else []
-        if submitted and all(item.startswith("item:") for item in submitted):
+        text_answer = response.text_answer or ""
+        if not submitted and text_answer:
+            legacy_items = [item.strip() for item in text_answer.split(";") if item.strip()]
+            if legacy_items and all(item.startswith("item:") for item in legacy_items):
+                submitted = legacy_items
+        if submitted and all(
+            isinstance(item, str) and item.startswith("item:") for item in submitted
+        ):
             text_by_id = {
                 f"item:{item_id}": item
                 for item_id, item in zip(self.item_ids(question, snapshot), items)
             }
             student_answer = [
-                text_by_id[item] for item in submitted if item in text_by_id
+                text_by_id.get(item, "Unavailable item") for item in submitted
             ]
         else:
-            student_answer = submitted or response.text_answer or ""
+            student_answer = submitted or text_answer
         return {
             "student_answer": student_answer,
             "correct_answer": items if show_correct_answers else None,

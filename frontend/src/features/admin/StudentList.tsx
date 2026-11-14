@@ -18,6 +18,7 @@ import { Button } from '../../components/common/Button';
 import { Modal } from '../../components/common/Modal';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { StudentImportDialog } from './StudentImportDialog';
+import { downloadAuthenticatedFile, saveDownloadedFile } from '../../api/client';
 import './AdminDirectory.css';
 
 const emptyStudentForm = (): StudentAdminInput => ({
@@ -63,6 +64,7 @@ export const StudentList: React.FC = () => {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkAction, setBulkAction] = useState<'archive' | 'restore'>('archive');
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [exportLoading, setExportLoading] = useState<'csv' | 'xlsx' | null>(null);
 
   useEffect(() => {
     if (!isSuperadmin) return;
@@ -265,6 +267,19 @@ export const StudentList: React.FC = () => {
     return `/students/export/${format}/?${params.toString()}`;
   };
 
+  const downloadExport = async (format: 'csv' | 'xlsx') => {
+    setExportLoading(format);
+    setError(null);
+    try {
+      const file = await downloadAuthenticatedFile(exportHref(format));
+      saveDownloadedFile(file);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Could not export students as ${format.toUpperCase()}.`);
+    } finally {
+      setExportLoading(null);
+    }
+  };
+
   const columns: Column<StudentListItem>[] = [
     {
       id: 'selection',
@@ -396,8 +411,8 @@ export const StudentList: React.FC = () => {
           </button>
           {(!isSuperadmin || selectedSchoolId !== 'all') && (
             <>
-              <a className="directory-page__action" href={exportHref('csv')}>Export CSV</a>
-              <a className="directory-page__action" href={exportHref('xlsx')}>Export XLSX</a>
+              <Button variant="outline-secondary" size="sm" onClick={() => void downloadExport('csv')} loading={exportLoading === 'csv'} disabled={exportLoading !== null}>Export CSV</Button>
+              <Button variant="outline-secondary" size="sm" onClick={() => void downloadExport('xlsx')} loading={exportLoading === 'xlsx'} disabled={exportLoading !== null}>Export XLSX</Button>
               <Button variant="outline-secondary" size="sm" onClick={() => void openImportDialog()}>
                 <AppIcon name="upload" aria-hidden="true" /> Import students
               </Button>

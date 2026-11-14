@@ -213,8 +213,8 @@ export async function createStudent(data: StudentAdminInput) {
 
 export async function updateStudent(id: number, data: StudentAdminInput) {
   return apiClient<{ message: string; student_id: number }>(
-    '/api/v1/students/',
-    { method: 'PATCH', body: { ...data, id } }
+    `/api/v1/students/${id}/`,
+    { method: 'PATCH', body: data }
   );
 }
 
@@ -285,8 +285,8 @@ export async function createTeacher(data: TeacherAdminInput) {
 
 export async function updateTeacher(id: number, data: TeacherAdminInput) {
   return apiClient<{ message: string; teacher_id: number }>(
-    '/api/v1/teachers/',
-    { method: 'PATCH', body: { ...data, id } }
+    `/api/v1/teachers/${id}/`,
+    { method: 'PATCH', body: data }
   );
 }
 
@@ -298,28 +298,50 @@ export async function restoreTeacher(id: number) {
   return apiClient<{ message: string }>(`/api/v1/teachers/${id}/restore/`, { method: 'POST' });
 }
 
-export async function bulkArchiveTeachers(teacherIds: number[], schoolId?: number) {
+export async function bulkArchiveTeachers(
+  teacherIds: number[],
+  action: 'archive' | 'restore',
+  schoolId?: number
+) {
   return apiClient<{ updated: number; message: string }>('/api/v1/teachers/bulk-archive/', {
     method: 'POST',
-    body: { teacher_ids: teacherIds, ...(schoolId ? { school_id: schoolId } : {}) },
+    body: { teacher_ids: teacherIds, action, ...(schoolId ? { school_id: schoolId } : {}) },
   });
 }
 
-export async function previewTeacherImport(file: File) {
+export interface TeacherImportPreview {
+  headers: string[];
+  preview_rows: Array<Record<string, string>>;
+}
+
+export interface TeacherImportResult {
+  imported: number;
+  errors: string[];
+  message: string;
+  partial_success: boolean;
+}
+
+export async function previewTeacherImport(file: File): Promise<TeacherImportPreview> {
   const body = new FormData();
   body.set('file', file);
-  return apiClient<{ headers: string[]; preview_rows: Array<Record<string, string>> }>(
+  return apiClient<TeacherImportPreview>(
     '/api/v1/teachers/import/preview/',
     { method: 'POST', body }
   );
 }
 
-export async function bulkImportTeachers(file: File, schoolId?: number, defaultDepartment?: number) {
+export async function bulkImportTeachers(
+  file: File,
+  mappings: Record<string, string>,
+  schoolId?: number,
+  defaultDepartment?: number
+): Promise<TeacherImportResult> {
   const body = new FormData();
   body.set('file', file);
+  body.set('column_mappings', JSON.stringify(mappings));
   if (schoolId) body.set('school_id', String(schoolId));
   if (defaultDepartment) body.set('default_department', String(defaultDepartment));
-  return apiClient<{ imported: number; errors: string[]; message: string; partial_success: boolean }>(
+  return apiClient<TeacherImportResult>(
     '/api/v1/teachers/import/',
     { method: 'POST', body }
   );

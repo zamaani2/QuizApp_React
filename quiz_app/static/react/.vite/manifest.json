@@ -31,6 +31,20 @@
       "_me.js"
     ]
   },
+  "_SideDrawer.css": {
+    "file": "assets/SideDrawer.css",
+    "src": "_SideDrawer.css"
+  },
+  "_SideDrawer.js": {
+    "file": "assets/SideDrawer.js",
+    "name": "SideDrawer",
+    "imports": [
+      "_me.js"
+    ],
+    "css": [
+      "assets/SideDrawer.css"
+    ]
+  },
   "_academic.js": {
     "file": "assets/academic.js",
     "name": "academic",
@@ -52,11 +66,18 @@
       "_me.js"
     ]
   },
+  "_index2.css": {
+    "file": "assets/index2.css",
+    "src": "_index2.css"
+  },
   "_index2.js": {
     "file": "assets/index2.js",
     "name": "index",
     "imports": [
       "_me.js"
+    ],
+    "css": [
+      "assets/index2.css"
     ]
   },
   "_me.js": {
@@ -144,7 +165,9 @@
       "src/features/QuizResultPrint.tsx",
       "src/features/student/StudentQuizTake.tsx",
       "src/features/student/StudentProfileView.tsx",
-      "src/features/student/StudentProgressView.tsx"
+      "src/features/student/StudentProgressView.tsx",
+      "src/features/account/AccountSettings.tsx",
+      "src/features/teacher/TeacherProfileView.tsx"
     ],
     "css": [
       "assets/index.css"
@@ -159,10 +182,21 @@
       "_me.js",
       "index.html",
       "_teacher.js",
-      "_student.js"
+      "_student.js",
+      "_index2.js"
     ],
     "css": [
       "assets/QuizResultPrint.css"
+    ]
+  },
+  "src/features/account/AccountSettings.tsx": {
+    "file": "assets/AccountSettings.js",
+    "name": "AccountSettings",
+    "src": "src/features/account/AccountSettings.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "index.html"
     ]
   },
   "src/features/admin/AcademicYearsManager.tsx": {
@@ -205,9 +239,7 @@
       "_me.js",
       "index.html",
       "_academic.js",
-      "_DataTable.js",
-      "_Modal.js",
-      "_ConfirmDialog.js"
+      "_DataTable.js"
     ]
   },
   "src/features/admin/ClassesManager.tsx": {
@@ -221,6 +253,7 @@
       "_academic.js",
       "_DataTable.js",
       "_Modal.js",
+      "_SideDrawer.js",
       "_ConfirmDialog.js"
     ],
     "css": [
@@ -265,8 +298,9 @@
       "index.html",
       "_allocations.js",
       "_DataTable.js",
-      "_Modal.js",
-      "_ConfirmDialog.js"
+      "_SideDrawer.js",
+      "_ConfirmDialog.js",
+      "_Modal.js"
     ],
     "css": [
       "assets/StudentEnrollmentsManager.css"
@@ -317,8 +351,9 @@
       "index.html",
       "_allocations.js",
       "_DataTable.js",
-      "_Modal.js",
-      "_ConfirmDialog.js"
+      "_SideDrawer.js",
+      "_ConfirmDialog.js",
+      "_Modal.js"
     ]
   },
   "src/features/admin/TeacherList.tsx": {
@@ -708,6 +743,16 @@
       "_me.js",
       "index.html",
       "_teacher.js"
+    ]
+  },
+  "src/features/teacher/TeacherProfileView.tsx": {
+    "file": "assets/TeacherProfileView.js",
+    "name": "TeacherProfileView",
+    "src": "src/features/teacher/TeacherProfileView.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_me.js",
+      "index.html"
     ]
   }
 }

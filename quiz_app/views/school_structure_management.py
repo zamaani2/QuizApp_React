@@ -8,7 +8,6 @@ This module provides views for managing school structure including:
 """
 from django.shortcuts import redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.db import transaction
@@ -32,8 +31,10 @@ def form_list_view(request):
     Display list of all forms with filtering and search capabilities.
     """
     if request.user.role not in ["admin", "superadmin"]:
-        messages.error(request, "You don't have permission to access this page.")
-        return redirect("quiz_app:dashboard")
+        return JsonResponse(
+            {"success": False, "error": "You don't have permission to access this page."},
+            status=403,
+        )
 
     return redirect("/app/admin/forms")
 
@@ -50,8 +51,10 @@ def form_create_view(request):
     if request.user.role not in ["admin", "superadmin"]:
         if request.method == "GET":
             return JsonResponse({'error': 'Permission denied'}, status=403)
-        messages.error(request, "You don't have permission to perform this action.")
-        return redirect("quiz_app:form_list")
+        return JsonResponse(
+            {"success": False, "error": "You don't have permission to perform this action."},
+            status=403,
+        )
     
     if request.method == "GET":
         return redirect("/app/admin/forms")
@@ -135,8 +138,10 @@ def form_edit_view(request, form_id):
     if request.user.role not in ["admin", "superadmin"]:
         if request.method == "GET":
             return JsonResponse({'error': 'Permission denied'}, status=403)
-        messages.error(request, "You don't have permission to perform this action.")
-        return redirect("quiz_app:form_list")
+        return JsonResponse(
+            {"success": False, "error": "You don't have permission to perform this action."},
+            status=403,
+        )
     
     if request.method == "GET":
         return redirect("/app/admin/forms")
@@ -236,8 +241,10 @@ def learning_area_list_view(request):
     Display list of all learning areas with filtering and search capabilities.
     """
     if request.user.role not in ["admin", "superadmin"]:
-        messages.error(request, "You don't have permission to access this page.")
-        return redirect("quiz_app:dashboard")
+        return JsonResponse(
+            {"success": False, "error": "You don't have permission to access this page."},
+            status=403,
+        )
 
     return redirect("/app/admin/learning-areas")
 
@@ -254,8 +261,10 @@ def learning_area_create_view(request):
     if request.user.role not in ["admin", "superadmin"]:
         if request.method == "GET":
             return JsonResponse({'error': 'Permission denied'}, status=403)
-        messages.error(request, "You don't have permission to perform this action.")
-        return redirect("quiz_app:learning_area_list")
+        return JsonResponse(
+            {"success": False, "error": "You don't have permission to perform this action."},
+            status=403,
+        )
     
     if request.method == "GET":
         return redirect("/app/admin/learning-areas")
@@ -331,8 +340,10 @@ def learning_area_edit_view(request, learning_area_id):
     if request.user.role not in ["admin", "superadmin"]:
         if request.method == "GET":
             return JsonResponse({'error': 'Permission denied'}, status=403)
-        messages.error(request, "You don't have permission to perform this action.")
-        return redirect("quiz_app:learning_area_list")
+        return JsonResponse(
+            {"success": False, "error": "You don't have permission to perform this action."},
+            status=403,
+        )
     
     if request.method == "GET":
         return redirect("/app/admin/learning-areas")
@@ -425,8 +436,10 @@ def department_list_view(request):
     Display list of all departments with filtering and search capabilities.
     """
     if request.user.role not in ["admin", "superadmin"]:
-        messages.error(request, "You don't have permission to access this page.")
-        return redirect("quiz_app:dashboard")
+        return JsonResponse(
+            {"success": False, "error": "You don't have permission to access this page."},
+            status=403,
+        )
 
     return redirect("/app/admin/departments")
 
@@ -443,8 +456,10 @@ def department_create_view(request):
     if request.user.role not in ["admin", "superadmin"]:
         if request.method == "GET":
             return JsonResponse({'error': 'Permission denied'}, status=403)
-        messages.error(request, "You don't have permission to perform this action.")
-        return redirect("quiz_app:department_list")
+        return JsonResponse(
+            {"success": False, "error": "You don't have permission to perform this action."},
+            status=403,
+        )
     
     if request.method == "GET":
         return redirect("/app/admin/departments")
@@ -533,8 +548,10 @@ def department_edit_view(request, department_id):
     if request.user.role not in ["admin", "superadmin"]:
         if request.method == "GET":
             return JsonResponse({'error': 'Permission denied'}, status=403)
-        messages.error(request, "You don't have permission to perform this action.")
-        return redirect("quiz_app:department_list")
+        return JsonResponse(
+            {"success": False, "error": "You don't have permission to perform this action."},
+            status=403,
+        )
     
     if request.method == "GET":
         return redirect("/app/admin/departments")

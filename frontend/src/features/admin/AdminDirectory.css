@@ -26,6 +26,7 @@
 .directory-segmented button { min-height: 30px; border: 0; border-radius: 3px; padding: 0 11px; background: transparent; color: var(--core-muted); cursor: pointer; font: inherit; font-size: 11px; }
 .directory-segmented button.is-selected { background: var(--core-ink); color: #fff; }
 .directory-record-count { color: var(--core-muted); font-size: 11px; }
+.directory-pagination { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 14px 0; color: var(--core-muted); font-size: 12px; }
 .directory-row-actions { display: flex; justify-content: flex-end; gap: 5px; }
 .directory-form { display: grid; gap: 12px; }
 .directory-form__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 14px; }

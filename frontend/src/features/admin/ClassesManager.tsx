@@ -2,12 +2,20 @@ import { AppIcon } from '../../components/common/AppIcon';
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { academicApi } from '../../api/academic';
-import type { ClassItem, ClassInput, StructureLookups } from '../../types';
+import type {
+  ClassItem,
+  ClassInput,
+  ClassDetailData,
+  AssignedSubject,
+  StructureLookups,
+} from '../../types';
 import { DataTable, type Column } from '../../components/table/DataTable';
 import { Alert } from '../../components/common/Alert';
 import { Button } from '../../components/common/Button';
 import { Modal } from '../../components/common/Modal';
+import { SideDrawer } from '../../components/common/SideDrawer';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
+import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import './AdminAcademic.css';
 import './AdminAcademic.css';
 
@@ -35,6 +43,18 @@ export const ClassesManager: React.FC = () => {
   });
   const [formSubmitting, setFormSubmitting] = useState<boolean>(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Class subject assignment drawer
+  const [subjectAssignmentClass, setSubjectAssignmentClass] = useState<ClassItem | null>(null);
+  const [classSubjectDetail, setClassSubjectDetail] = useState<ClassDetailData | null>(null);
+  const [subjectDrawerOpen, setSubjectDrawerOpen] = useState(false);
+  const [subjectDrawerLoading, setSubjectDrawerLoading] = useState(false);
+  const [subjectDrawerSaving, setSubjectDrawerSaving] = useState(false);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<number | ''>('');
+  const [subjectDrawerError, setSubjectDrawerError] = useState<string | null>(null);
+  const [subjectDrawerSuccess, setSubjectDrawerSuccess] = useState<string | null>(null);
+  const [removeSubjectTarget, setRemoveSubjectTarget] = useState<AssignedSubject | null>(null);
+  const [removeSubjectLoading, setRemoveSubjectLoading] = useState(false);
 
   // Archive & Restore dialog state
   const [archiveTarget, setArchiveTarget] = useState<ClassItem | null>(null);
@@ -66,6 +86,87 @@ export const ClassesManager: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const openSubjectDrawer = async (classItem: ClassItem) => {
+    setSubjectAssignmentClass(classItem);
+    setClassSubjectDetail(null);
+    setSelectedSubjectId('');
+    setSubjectDrawerError(null);
+    setSubjectDrawerSuccess(null);
+    setSubjectDrawerOpen(true);
+    setSubjectDrawerLoading(true);
+    try {
+      setClassSubjectDetail(await academicApi.getClassDetail(classItem.id));
+    } catch (err) {
+      setSubjectDrawerError(err instanceof Error ? err.message : 'Failed to load class subjects.');
+    } finally {
+      setSubjectDrawerLoading(false);
+    }
+  };
+
+  const handleAssignClassSubject = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!subjectAssignmentClass || !selectedSubjectId) {
+      setSubjectDrawerError('Please select a subject to assign.');
+      return;
+    }
+
+    setSubjectDrawerSaving(true);
+    setSubjectDrawerError(null);
+    setSubjectDrawerSuccess(null);
+    try {
+      const response = await academicApi.assignClassSubject(
+        subjectAssignmentClass.id,
+        Number(selectedSubjectId),
+      );
+      setSubjectDrawerSuccess(response.message);
+      setSelectedSubjectId('');
+      try {
+        setClassSubjectDetail(await academicApi.getClassDetail(subjectAssignmentClass.id));
+      } catch (refreshError) {
+        setSubjectDrawerError(
+          refreshError instanceof Error
+            ? `Subject assigned, but class subjects could not be refreshed: ${refreshError.message}`
+            : 'Subject assigned, but class subjects could not be refreshed.',
+        );
+      }
+      void loadData();
+    } catch (err) {
+      setSubjectDrawerError(err instanceof Error ? err.message : 'Failed to assign subject.');
+    } finally {
+      setSubjectDrawerSaving(false);
+    }
+  };
+
+  const handleRemoveClassSubject = async () => {
+    if (!subjectAssignmentClass || !removeSubjectTarget) return;
+
+    setRemoveSubjectLoading(true);
+    setSubjectDrawerError(null);
+    try {
+      const response = await academicApi.removeClassSubject(
+        subjectAssignmentClass.id,
+        removeSubjectTarget.id,
+      );
+      setSubjectDrawerSuccess(response.message);
+      setRemoveSubjectTarget(null);
+      try {
+        setClassSubjectDetail(await academicApi.getClassDetail(subjectAssignmentClass.id));
+      } catch (refreshError) {
+        setSubjectDrawerError(
+          refreshError instanceof Error
+            ? `Subject removed, but class subjects could not be refreshed: ${refreshError.message}`
+            : 'Subject removed, but class subjects could not be refreshed.',
+        );
+      }
+      void loadData();
+    } catch (err) {
+      setSubjectDrawerError(err instanceof Error ? err.message : 'Failed to remove subject.');
+      setRemoveSubjectTarget(null);
+    } finally {
+      setRemoveSubjectLoading(false);
+    }
+  };
 
   const openCreateModal = () => {
     const currentYear =
@@ -156,6 +257,11 @@ export const ClassesManager: React.FC = () => {
     }
   };
 
+  const assignedSubjectIds = new Set(classSubjectDetail?.subjects.map((subject) => subject.subject_id) ?? []);
+  const unassignedSubjects = lookups?.subjects?.filter(
+    (subject) => !assignedSubjectIds.has(subject.id),
+  ) ?? [];
+
   const columns: Column<ClassItem>[] = [
     {
       id: 'class_info',
@@ -226,10 +332,19 @@ export const ClassesManager: React.FC = () => {
       align: 'right',
       accessor: (row) => (
         <div className="academic-admin__row-actions">
+          <Button
+            variant="outline-primary"
+            size="sm"
+            onClick={() => void openSubjectDrawer(row)}
+            title={`View and assign subjects for ${row.name}`}
+          >
+            <AppIcon name="bookMarked" aria-hidden="true" />{' '}
+            Subjects
+          </Button>
           <Link
             to={`/admin/classes/${row.id}`}
             className="core-button core-button--outline-primary core-button--sm"
-            title="View Class Details & Assign Subjects"
+            title="View Class Details"
           >
             <AppIcon name="eye" aria-hidden="true" />{' '}
             Details
@@ -539,6 +654,119 @@ export const ClassesManager: React.FC = () => {
           </div>
         </form>
       </Modal>
+
+      <SideDrawer
+        isOpen={subjectDrawerOpen}
+        onClose={() => setSubjectDrawerOpen(false)}
+        title={`Subjects for ${subjectAssignmentClass?.name ?? 'Class'}`}
+        closeDisabled={subjectDrawerSaving}
+        footer={
+          <div className="core-display-flex core-layout--justify-end core-layout--gap-2 core-size--width-full">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setSubjectDrawerOpen(false)}
+              disabled={subjectDrawerSaving}
+            >
+              Close
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleAssignClassSubject}
+              loading={subjectDrawerSaving}
+              disabled={!selectedSubjectId || subjectDrawerLoading || !classSubjectDetail}
+            >
+              Assign Subject
+            </Button>
+          </div>
+        }
+      >
+        {subjectDrawerError && (
+          <Alert variant="danger" className="core-space--margin-bottom-3">
+            {subjectDrawerError}
+          </Alert>
+        )}
+        {subjectDrawerSuccess && (
+          <Alert variant="success" className="core-space--margin-bottom-3">
+            {subjectDrawerSuccess}
+          </Alert>
+        )}
+        {subjectDrawerLoading ? (
+          <LoadingSpinner size="md" message="Loading class subjects..." />
+        ) : classSubjectDetail ? (
+          <form onSubmit={handleAssignClassSubject}>
+            <section className="core-space--margin-bottom-4" aria-labelledby="class-assigned-subjects-title">
+              <h3 id="class-assigned-subjects-title" className="core-type--weight-semibold core-space--margin-bottom-2">
+                Currently assigned subjects
+              </h3>
+              {classSubjectDetail.subjects.length ? (
+                <ul className="side-drawer__list">
+                  {classSubjectDetail.subjects.map((subject) => (
+                    <li key={subject.id}>
+                      <div className="core-display-flex core-layout--column">
+                        <span className="core-type--weight-semibold">{subject.subject_name}</span>
+                        <code className="core-type--small core-text--muted">{subject.subject_code}</code>
+                      </div>
+                      <Button
+                        variant="outline-danger"
+                        size="sm"
+                        onClick={() => setRemoveSubjectTarget(subject)}
+                        title={`Remove ${subject.subject_name} from ${subjectAssignmentClass?.name ?? 'class'}`}
+                      >
+                        Remove
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="core-text--muted core-type--small">No subjects are assigned to this class yet.</p>
+              )}
+            </section>
+
+            <div className="core-space--margin-bottom-3">
+              <label htmlFor="class-list-subject" className="core-field__label core-type--small core-type--weight-semibold">
+                Add a subject to this class
+              </label>
+              <select
+                id="class-list-subject"
+                className="core-field__select"
+                value={selectedSubjectId}
+                onChange={(event) => setSelectedSubjectId(Number(event.target.value))}
+                disabled={subjectDrawerSaving}
+              >
+                <option value="">-- Choose Subject --</option>
+                {unassignedSubjects.map((subject) => (
+                  <option key={subject.id} value={subject.id}>
+                    {subject.subject_code} - {subject.subject_name}
+                  </option>
+                ))}
+              </select>
+              {unassignedSubjects.length === 0 && (
+                <div className="core-field__helper core-text--warning">
+                  No unassigned subjects are available for this class.
+                </div>
+              )}
+            </div>
+          </form>
+        ) : null}
+      </SideDrawer>
+
+      <ConfirmDialog
+        isOpen={Boolean(removeSubjectTarget)}
+        onClose={() => setRemoveSubjectTarget(null)}
+        onConfirm={handleRemoveClassSubject}
+        title="Remove subject from class"
+        message={
+          <div>
+            Remove <strong>{removeSubjectTarget?.subject_name}</strong> from{' '}
+            <strong>{subjectAssignmentClass?.name}</strong>?
+          </div>
+        }
+        confirmLabel="Remove Subject"
+        confirmVariant="danger"
+        loading={removeSubjectLoading}
+      />
 
       {/* Archive Confirmation */}
       <ConfirmDialog

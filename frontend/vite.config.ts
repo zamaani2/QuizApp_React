@@ -11,9 +11,15 @@ const djangoProxy = () => ({
 const authCoreDevRoute: Plugin = {
   name: 'auth-core-dev-route',
   configureServer(server) {
-    server.middlewares.use((request, _response, next) => {
-      if (request.url?.startsWith('/auth-app')) {
-        request.url = request.url.replace(/^\/auth-app(?:\/[^?]*)?/, '/auth-core.html');
+    server.middlewares.use((request, response, next) => {
+      const [pathname, query] = (request.url || '/').split('?');
+      if (pathname === '/') {
+        request.url = `/auth-core.html${query ? `?${query}` : ''}`;
+      } else if (pathname === '/auth-app' || pathname.startsWith('/auth-app/')) {
+        response.statusCode = 302;
+        response.setHeader('Location', `/${query ? `?${query}` : ''}`);
+        response.end();
+        return;
       }
       next();
     });

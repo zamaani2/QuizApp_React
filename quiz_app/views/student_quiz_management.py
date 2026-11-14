@@ -32,6 +32,7 @@ from ..models import (
     SchoolInformation,
     StudentClass,
 )
+from ..rate_limiting import get_client_ip as trusted_client_ip
 
 
 @login_required
@@ -87,12 +88,7 @@ def student_quiz_detail_view(request, quiz_id):
 
 def get_client_ip(request):
     """Get the client's IP address from the request."""
-    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-    if x_forwarded_for:
-        ip = x_forwarded_for.split(',')[0]
-    else:
-        ip = request.META.get('REMOTE_ADDR', '')
-    return ip.strip()
+    return trusted_client_ip(request)
 
 
 def _submit_attempt_safely(attempt_id, student, school):

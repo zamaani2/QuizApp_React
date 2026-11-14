@@ -38,9 +38,10 @@ describe('TeacherAppLayout Component', () => {
     const nav = Object.fromEntries(TEACHER_NAV_ITEMS.map((item) => [item.id, item]));
     expect(nav.quizzes.isActive('/teacher/quizzes')).toBe(true);
     expect(nav.quizzes.isActive('/teacher/quizzes/12/settings')).toBe(true);
-    expect(nav.quizzes.isActive('/teacher/quizzes/new')).toBe(false);
+    expect(nav.quizzes.isActive('/teacher/quizzes/new')).toBe(true);
     expect(nav.quizzes.isActive('/teacher/quizzes/12/assignments')).toBe(false);
     expect(nav.questions.isActive('/teacher/questions/12/new')).toBe(true);
+    expect(nav.questions.icon).not.toBe(nav.quizzes.icon);
     expect(nav.assignments.isActive('/teacher/assignments')).toBe(true);
     expect(nav.assignments.isActive('/teacher/quizzes/12/assignments')).toBe(false);
   });
@@ -79,7 +80,8 @@ describe('TeacherAppLayout Component', () => {
 
     // Both groups rendered
     expect(screen.getByText('Workspace')).toBeInTheDocument();
-    expect(screen.getByText('Assessments & Grading')).toBeInTheDocument();
+    expect(screen.getByText('Assessments')).toBeInTheDocument();
+    expect(screen.queryByText('Assessments & Grading')).not.toBeInTheDocument();
 
     // Navigation links present
     expect(screen.getAllByText('Home').length).toBeGreaterThanOrEqual(1);
@@ -138,11 +140,25 @@ describe('TeacherAppLayout Component', () => {
     // Dialog sheet opens
     const dialog = screen.getByRole('dialog', { name: /more options/i });
     expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(moreBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(within(dialog).getByRole('button', { name: /close menu/i })).toHaveFocus();
     expect(within(dialog).getByRole('link', { name: 'Questions' })).toBeInTheDocument();
     expect(within(dialog).getByRole('link', { name: 'Assignments' })).toBeInTheDocument();
 
+    fireEvent.keyDown(within(dialog).getByRole('button', { name: /close menu/i }), {
+      key: 'Tab',
+      shiftKey: true,
+    });
+    expect(within(dialog).getByRole('button', { name: 'Sign Out' })).toHaveFocus();
+    fireEvent.keyDown(within(dialog).getByRole('button', { name: 'Sign Out' }), { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: /more options/i })).toBeNull();
+    expect(moreBtn).toHaveFocus();
+
+    fireEvent.click(moreBtn);
+    const reopenedDialog = screen.getByRole('dialog', { name: /more options/i });
     // Close button dismisses sheet
-    fireEvent.click(within(dialog).getByRole('button', { name: /close menu/i }));
+    fireEvent.click(within(reopenedDialog).getByRole('button', { name: /close menu/i }));
     expect(screen.queryByRole('dialog', { name: /more options/i })).toBeNull();
   });
 

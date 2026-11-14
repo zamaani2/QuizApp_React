@@ -163,16 +163,34 @@ class MatchingQuestionType(QuestionType):
         right_labels = {
             f"right:{pair['right_id']}": pair["right"] for pair in pairs
         }
+        text_answer = response.text_answer or ""
+        if not matches and text_answer:
+            parsed_matches = {}
+            for entry in text_answer.split(";"):
+                left_id, separator, right_id = entry.strip().partition("=")
+                if (
+                    separator
+                    and left_id.startswith("left:")
+                    and right_id.startswith("right:")
+                ):
+                    parsed_matches[left_id] = right_id
+            matches = parsed_matches
         if matches:
             student_answer = [
                 {
-                    "left": left_labels.get(left_id, left_id),
-                    "right": right_labels.get(right_id, right_id),
+                    "left": left_labels.get(
+                        left_id,
+                        "Unavailable item" if left_id.startswith("left:") else left_id,
+                    ),
+                    "right": right_labels.get(
+                        right_id,
+                        "Unavailable item" if right_id.startswith("right:") else right_id,
+                    ),
                 }
                 for left_id, right_id in matches.items()
             ]
         else:
-            student_answer = response.text_answer or ""
+            student_answer = text_answer
         result = {
             "student_answer": student_answer,
             "correct_answer": [

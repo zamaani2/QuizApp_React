@@ -27,7 +27,7 @@ export const AppShell: FC<AppShellProps> = ({
   const { loading, error, refetch } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-  const authHref = `/auth-app/?next=${encodeURIComponent(currentPath)}`;
+  const authHref = `/?next=${encodeURIComponent(currentPath)}`;
 
   if (loading) {
     return (

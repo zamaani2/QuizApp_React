@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter, MemoryRouter, Routes, Route } from 'react-router-dom';
 import { StudentDashboard } from './student/StudentDashboard';
@@ -301,11 +301,101 @@ describe('Phase 5 Student Feature Components', () => {
         screen.getByText(/What earmuffs color protects against Mandrake cries/i)
       ).toBeInTheDocument();
       expect(screen.getByText('Fluffy pink')).toBeInTheDocument();
-      expect(screen.getByText('Correct Key')).toBeInTheDocument();
+      expect(screen.getByText('Correct answer')).toBeInTheDocument();
     });
   });
 
   describe('StudentQuizTake Component', () => {
+    const draftStorage = new Map<string, string>();
+    const localStorageMock = {
+      getItem: (key: string) => draftStorage.get(key) ?? null,
+      setItem: (key: string, value: string) => draftStorage.set(key, value),
+      removeItem: (key: string) => draftStorage.delete(key),
+      clear: () => draftStorage.clear(),
+    };
+
+    const renderQuizWithDraft = async (savedAt: number, serverUpdatedAt: string) => {
+      localStorage.setItem('quiz_draft_202', JSON.stringify({
+        responses: {
+          '50': {
+            selected_choice_id: 2,
+            selected_choice_ids: [2],
+            text_answer: '',
+            answer_data: { choice_ids: [2] },
+          },
+        },
+        savedAt,
+      }));
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          attempt_id: 202,
+          quiz_id: 12,
+          quiz_title: 'Draft merge test',
+          started_at: '2026-11-07T05:00:00Z',
+          time_remaining_seconds: 1800,
+          is_submitted: false,
+          total_questions: 1,
+          answered_count: 1,
+          questions: [{
+            id: 50,
+            order: 1,
+            question_type: 'multiple_choice',
+            question_text: 'Choose a saved answer.',
+            marks: 1,
+            choices: [
+              { id: 1, choice_text: 'Server answer' },
+              { id: 2, choice_text: 'Local answer' },
+            ],
+          }],
+          existing_responses: {
+            '50': {
+              selected_choice_id: 1,
+              selected_choice_ids: [1],
+              text_answer: '',
+              answer_data: { choice_ids: [1] },
+            },
+          },
+          existing_response_timestamps: { '50': serverUpdatedAt },
+        }),
+      });
+
+      render(
+        <MemoryRouter initialEntries={['/student/take/202']}>
+          <Routes>
+            <Route path="/student/take/:attemptId" element={<StudentQuizTake />} />
+          </Routes>
+        </MemoryRouter>
+      );
+      await screen.findByText('Choose a saved answer.');
+    };
+
+    beforeEach(() => {
+      draftStorage.clear();
+      vi.stubGlobal('localStorage', localStorageMock);
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('prefers the server answer when the saved local draft is older', async () => {
+      const serverUpdatedAt = new Date(Date.now() - 1000).toISOString();
+      await renderQuizWithDraft(Date.now() - 2000, serverUpdatedAt);
+
+      expect(screen.getByRole('radio', { name: 'Server answer' })).toBeChecked();
+      expect(screen.getByRole('radio', { name: 'Local answer' })).not.toBeChecked();
+    });
+
+    it('restores a local answer only when the saved draft is newer', async () => {
+      const serverUpdatedAt = new Date(Date.now() - 1000).toISOString();
+      await renderQuizWithDraft(Date.now(), serverUpdatedAt);
+
+      expect(screen.getByRole('radio', { name: 'Local answer' })).toBeChecked();
+      expect(screen.getByRole('radio', { name: 'Server answer' })).not.toBeChecked();
+    });
+
     it('renders quiz taking session with timer countdown and choice options without leaking correct keys', async () => {
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,

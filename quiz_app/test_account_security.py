@@ -6,10 +6,12 @@ from urllib.parse import urlsplit
 from unittest.mock import patch
 
 from django.core import mail
+from django.core.cache import cache
 from django.contrib import admin as django_admin
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 
+from .rate_limiting import AUTH_RATE_LIMITS
 from .models import SchoolInformation, Student, Teacher, User
 
 
@@ -44,6 +46,79 @@ class AccountSetupAndPasswordResetTests(TestCase):
         cls.superadmin.set_password("Superadmin-Test-Password-837!")
         cls.superadmin.save(update_fields=["password"])
 
+    def setUp(self):
+        cache.clear()
+
+    def test_password_change_rejects_wrong_current_password(self):
+        self.client.force_login(self.school_admin)
+        response = self.client.post(
+            "/api/v1/me/password/",
+            data=json.dumps({
+                "current_password": "not-the-current-password",
+                "new_password": "Strong-New-Password-941!",
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "INVALID_CURRENT_PASSWORD")
+
+    def test_password_change_rejects_a_weak_password(self):
+        self.client.force_login(self.school_admin)
+        response = self.client.post(
+            "/api/v1/me/password/",
+            data=json.dumps({
+                "current_password": "Admin-Test-Password-837!",
+                "new_password": "short",
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "WEAK_PASSWORD")
+        self.assertIn("new_password", response.json()["fields"])
+
+    def test_password_change_keeps_the_current_session_valid(self):
+        self.client.force_login(self.school_admin)
+        response = self.client.post(
+            "/api/v1/me/password/",
+            data=json.dumps({
+                "current_password": "Admin-Test-Password-837!",
+                "new_password": "Strong-New-Password-942!",
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(self.client.session.get("_auth_user_id"), str(self.school_admin.pk))
+        self.assertEqual(self.client.get("/api/v1/me/").status_code, 200)
+        self.school_admin.refresh_from_db()
+        self.assertTrue(self.school_admin.check_password("Strong-New-Password-942!"))
+
+    def test_password_change_attempts_are_rate_limited(self):
+        self.client.force_login(self.school_admin)
+        with patch.dict(AUTH_RATE_LIMITS, {"password_change": {"ip": (1, 900)}}):
+            for _ in range(1):
+                self.client.post(
+                    "/api/v1/me/password/",
+                    data=json.dumps({
+                        "current_password": "wrong",
+                        "new_password": "Strong-New-Password-943!",
+                    }),
+                    content_type="application/json",
+                )
+            response = self.client.post(
+                "/api/v1/me/password/",
+                data=json.dumps({
+                    "current_password": "wrong",
+                    "new_password": "Strong-New-Password-943!",
+                }),
+                content_type="application/json",
+            )
+
+        self.assertEqual(response.status_code, 429)
+        self.assertEqual(response.json()["code"], "RATE_LIMITED")
+
     def get_reset_link_path(self):
         self.assertEqual(len(mail.outbox), 1)
         match = re.search(r"https?://[^\s]+", mail.outbox[0].body)
@@ -53,7 +128,7 @@ class AccountSetupAndPasswordResetTests(TestCase):
     def get_valid_confirm_path(self, link_path):
         response = self.client.get(link_path)
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(urlsplit(response.url).path, "/auth-app/")
+        self.assertEqual(urlsplit(response.url).path, "/")
         self.assertIn("flow=password-reset-confirm", response.url)
         return link_path
 
@@ -128,7 +203,7 @@ class AccountSetupAndPasswordResetTests(TestCase):
 
         self.assertRedirects(
             response,
-            "/auth-app/",
+            "/",
             fetch_redirect_response=False,
         )
 
@@ -139,7 +214,7 @@ class AccountSetupAndPasswordResetTests(TestCase):
         )
         self.assertRedirects(
             response,
-            "/auth-app/?portal=superadmin&next=%2Fapp%2Fsuperadmin%2Fadmins",
+            "/?portal=superadmin&next=%2Fapp%2Fsuperadmin%2Fadmins",
             fetch_redirect_response=False,
         )
 
@@ -148,7 +223,7 @@ class AccountSetupAndPasswordResetTests(TestCase):
         )
         self.assertRedirects(
             classic_response,
-            "/auth-app/?portal=superadmin",
+            "/?portal=superadmin",
             fetch_redirect_response=False,
         )
 

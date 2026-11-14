@@ -2,12 +2,9 @@ import { AppIcon } from '../../components/common/AppIcon';
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { academicApi } from '../../api/academic';
-import type { ClassDetailData, AssignedSubject, EnrolledStudent, StructureLookups } from '../../types';
+import type { ClassDetailData, AssignedSubject, EnrolledStudent } from '../../types';
 import { DataTable, type Column } from '../../components/table/DataTable';
 import { Alert } from '../../components/common/Alert';
-import { Button } from '../../components/common/Button';
-import { Modal } from '../../components/common/Modal';
-import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 
 export const ClassDetailView: React.FC = () => {
@@ -15,23 +12,11 @@ export const ClassDetailView: React.FC = () => {
   const classId = Number(id);
 
   const [detail, setDetail] = useState<ClassDetailData | null>(null);
-  const [lookups, setLookups] = useState<StructureLookups | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Tab state
   const [activeTab, setActiveTab] = useState<'subjects' | 'students'>('subjects');
-
-  // Assign Subject Modal state
-  const [isAssignModalOpen, setIsAssignModalOpen] = useState<boolean>(false);
-  const [selectedSubjectId, setSelectedSubjectId] = useState<number | ''>('');
-  const [assignLoading, setAssignLoading] = useState<boolean>(false);
-  const [assignError, setAssignError] = useState<string | null>(null);
-
-  // Remove Subject Dialog state
-  const [removeTarget, setRemoveTarget] = useState<AssignedSubject | null>(null);
-  const [removeLoading, setRemoveLoading] = useState<boolean>(false);
 
   const loadClassDetail = useCallback(async () => {
     if (!classId || isNaN(classId)) {
@@ -43,12 +28,7 @@ export const ClassDetailView: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const [classRes, lookupRes] = await Promise.all([
-        academicApi.getClassDetail(classId),
-        academicApi.getStructureLookups({ class_id: classId }),
-      ]);
-      setDetail(classRes);
-      setLookups(lookupRes);
+      setDetail(await academicApi.getClassDetail(classId));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load class details.');
     } finally {
@@ -59,49 +39,6 @@ export const ClassDetailView: React.FC = () => {
   useEffect(() => {
     loadClassDetail();
   }, [loadClassDetail]);
-
-  const handleAssignSubject = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedSubjectId) {
-      setAssignError('Please select a subject to assign.');
-      return;
-    }
-
-    setAssignLoading(true);
-    setAssignError(null);
-    try {
-      const res = await academicApi.assignClassSubject(classId, Number(selectedSubjectId));
-      setSuccessMessage(res.message);
-      setIsAssignModalOpen(false);
-      setSelectedSubjectId('');
-      loadClassDetail();
-    } catch (err) {
-      setAssignError(err instanceof Error ? err.message : 'Failed to assign subject.');
-    } finally {
-      setAssignLoading(false);
-    }
-  };
-
-  const handleRemoveSubjectConfirm = async () => {
-    if (!removeTarget) return;
-    setRemoveLoading(true);
-    try {
-      const res = await academicApi.removeClassSubject(classId, removeTarget.id);
-      setSuccessMessage(res.message);
-      setRemoveTarget(null);
-      loadClassDetail();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to unassign subject.');
-      setRemoveTarget(null);
-    } finally {
-      setRemoveLoading(false);
-    }
-  };
-
-  // Filter available subjects: not already assigned
-  const assignedSubjectIds = new Set(detail?.subjects.map((s) => s.subject_id) || []);
-  const unassignedSubjects =
-    lookups?.available_subjects?.filter((s) => !assignedSubjectIds.has(s.id)) || [];
 
   const subjectColumns: Column<AssignedSubject>[] = [
     {
@@ -130,22 +67,6 @@ export const ClassDetailView: React.FC = () => {
       sortable: true,
       accessor: (row) => (
         <span className="core-type--small core-text--secondary">{row.learning_area_name}</span>
-      ),
-    },
-    {
-      id: 'actions',
-      header: 'Actions',
-      align: 'right',
-      accessor: (row) => (
-        <Button
-          variant="outline-danger"
-          size="sm"
-          onClick={() => setRemoveTarget(row)}
-          title="Unassign Subject from Class"
-        >
-          <AppIcon name="circleX" className="core-space--margin-end-1" />
-          Remove
-        </Button>
       ),
     },
   ];
@@ -250,33 +171,10 @@ export const ClassDetailView: React.FC = () => {
             <AppIcon name="arrowLeft" className="core-space--margin-end-1" />
             Back to Classes
           </Link>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => {
-              setAssignError(null);
-              setSelectedSubjectId('');
-              setIsAssignModalOpen(true);
-            }}
-          >
-            <AppIcon name="circlePlus" className="core-space--margin-end-1" />
-            Assign Subject
-          </Button>
         </div>
       </div>
 
       {/* Notifications */}
-      {successMessage && (
-        <Alert
-          variant="success"
-          dismissible
-          onDismiss={() => setSuccessMessage(null)}
-          className="core-space--margin-bottom-4"
-        >
-          {successMessage}
-        </Alert>
-      )}
-
       {error && (
         <Alert
           variant="danger"
@@ -388,86 +286,6 @@ export const ClassDetailView: React.FC = () => {
         </div>
       </div>
 
-      {/* Assign Subject Modal */}
-      <Modal
-        isOpen={isAssignModalOpen}
-        onClose={() => setIsAssignModalOpen(false)}
-        title={`Assign Subject to ${cls?.name}`}
-        footer={
-          <div className="core-display-flex core-layout--justify-end core-layout--gap-2 core-size--width-full">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setIsAssignModalOpen(false)}
-              disabled={assignLoading}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleAssignSubject}
-              loading={assignLoading}
-              disabled={!selectedSubjectId}
-            >
-              Assign Subject
-            </Button>
-          </div>
-        }
-      >
-        <form onSubmit={handleAssignSubject}>
-          {assignError && (
-            <Alert variant="danger" className="core-space--margin-bottom-3">
-              {assignError}
-            </Alert>
-          )}
-
-          <div className="core-space--margin-bottom-3">
-            <label htmlFor="select-subject" className="core-field__label core-type--small core-type--weight-semibold">
-              Select Subject to Teach in this Class <span className="core-text--danger">*</span>
-            </label>
-            <select
-              id="select-subject"
-              className="core-field__select"
-              value={selectedSubjectId}
-              onChange={(e) => setSelectedSubjectId(Number(e.target.value))}
-              required
-            >
-              <option value="">-- Choose Subject --</option>
-              {unassignedSubjects.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.subject_code} - {s.subject_name}
-                </option>
-              ))}
-            </select>
-            {unassignedSubjects.length === 0 && (
-              <div className="core-field__helper core-text--warning">
-                All existing subjects are already assigned to this class.
-              </div>
-            )}
-          </div>
-        </form>
-      </Modal>
-
-      {/* Remove Subject Confirmation */}
-      <ConfirmDialog
-        isOpen={Boolean(removeTarget)}
-        onClose={() => setRemoveTarget(null)}
-        onConfirm={handleRemoveSubjectConfirm}
-        title="Unassign Subject"
-        message={
-          <div>
-            Unassign subject <strong>{removeTarget?.subject_name}</strong> ({removeTarget?.subject_code})
-            from class <strong>{cls?.name}</strong>?
-            <p className="core-text--muted core-type--small core-space--margin-top-2 core-space--margin-bottom-0">
-              Future quizzes assigned to this subject will no longer link to this class cohort.
-            </p>
-          </div>
-        }
-        confirmLabel="Remove Subject"
-        confirmVariant="danger"
-        loading={removeLoading}
-      />
     </div>
   );
 };

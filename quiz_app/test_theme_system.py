@@ -100,23 +100,23 @@ class AccentThemePageTests(TestCase):
             school=cls.school,
         )
 
-    def test_legacy_auth_routes_redirect_to_the_react_auth_shell(self):
+    def test_legacy_auth_routes_redirect_to_root_react_auth_shell(self):
         login = self.client.get(reverse("quiz_app:login"))
         superadmin_login = self.client.get(
             reverse("quiz_app:superadmin_login") + "?classic=1"
         )
         reset = self.client.get(reverse("quiz_app:password_reset"))
         self.assertRedirects(
-            login, "/auth-app/", fetch_redirect_response=False
+            login, "/", fetch_redirect_response=False
         )
         self.assertRedirects(
             superadmin_login,
-            "/auth-app/?portal=superadmin",
+            "/?portal=superadmin",
             fetch_redirect_response=False,
         )
         self.assertRedirects(
             reset,
-            "/auth-app/?flow=password-reset",
+            "/?flow=password-reset",
             fetch_redirect_response=False,
         )
 

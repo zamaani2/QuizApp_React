@@ -34,6 +34,45 @@ MAX_IMPORT_FILE_SIZE = 5 * 1024 * 1024
 MAX_IMPORT_ROWS = 5000
 MAX_IMPORT_COLUMNS = 64
 
+STUDENT_IMPORT_TEMPLATE_HEADERS = (
+    "full_name",
+    "gender",
+    "admission_number",
+    "date_of_birth",
+    "parent_contact",
+    "admission_date",
+    "email",
+)
+STUDENT_IMPORT_TEMPLATE_ROWS = (
+    (
+        "John Doe",
+        "M",
+        "STU001",
+        "2010-05-15",
+        "0244123456",
+        "2024-01-10",
+        "john.doe@example.com",
+    ),
+    (
+        "Jane Smith",
+        "F",
+        "",
+        "2010-08-20",
+        "0244987654",
+        "2024-01-10",
+        "jane.smith@example.com",
+    ),
+    (
+        "Michael Johnson",
+        "M",
+        "",
+        "",
+        "",
+        "",
+        "",
+    ),
+)
+
 from ..models import (
     Student,
     Form,
@@ -364,9 +403,6 @@ def student_create_view(request):
     POST: Creates student and returns JSON response
     """
     return legacy_write_gone("/api/v1/students/")
-    if request.user.role not in ["admin", "superadmin"]:
-        messages.error(request, "You don't have permission to perform this action.")
-        return redirect("quiz_app:student_list")
     
     # POST - Create student
     school = get_write_school(request)
@@ -459,9 +495,6 @@ def student_edit_view(request, student_id):
     POST: Updates student and returns JSON response
     """
     return legacy_write_gone("/api/v1/students/")
-    if request.user.role not in ["admin", "superadmin"]:
-        messages.error(request, "You don't have permission to perform this action.")
-        return redirect("quiz_app:student_list")
     
     student = get_object_or_404_with_school(Student, request, pk=student_id)
     school = student.school
@@ -674,50 +707,8 @@ def student_bulk_import_template_view(request):
     output = io.StringIO()
     writer = csv.writer(output)
     
-    # Write headers - required: full_name, gender; optional: admission_number (auto-generated if not provided)
-    headers = [
-        'full_name',
-        'gender',
-        'admission_number',
-        'date_of_birth',
-        'parent_contact',
-        'admission_date',
-        'email',
-    ]
-    writer.writerow(headers)
-    
-    # Write sample data rows
-    sample_rows = [
-        [
-            'John Doe',
-            'M',
-            'STU001',
-            '2010-05-15',
-            '0244123456',
-            '2024-01-10',
-            'john.doe@example.com',
-        ],
-        [
-            'Jane Smith',
-            'F',
-            '',
-            '2010-08-20',
-            '0244987654',
-            '2024-01-10',
-            'jane.smith@example.com',
-        ],
-        [
-            'Michael Johnson',
-            'M',
-            '',
-            '2011-02-10',
-            '0244111222',
-            '2024-01-10',
-            '',
-        ]
-    ]
-    
-    for row in sample_rows:
+    writer.writerow(STUDENT_IMPORT_TEMPLATE_HEADERS)
+    for row in STUDENT_IMPORT_TEMPLATE_ROWS:
         writer.writerow(row)
     
     # Create HTTP response with CSV content
@@ -751,62 +742,19 @@ def student_bulk_import_template_xlsx_view(request):
     ws = wb.active
     ws.title = "Student Import Template"
     
-    # Define headers - required: full_name, gender; optional: admission_number (auto-generated if not provided)
-    headers = [
-        'full_name',
-        'gender',
-        'admission_number',
-        'date_of_birth',
-        'parent_contact',
-        'admission_date',
-        'email',
-    ]
-    
     # Style for header row
     header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
     header_font = Font(bold=True, color="FFFFFF")
     header_alignment = Alignment(horizontal="center", vertical="center")
     
     # Write headers with styling
-    for col_num, header in enumerate(headers, 1):
+    for col_num, header in enumerate(STUDENT_IMPORT_TEMPLATE_HEADERS, 1):
         cell = ws.cell(row=1, column=col_num, value=header)
         cell.fill = header_fill
         cell.font = header_font
         cell.alignment = header_alignment
     
-    # Sample data rows - showing one with admission_number and one without (will be auto-generated)
-    sample_rows = [
-        [
-            'John Doe',
-            'M',
-            'STU001',
-            '2010-05-15',
-            '0244123456',
-            '2024-01-10',
-            'john.doe@example.com',
-        ],
-        [
-            'Jane Smith',
-            'F',
-            '',
-            '2010-08-20',
-            '0244987654',
-            '2024-01-10',
-            'jane.smith@example.com',
-        ],
-        [
-            'Michael Johnson',
-            'M',
-            '',
-            '2011-02-10',
-            '0244111222',
-            '2024-01-10',
-            '',
-        ]
-    ]
-    
-    # Write sample data
-    for row_num, row_data in enumerate(sample_rows, 2):
+    for row_num, row_data in enumerate(STUDENT_IMPORT_TEMPLATE_ROWS, 2):
         for col_num, cell_value in enumerate(row_data, 1):
             ws.cell(row=row_num, column=col_num, value=cell_value)
     
@@ -888,9 +836,6 @@ def student_bulk_import_view(request):
     POST: Processes CSV/XLSX file and imports students
     """
     return legacy_write_gone("/api/v1/students/import/")
-    if request.user.role not in ["admin", "superadmin"]:
-        messages.error(request, "You don't have permission to perform this action.")
-        return redirect("quiz_app:student_list")
     
     # POST - Process import
     try:

@@ -1,4 +1,5 @@
 import React from 'react';
+import './review.css';
 import type {
   StudentQuestionResponse,
   StudentReviewChoice,
@@ -82,6 +83,11 @@ const AnswerKeyEditor: React.FC<QuestionTypeEditorProps> = ({
 };
 
 const EmptyEditor: React.FC<QuestionTypeEditorProps> = () => null;
+const hasReviewValue = (value: unknown) =>
+  value !== null
+  && value !== undefined
+  && !(typeof value === 'string' && !value.trim())
+  && !(Array.isArray(value) && value.length === 0);
 
 const ChoicePlayer: React.FC<QuestionTypePlayerProps> = ({
   question,
@@ -319,10 +325,10 @@ const OrderingPlayer: React.FC<QuestionTypePlayerProps> = ({ question, response,
 };
 
 const DefaultReview: React.FC<QuestionTypeReviewProps> = ({ answer, correctAnswer }) => (
-  <div className="core-space--margin-top-3">
-    <p><strong>Your answer: </strong>{formatAnswer(answer)}</p>
-    {correctAnswer !== null && correctAnswer !== undefined && (
-      <p><strong>Correct answer: </strong>{formatAnswer(correctAnswer)}</p>
+  <div className="question-review">
+    <p className="question-review__answer"><strong className="question-review__label">Your answer:</strong> {formatAnswer(answer)}</p>
+    {hasReviewValue(correctAnswer) && (
+      <p className="question-review__answer"><strong className="question-review__label">Correct answer:</strong> {formatAnswer(correctAnswer)}</p>
     )}
   </div>
 );
@@ -337,28 +343,21 @@ const ChoiceReview: React.FC<QuestionTypeReviewProps> = ({
     return <DefaultReview answer={answer} correctAnswer={correctAnswer} />;
   }
   return (
-    <div className="core-space--margin-top-3 core-display-flex core-layout--column core-layout--gap-2">
+    <div className="question-review question-review--choices">
       {choices.map((choice) => {
-        let borderColor = 'var(--stu-border)';
-        let backgroundColor = 'var(--stu-surface)';
-        if (choice.is_selected && choice.is_correct) {
-          borderColor = 'var(--stu-success)';
-          backgroundColor = 'var(--stu-success-bg)';
-        } else if (choice.is_selected && !choice.is_correct) {
-          borderColor = 'var(--stu-danger)';
-          backgroundColor = 'var(--stu-danger-bg)';
-        } else if (showCorrectAnswers && choice.is_correct) {
-          borderColor = 'var(--stu-warning-border)';
-          backgroundColor = 'var(--stu-warning-bg)';
-        }
+        const choiceState = choice.is_selected && choice.is_correct === true
+          ? 'question-review__choice--selected-correct'
+          : choice.is_selected && choice.is_correct === false
+            ? 'question-review__choice--selected-incorrect'
+            : showCorrectAnswers && choice.is_correct === true
+              ? 'question-review__choice--correct'
+              : '';
         return (
-          <div key={choice.id}
-            className="core-space--padding-2 core-radius core-display-flex core-layout--justify-between core-layout--align-center"
-            style={{ backgroundColor, border: `1px solid ${borderColor}`, fontSize: '0.875rem' }}>
-            <span className="core-text--dark">{choice.choice_text}</span>
-            <div className="core-display-flex core-layout--gap-1 core-layout--align-center core-layout--shrink-none">
-              {choice.is_selected && <span className="stu-badge stu-badge--muted">Your Answer</span>}
-              {showCorrectAnswers && choice.is_correct && <span className="stu-badge stu-badge--success">Correct Key</span>}
+          <div key={choice.id} className={`question-review__choice ${choiceState}`}>
+            <span>{choice.choice_text}</span>
+            <div className="question-review__badges">
+              {choice.is_selected && <span className="question-review__badge question-review__badge--muted">Your answer</span>}
+              {showCorrectAnswers && choice.is_correct && <span className="question-review__badge question-review__badge--success">Correct answer</span>}
             </div>
           </div>
         );
@@ -376,15 +375,15 @@ const MatchingReview: React.FC<QuestionTypeReviewProps> = ({ answer, correctAnsw
     return <DefaultReview answer={answer} correctAnswer={correctAnswer} />;
   }
   return (
-    <div className="core-space--margin-top-3">
-      <p><strong>Your matches:</strong></p>
+    <div className="question-review">
+      <p className="question-review__label">Your matches:</p>
       {rows.length ? (
-        <ul>{rows.map((pair, index) => <li key={`${pair.left}-${index}`}>{pair.left} → {pair.right || 'No match'}</li>)}</ul>
-      ) : <p>No matches submitted.</p>}
-      {correctAnswer !== null && correctAnswer !== undefined && (
+        <ul className="question-review__list">{rows.map((pair, index) => <li key={`${pair.left}-${index}`}>{pair.left} <span aria-hidden="true">→</span> {pair.right || 'No match'}</li>)}</ul>
+      ) : <p className="question-review__answer">No matches submitted.</p>}
+      {hasReviewValue(correctAnswer) && (
         <>
-          <p><strong>Correct matches:</strong></p>
-          <ul>{correctRows.map((pair, index) => <li key={`${pair.left}-${index}`}>{pair.left} → {pair.right}</li>)}</ul>
+          <p className="question-review__label">Correct matches:</p>
+          <ul className="question-review__list">{correctRows.map((pair, index) => <li key={`${pair.left}-${index}`}>{pair.left} <span aria-hidden="true">→</span> {pair.right}</li>)}</ul>
         </>
       )}
     </div>
@@ -392,15 +391,15 @@ const MatchingReview: React.FC<QuestionTypeReviewProps> = ({ answer, correctAnsw
 };
 
 const OrderingReview: React.FC<QuestionTypeReviewProps> = ({ answer, correctAnswer }) => (
-  <div className="core-space--margin-top-3">
-    <p><strong>Your order:</strong></p>
-    {Array.isArray(answer) ? <ol>{answer.map((item, index) => <li key={index}>{formatAnswer(item)}</li>)}</ol> : <p>{formatAnswer(answer)}</p>}
-    {correctAnswer !== null && correctAnswer !== undefined && (
+  <div className="question-review">
+    <p className="question-review__label">Your order:</p>
+    {Array.isArray(answer) ? <ol className="question-review__list">{answer.map((item, index) => <li key={index}>{formatAnswer(item)}</li>)}</ol> : <p className="question-review__answer">{formatAnswer(answer)}</p>}
+    {hasReviewValue(correctAnswer) && (
       <>
-        <p><strong>Correct order:</strong></p>
+        <p className="question-review__label">Correct order:</p>
         {Array.isArray(correctAnswer)
-          ? <ol>{correctAnswer.map((item, index) => <li key={index}>{formatAnswer(item)}</li>)}</ol>
-          : <p>{formatAnswer(correctAnswer)}</p>}
+          ? <ol className="question-review__list">{correctAnswer.map((item, index) => <li key={index}>{formatAnswer(item)}</li>)}</ol>
+          : <p className="question-review__answer">{formatAnswer(correctAnswer)}</p>}
       </>
     )}
   </div>

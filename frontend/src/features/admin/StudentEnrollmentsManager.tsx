@@ -5,7 +5,7 @@ import type { StudentEnrollment, EnrollmentLookups } from '../../types';
 import { DataTable, type Column } from '../../components/table/DataTable';
 import { Alert } from '../../components/common/Alert';
 import { Button } from '../../components/common/Button';
-import { Modal } from '../../components/common/Modal';
+import { SideDrawer } from '../../components/common/SideDrawer';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import './StudentEnrollmentsManager.css';
 
@@ -550,11 +550,11 @@ export const StudentEnrollmentsManager: React.FC = () => {
         </div>
       </div>
 
-      {/* Single Enroll Modal */}
-      <Modal
+      <SideDrawer
         isOpen={isSingleModalOpen}
         onClose={() => setIsSingleModalOpen(false)}
         title="Enroll Student in Class"
+        closeDisabled={singleSubmitting}
         footer={
           <div className="core-display-flex core-layout--justify-end core-layout--gap-2 core-size--width-full">
             <Button
@@ -639,16 +639,15 @@ export const StudentEnrollmentsManager: React.FC = () => {
             </div>
           </div>
         </form>
-      </Modal>
+      </SideDrawer>
 
-      {/* Bulk Enroll Modal */}
-      <Modal
+      <SideDrawer
         isOpen={isBulkModalOpen}
         onClose={() => setIsBulkModalOpen(false)}
         title="Bulk Enroll Students"
-        size="lg"
+        closeDisabled={bulkSubmitting}
         footer={
-          <div className="core-display-flex core-layout--justify-between core-layout--align-center core-size--width-full">
+          <div className="side-drawer__actions">
             <span className="core-type--small core-text--muted">
               {bulkStudentIds.length} student(s) selected
             </span>
@@ -756,13 +755,13 @@ export const StudentEnrollmentsManager: React.FC = () => {
             )}
           </div>
         </form>
-      </Modal>
+      </SideDrawer>
 
-      {/* Transfer / Edit Modal */}
-      <Modal
+      <SideDrawer
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         title={`Transfer ${editingEnrollment?.student_name}`}
+        closeDisabled={editSubmitting}
         footer={
           <div className="core-display-flex core-layout--justify-end core-layout--gap-2 core-size--width-full">
             <Button
@@ -784,6 +783,26 @@ export const StudentEnrollmentsManager: React.FC = () => {
           </div>
         }
       >
+        {editingEnrollment && (
+          <dl className="enrollment-admin__drawer-summary">
+            <div>
+              <dt>Admission number</dt>
+              <dd>{editingEnrollment.admission_number}</dd>
+            </div>
+            <div>
+              <dt>Current class</dt>
+              <dd>{editingEnrollment.class_name}</dd>
+            </div>
+            <div>
+              <dt>Academic year</dt>
+              <dd>{editingEnrollment.academic_year_name || '—'}</dd>
+            </div>
+            <div>
+              <dt>Enrollment date</dt>
+              <dd>{editingEnrollment.date_assigned ? new Date(editingEnrollment.date_assigned).toLocaleDateString() : '—'}</dd>
+            </div>
+          </dl>
+        )}
         <form onSubmit={handleEditSubmit}>
           {editError && (
             <Alert variant="danger" className="core-space--margin-bottom-3">
@@ -828,7 +847,7 @@ export const StudentEnrollmentsManager: React.FC = () => {
             </label>
           </div>
         </form>
-      </Modal>
+      </SideDrawer>
 
       {/* Delete Confirmation */}
       <ConfirmDialog

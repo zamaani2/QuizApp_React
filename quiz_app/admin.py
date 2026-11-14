@@ -135,7 +135,8 @@ class StudentAdmin(PreserveAcademicHistoryAdminMixin, admin.ModelAdmin):
     date_hierarchy = 'admission_date'
     
     def calculate_age_display(self, obj):
-        return f"{obj.calculate_age()} years"
+        age = obj.calculate_age()
+        return f"{age} years" if age is not None else "N/A"
     calculate_age_display.short_description = 'Age'
 
 

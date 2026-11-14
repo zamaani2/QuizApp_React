@@ -4,14 +4,17 @@ from quiz_app.models import SchoolInformation, User, Student, Teacher, AcademicY
 
 
 class AuthCoreShellTests(TestCase):
-    def test_auth_core_shell_is_public_and_supplies_csrf_token(self):
-        response = self.client.get('/auth-app/')
+    def test_root_serves_auth_core_shell_and_legacy_path_redirects(self):
+        response = self.client.get('/')
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'auth_core_app.html')
         self.assertContains(response, 'id="auth-core-root"')
         self.assertContains(response, 'name="csrf-token"')
         self.assertContains(response, 'react/assets/auth-core.js')
         self.assertIn('csrftoken', response.cookies)
+
+        legacy_response = self.client.get('/auth-app/')
+        self.assertRedirects(legacy_response, '/', fetch_redirect_response=False)
 
 
 class Phase6IntegrationTests(TestCase):
@@ -93,7 +96,7 @@ class Phase6IntegrationTests(TestCase):
         """Unauthenticated requests to /app/ should open the React auth app."""
         res = self.client.get('/app/')
         self.assertEqual(res.status_code, 302)
-        self.assertEqual(res.url, '/auth-app/?next=%2Fapp%2F')
+        self.assertEqual(res.url, '/?next=%2Fapp%2F')
 
     def test_authenticated_admin_can_access_react_shell(self):
         """Authenticated admin can load the React SPA shell at /app/"""

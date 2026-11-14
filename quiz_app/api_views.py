@@ -1000,8 +1000,10 @@ def teachers_api_view(request):
 
     teachers = teachers.select_related("department", "school").order_by("full_name")
 
+    page_obj = Paginator(teachers, 50).get_page(request.GET.get("page"))
+
     results = []
-    for t in teachers:
+    for t in page_obj.object_list:
         results.append({
             "id": t.pk,
             "staff_id": t.staff_id,
@@ -1017,7 +1019,12 @@ def teachers_api_view(request):
             "school_id": t.school_id,
         })
 
-    return JsonResponse({"count": len(results), "results": results})
+    return JsonResponse({
+        "count": page_obj.paginator.count,
+        "page": page_obj.number,
+        "total_pages": page_obj.paginator.num_pages,
+        "results": results,
+    })
 
 
 @require_http_methods(["GET"])
@@ -1265,8 +1272,9 @@ def teacher_quizzes_api_view(request):
 
     results = []
     for q in quizzes[:150]:
-        attempts = q.attempts.filter(school=school, is_submitted=True)
-        avg_score = attempts.aggregate(avg=Avg("percentage"))["avg"] or 0
+        attempts = q.attempts.filter(school=school)
+        submitted_attempts = attempts.filter(is_submitted=True)
+        avg_score = submitted_attempts.aggregate(avg=Avg("percentage"))["avg"] or 0
         results.append({
             "id": q.pk,
             "title": q.title,
@@ -1277,7 +1285,8 @@ def teacher_quizzes_api_view(request):
             "duration_minutes": q.time_limit,
             "total_questions": q.questions.count(),
             "total_marks": q.total_marks,
-            "total_attempts": attempts.count(),
+            "total_attempts": submitted_attempts.count(),
+            "has_attempts": attempts.exists(),
             "avg_score": round(avg_score, 1),
             "created_at": q.created_at.isoformat() if hasattr(q, "created_at") and q.created_at else None,
             "classes": [{"id": c.pk, "name": c.name} for c in q.classes.all()],
@@ -1411,6 +1420,7 @@ def teacher_quiz_detail_api_view(request, quiz_id):
         "total_questions": quiz.questions.count(),
         "total_marks": quiz.total_marks,
         "total_attempts": quiz.attempts.filter(school=school, is_submitted=True).count(),
+        "has_attempts": quiz.attempts.filter(school=school).exists(),
         "assigned_classes": assigned_classes,
         "questions": questions_data,
         "sections": sections_data,
@@ -2714,6 +2724,7 @@ def student_quiz_take_api_view(request, attempt_id):
 
     # Existing responses
     existing_responses = {}
+    existing_response_timestamps = {}
     for r in attempt.responses.filter(school=school).select_related("selected_choice").prefetch_related("selected_choices"):
         selected_ids = [c.pk for c in r.selected_choices.all()]
         if not selected_ids and r.selected_choice_id:
@@ -2724,6 +2735,7 @@ def student_quiz_take_api_view(request, attempt_id):
             "text_answer": r.text_answer or "",
             "answer_data": r.answer_data or {},
         }
+        existing_response_timestamps[str(r.question_id)] = r.updated_at.isoformat()
 
     # Time remaining
     time_remaining_seconds = None
@@ -2823,6 +2835,7 @@ def student_quiz_take_api_view(request, attempt_id):
         "active_section_id": active_section_id,
         "section_timing_enabled": _section_timing_enabled(attempt),
         "existing_responses": existing_responses,
+        "existing_response_timestamps": existing_response_timestamps,
     })
 
 
@@ -3639,7 +3652,7 @@ def react_app_shell_view(request, subpath=""):
     Guarantees a CSRF cookie is present on the client.
     """
     if not getattr(request.user, "is_authenticated", False):
-        return redirect(f"/auth-app/?{urlencode({'next': request.path})}")
+        return redirect(f"/?{urlencode({'next': request.path})}")
 
     return render(
         request,

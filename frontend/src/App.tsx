@@ -1,5 +1,4 @@
-import { AppIcon } from './components/common/AppIcon';
-import { useState, lazy, Suspense, type FC } from 'react';
+import { lazy, Suspense, type FC } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth, RoleGuard } from './auth';
 import './features/assessment.css';
@@ -8,11 +7,6 @@ import {
   StudentAppLayout,
   TeacherAppLayout,
   AdminAppLayout,
-  Button,
-  Alert,
-  Modal,
-  DataTable,
-  type Column,
   LoadingSpinner,
 } from './components';
 
@@ -160,237 +154,12 @@ const StudentProfileView = lazy(() =>
 const StudentProgressView = lazy(() =>
   import('./features/student/StudentProgressView').then((m) => ({ default: m.StudentProgressView }))
 );
-
-interface ComponentStatusItem {
-  id: string;
-  name: string;
-  category: string;
-  status: 'Ready' | 'In Review' | 'Planned';
-  description: string;
-}
-
-const SAMPLE_COMPONENTS: ComponentStatusItem[] = [
-  {
-    id: 'app-shell',
-    name: 'App Shell & Navigation',
-    category: 'Layout',
-    status: 'Ready',
-    description: 'Header, sidebar, theme switcher, and session timer with Django layout parity',
-  },
-  {
-    id: 'data-table',
-    name: 'DataTable Primitive',
-    category: 'Data Display',
-    status: 'Ready',
-    description: 'Sortable, searchable, paginated table with accessible markup',
-  },
-  {
-    id: 'modal',
-    name: 'Modal Dialog',
-    category: 'Overlay',
-    status: 'Ready',
-    description: 'Accessible modal dialog with ESC key and backdrop handling',
-  },
-  {
-    id: 'form-fields',
-    name: 'Form Field Primitives',
-    category: 'Forms',
-    status: 'Ready',
-    description: 'Accessible input fields with validation error feedback',
-  },
-  {
-    id: 'buttons',
-    name: 'Button Primitive',
-    category: 'Controls',
-    status: 'Ready',
-    description: 'Multiple variants, sizes, and loading state spinner',
-  },
-  {
-    id: 'error-boundary',
-    name: 'Error Boundary & Alert',
-    category: 'Feedback',
-    status: 'Ready',
-    description: 'Graceful runtime error catching and dismissible alert banners',
-  },
-];
-
-export const ComponentInventoryPreview: FC = () => {
-  const { data } = useAuth();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [alertDismissed, setAlertDismissed] = useState(false);
-
-  const user = data?.user;
-  const school = data?.school;
-
-  const columns: Column<ComponentStatusItem>[] = [
-    {
-      id: 'name',
-      header: 'Component',
-      accessor: (row) => (
-        <div>
-          <span className="core-type--weight-semibold core-text--dark">{row.name}</span>
-          <div className="core-type--small core-text--muted">{row.description}</div>
-        </div>
-      ),
-      sortable: true,
-    },
-    {
-      id: 'category',
-      header: 'Category',
-      accessor: 'category',
-      sortable: true,
-      width: '140px',
-    },
-    {
-      id: 'status',
-      header: 'Status',
-      accessor: (row) => (
-        <span
-          className={`core-badge ${
-            row.status === 'Ready'
-              ? 'core-surface--success'
-              : row.status === 'In Review'
-              ? 'core-surface--warning core-text--dark'
-              : 'core-surface--secondary'
-          }`}
-        >
-          {row.status}
-        </span>
-      ),
-      sortable: true,
-      align: 'center',
-      width: '120px',
-    },
-  ];
-
-  return (
-    <div className="react-dashboard-content" data-testid="component-inventory-preview">
-      {!alertDismissed && (
-        <Alert
-          variant="info"
-          title="Phase 2 Shared UI Active"
-          dismissible
-          onDismiss={() => setAlertDismissed(true)}
-          className="core-space--margin-bottom-4"
-        >
-          Visual parity established with Django layout. React-owned style tokens, accent themes,
-          and reusable primitives (Table, Modal, Form, Buttons) are now available.
-        </Alert>
-      )}
-
-      {/* Overview Cards */}
-      <div className="core-grid core-grid--gap-3 core-space--margin-bottom-4">
-        <div className="core-grid__span-12 core-grid__span-md-4">
-          <div className="core-card core-shadow--sm core-border--none core-size--height-full">
-            <div className="core-card__body core-space--padding-3">
-              <div className="core-display-flex core-layout--align-center core-layout--gap-3">
-                <div className="core-space--padding-3 core-surface--primary-subtle core-radius--3 core-text--primary">
-                  <AppIcon name="shieldCheck" className="core-type--size-4" />
-                </div>
-                <div>
-                  <div className="core-text--muted core-type--small core-type--weight-semibold">SESSION AUTH</div>
-                  <div className="core-type--heading-6 core-space--margin-bottom-0 core-type--weight-bold">{user?.username}</div>
-                  <small className="core-text--capitalize core-text--muted">{user?.role}</small>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="core-grid__span-12 core-grid__span-md-4">
-          <div className="core-card core-shadow--sm core-border--none core-size--height-full">
-            <div className="core-card__body core-space--padding-3">
-              <div className="core-display-flex core-layout--align-center core-layout--gap-3">
-                <div className="core-space--padding-3 core-surface--success-subtle core-radius--3 core-text--success">
-                  <AppIcon name="building" className="core-type--size-4" />
-                </div>
-                <div>
-                  <div className="core-text--muted core-type--small core-type--weight-semibold">TENANT SCHOOL</div>
-                  <div className="core-type--heading-6 core-space--margin-bottom-0 core-type--weight-bold">{school?.name || 'Superadmin Scoped'}</div>
-                  <small className="core-text--muted">{school?.code || 'Active'}</small>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="core-grid__span-12 core-grid__span-md-4">
-          <div className="core-card core-shadow--sm core-border--none core-size--height-full">
-            <div className="core-card__body core-space--padding-3">
-              <div className="core-display-flex core-layout--align-center core-layout--gap-3">
-                <div className="core-space--padding-3 core-surface--info-subtle core-radius--3 core-text--info">
-                  <AppIcon name="palette" className="core-type--size-4" />
-                </div>
-                <div>
-                  <div className="core-text--muted core-type--small core-type--weight-semibold">ACCENT THEME</div>
-                  <div className="core-type--heading-6 core-space--margin-bottom-0 core-type--weight-bold core-text--capitalize">
-                    {data?.ui_preferences?.theme || 'Academic Pro'}
-                  </div>
-                  <small className="core-text--muted">Synced with Django</small>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Shared Primitives Inventory Table */}
-      <div className="core-card core-shadow--sm core-border--none core-space--margin-bottom-4">
-        <div className="core-card__header core-surface--white core-border--bottom core-space--padding-y-3 core-display-flex core-layout--justify-between core-layout--align-center core-layout--wrap core-layout--gap-2">
-          <div>
-            <h2 className="core-type--heading-6 core-type--weight-bold core-space--margin-bottom-0 core-text--dark">Shared UI Components Inventory</h2>
-            <small className="core-text--muted">
-              Standard primitives built to match Django appearance and accessibility
-            </small>
-          </div>
-          <Button
-            variant="primary"
-            size="sm"
-            icon={<AppIcon name="panelsTopLeft" />}
-            onClick={() => setIsModalOpen(true)}
-          >
-            Launch Modal Preview
-          </Button>
-        </div>
-        <div className="core-card__body core-space--padding-3">
-          <DataTable
-            columns={columns}
-            data={SAMPLE_COMPONENTS}
-            keyExtractor={(item) => item.id}
-            searchPlaceholder="Filter components..."
-            defaultPageSize={10}
-          />
-        </div>
-      </div>
-
-      {/* Modal Preview */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Shared Modal Primitive"
-        footer={
-          <div className="core-display-flex core-layout--justify-end core-layout--gap-2 core-size--width-full">
-            <Button variant="secondary" size="sm" onClick={() => setIsModalOpen(false)}>
-              Close
-            </Button>
-            <Button variant="primary" size="sm" onClick={() => setIsModalOpen(false)}>
-              Understood
-            </Button>
-          </div>
-        }
-      >
-        <p className="core-space--margin-bottom-2">
-          This modal primitive uses accessible QuizApp dialog styles. It traps focus,
-          responds to the <kbd>Esc</kbd> key, and closes when clicking the backdrop.
-        </p>
-        <p className="core-space--margin-bottom-0 core-text--muted core-type--small">
-          It is ready to be used by Phase 3 (Admin) and Phase 4 (Teacher) forms and confirmation
-          workflows.
-        </p>
-      </Modal>
-    </div>
-  );
-};
+const AccountSettings = lazy(() =>
+  import('./features/account/AccountSettings').then((m) => ({ default: m.AccountSettings }))
+);
+const TeacherProfileView = lazy(() =>
+  import('./features/teacher/TeacherProfileView').then((m) => ({ default: m.TeacherProfileView }))
+);
 
 const AppShellWithRoutes: FC = () => {
   const { data, loading, error } = useAuth();
@@ -406,7 +175,7 @@ const AppShellWithRoutes: FC = () => {
 
   if (error) {
     const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-    const authHref = `/auth-app/?next=${encodeURIComponent(currentPath)}`;
+    const authHref = `/?next=${encodeURIComponent(currentPath)}`;
     if (error.status === 401) {
       return (
         <main className="core-gate">
@@ -441,8 +210,8 @@ const AppShellWithRoutes: FC = () => {
 
   const isTakeAssessment = location.pathname.startsWith('/student/take/');
   const isPrintView = location.pathname.endsWith('/print');
-  const isStudentArea = location.pathname.startsWith('/student') || (location.pathname === '/' && isStudent);
-  const isTeacherArea = location.pathname.startsWith('/teacher') || (location.pathname === '/' && isTeacher);
+  const isStudentArea = location.pathname.startsWith('/student') || (location.pathname === '/' && isStudent) || (location.pathname === '/account' && isStudent);
+  const isTeacherArea = location.pathname.startsWith('/teacher') || (location.pathname === '/' && isTeacher) || (location.pathname === '/account' && isTeacher);
 
   const routeContent = (
     <Suspense
@@ -555,6 +324,14 @@ const AppShellWithRoutes: FC = () => {
             element={
               <RoleGuard allowedRoles={['admin', 'superadmin']}>
                 <StudentList />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/account"
+            element={
+              <RoleGuard allowedRoles={['admin', 'superadmin', 'teacher', 'student']}>
+                <AccountSettings />
               </RoleGuard>
             }
           />
@@ -677,6 +454,14 @@ const AppShellWithRoutes: FC = () => {
             element={
               <RoleGuard allowedRoles={['teacher', 'admin', 'superadmin']}>
                 <TeacherDashboard />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/teacher/profile"
+            element={
+              <RoleGuard allowedRoles={['teacher']}>
+                <TeacherProfileView />
               </RoleGuard>
             }
           />

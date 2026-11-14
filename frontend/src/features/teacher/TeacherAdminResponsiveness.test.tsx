@@ -199,9 +199,9 @@ describe('Teacher and Admin Responsive Verification', () => {
     );
     await screen.findByText('Transfiguration 101');
     fireEvent.click(screen.getByRole('button', { name: 'Quiz options menu' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
     expect(global.fetch).not.toHaveBeenCalledWith('/api/v1/teacher/quizzes/1/', expect.objectContaining({ method: 'DELETE' }));
-    expect(await screen.findByText(/all questions, settings, and attempts will be permanently erased/i)).toBeInTheDocument();
+    expect(await screen.findByText(/the quiz and its questions will be removed/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Delete Quiz' }));
     await waitFor(() => expect(vi.mocked(global.fetch).mock.calls.some(([url, options]) =>
       url === '/api/v1/teacher/quizzes/1/' && options?.method === 'DELETE'

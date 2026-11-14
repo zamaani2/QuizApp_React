@@ -53,6 +53,16 @@ export const StudentQuizTake: React.FC = () => {
   const isSubmittingRef = useRef<boolean>(false);
   const pendingSavesRef = useRef<Set<Promise<void>>>(new Set());
   const sectionSubmittingRef = useRef<boolean>(false);
+  const saveLocalDraft = (draftResponses: Record<string, StudentQuestionResponse>) => {
+    try {
+      localStorage.setItem(
+        `quiz_draft_${attemptId}`,
+        JSON.stringify({ responses: draftResponses, savedAt: Date.now() })
+      );
+    } catch {
+      // Ignore unavailable or full local storage.
+    }
+  };
 
   // Load quiz attempt data
   const loadAttempt = useCallback(async () => {
@@ -79,7 +89,7 @@ export const StudentQuizTake: React.FC = () => {
         res.sections?.find((section) => section.id === res.active_section_id)?.remaining_seconds ?? null
       );
 
-      // Restore existing responses from backend
+      // Restore backend answers first; a local answer only wins if its draft is newer.
       const initialResponses: Record<string, StudentQuestionResponse> = {
         ...res.existing_responses,
       };
@@ -88,8 +98,26 @@ export const StudentQuizTake: React.FC = () => {
       try {
         const localDraft = localStorage.getItem(`quiz_draft_${attemptId}`);
         if (localDraft) {
-          const parsedDraft = JSON.parse(localDraft);
-          Object.assign(initialResponses, parsedDraft);
+          const parsedDraft: unknown = JSON.parse(localDraft);
+          if (parsedDraft && typeof parsedDraft === 'object') {
+            const draftRecord = parsedDraft as {
+              responses?: Record<string, StudentQuestionResponse>;
+              savedAt?: number;
+            };
+            const draftResponses = draftRecord.responses || parsedDraft as Record<string, StudentQuestionResponse>;
+            const draftSavedAt = Number(draftRecord.savedAt) || 0;
+            for (const [questionId, answer] of Object.entries(draftResponses)) {
+              const serverAnswer = res.existing_responses[questionId];
+              const serverTimestamp = res.existing_response_timestamps?.[questionId];
+              const parsedServerTime = serverTimestamp ? Date.parse(serverTimestamp) : Number.NaN;
+              const serverSavedAt = serverAnswer
+                ? (Number.isFinite(parsedServerTime) ? parsedServerTime : Number.POSITIVE_INFINITY)
+                : 0;
+              if (!serverAnswer || draftSavedAt > serverSavedAt) {
+                initialResponses[questionId] = answer;
+              }
+            }
+          }
         }
       } catch {
         // Ignore local storage error
@@ -263,11 +291,7 @@ export const StudentQuizTake: React.FC = () => {
     setResponses(nextResponses);
 
     // Save local draft
-    try {
-      localStorage.setItem(`quiz_draft_${attemptId}`, JSON.stringify(nextResponses));
-    } catch {
-      // ignore
-    }
+    saveLocalDraft(nextResponses);
 
     if (!persist) return;
 
@@ -301,11 +325,7 @@ export const StudentQuizTake: React.FC = () => {
           if (alreadyAnswered) restored[String(questionId)] = base;
           else delete restored[String(questionId)];
           setResponses(restored);
-          try {
-            localStorage.setItem(`quiz_draft_${attemptId}`, JSON.stringify(restored));
-          } catch {
-            // A rejected answer must not remain in the local draft.
-          }
+          saveLocalDraft(restored);
         } else if (
           err instanceof ApiError
           && (err.code === 'SECTION_TIME_EXPIRED' || err.code === 'SECTION_LOCKED')
@@ -314,11 +334,7 @@ export const StudentQuizTake: React.FC = () => {
           if (alreadyAnswered) restored[String(questionId)] = base;
           else delete restored[String(questionId)];
           setResponses(restored);
-          try {
-            localStorage.setItem(`quiz_draft_${attemptId}`, JSON.stringify(restored));
-          } catch {
-            // A rejected answer must not remain in the local draft.
-          }
+          saveLocalDraft(restored);
         }
       }
     })();

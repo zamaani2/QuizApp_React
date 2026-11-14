@@ -8,9 +8,9 @@ import { bulkImportStudents, previewStudentImport, type StudentImportResult } fr
 const IMPORT_FIELDS = [
   { id: 'full_name', label: 'Full name', required: true },
   { id: 'gender', label: 'Gender', required: true },
-  { id: 'date_of_birth', label: 'Date of birth', required: true },
-  { id: 'parent_contact', label: 'Parent contact', required: true },
-  { id: 'admission_date', label: 'Admission date', required: true },
+  { id: 'date_of_birth', label: 'Date of birth', required: false },
+  { id: 'parent_contact', label: 'Parent contact', required: false },
+  { id: 'admission_date', label: 'Admission date', required: false },
   { id: 'email', label: 'Email', required: false },
   { id: 'admission_number', label: 'Admission number', required: false },
 ] as const;
@@ -162,7 +162,7 @@ export const StudentImportDialog: FC<StudentImportDialogProps> = ({
           <label className="core-field">
             <span className="core-field__label">Student data file</span>
             <input id="student-import-file" className="core-input" type="file" accept=".csv,.xlsx" onChange={(event) => void handleFileChange(event)} />
-            <span className="core-field__helper">CSV and XLSX files up to 5 MB are accepted.</span>
+            <span className="core-field__helper">Full name and gender are required. Admission number is generated if omitted, and admission date defaults to today. Other fields are optional. CSV and XLSX files up to 5 MB are accepted.</span>
           </label>
           {headers.length > 0 && (
             <>

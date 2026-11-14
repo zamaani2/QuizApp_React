@@ -2,9 +2,10 @@ import datetime
 import json
 
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import Client, TestCase
+from django.test import Client, RequestFactory, TestCase
 
-from .models import SchoolInformation, Student, Teacher, User
+from .models import Department, SchoolInformation, Student, Teacher, User
+from .views.class_management import class_create_view, class_list_view
 
 
 class DirectoryManagementApiTests(TestCase):
@@ -119,6 +120,23 @@ class DirectoryManagementApiTests(TestCase):
         )
         self.assertEqual(response.status_code, 403)
 
+    def test_legacy_admin_views_return_json_permission_errors(self):
+        factory = RequestFactory()
+        list_request = factory.get("/classes/")
+        list_request.user = self.teacher_user
+        create_request = factory.post("/classes/create/", data={})
+        create_request.user = self.teacher_user
+        responses = (
+            class_list_view(list_request),
+            class_create_view(create_request),
+        )
+
+        for response in responses:
+            self.assertEqual(response.status_code, 403)
+            payload = json.loads(response.content)
+            self.assertFalse(payload["success"])
+            self.assertIn("permission", payload["error"].lower())
+
     def test_wrong_role_is_denied_on_directory_actions_and_imports(self):
         self.client.force_login(self.teacher_user)
         requests = (
@@ -169,6 +187,20 @@ class DirectoryManagementApiTests(TestCase):
         self.assertTrue(payload["partial_success"])
         self.assertEqual(Student.objects.filter(admission_number="ALPHA002").count(), 1)
 
+    def test_student_import_preview_requires_only_full_name_and_gender(self):
+        self.client.force_login(self.admin)
+        upload = SimpleUploadedFile(
+            "students.csv",
+            b"full_name,gender\nPreview Student,F\n",
+            content_type="text/csv",
+        )
+        response = self.client.post(
+            "/api/v1/students/import/preview/",
+            {"file": upload},
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["headers"], ["full_name", "gender"])
+
     def test_superadmin_must_select_school_for_writes(self):
         self.client.force_login(self.superadmin)
         payload = {
@@ -195,6 +227,67 @@ class DirectoryManagementApiTests(TestCase):
         self.assertEqual(payload["imported"], 1)
         self.assertTrue(payload["partial_success"])
         self.assertEqual(Teacher.objects.filter(full_name="Valid Teacher", school=self.school_a).count(), 1)
+
+    def test_teacher_import_accepts_mapped_column_names(self):
+        self.client.force_login(self.admin)
+        department = Department.objects.create(
+            name="Mapped Science",
+            code="MSC",
+            school=self.school_a,
+        )
+        upload = SimpleUploadedFile(
+            "mapped-teachers.csv",
+            b"Name,Phone,Faculty Department\nMapped Teacher,5559001,Mapped Science\n",
+            content_type="text/csv",
+        )
+        preview = self.client.post("/api/v1/teachers/import/preview/", {"file": upload})
+        self.assertEqual(preview.status_code, 200, preview.content)
+        self.assertEqual(preview.json()["headers"], ["Name", "Phone", "Faculty Department"])
+
+        upload = SimpleUploadedFile(
+            "mapped-teachers.csv",
+            b"Name,Phone,Faculty Department\nMapped Teacher,5559001,Mapped Science\n",
+            content_type="text/csv",
+        )
+        response = self.client.post(
+            "/api/v1/teachers/import/",
+            {
+                "file": upload,
+                "school_id": str(self.school_a.pk),
+                "column_mappings": json.dumps({
+                    "full_name": "Name",
+                    "contact_number": "Phone",
+                    "department": "Faculty Department",
+                }),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["imported"], 1)
+        teacher = Teacher.objects.get(full_name="Mapped Teacher", school=self.school_a)
+        self.assertEqual(teacher.department_id, department.pk)
+
+    def test_teacher_directory_uses_server_pagination(self):
+        self.client.force_login(self.admin)
+        for index in range(51):
+            teacher = Teacher(
+                full_name=f"Page Teacher {index:02}",
+                contact_number=f"555{index:07}",
+                school=self.school_a,
+            )
+            teacher.skip_user_creation = True
+            teacher.save()
+
+        first_page = self.client.get("/api/v1/teachers/?page=1")
+        second_page = self.client.get("/api/v1/teachers/?page=2")
+
+        self.assertEqual(first_page.status_code, 200)
+        self.assertEqual(first_page.json()["count"], 51)
+        self.assertEqual(first_page.json()["page"], 1)
+        self.assertEqual(first_page.json()["total_pages"], 2)
+        self.assertEqual(len(first_page.json()["results"]), 50)
+        self.assertEqual(second_page.json()["page"], 2)
+        self.assertEqual(len(second_page.json()["results"]), 1)
 
     def test_legacy_post_handlers_are_gone(self):
         self.client.force_login(self.admin)

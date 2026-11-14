@@ -241,7 +241,7 @@ LOGOUT_REDIRECT_URL = "quiz_app:auth_core_app"
 # Superadmin login settings
 SUPERADMIN_LOGIN_URL = "quiz_app:superadmin_login"
 SUPERADMIN_LOGIN_REDIRECT_URL = "quiz_app:superadmin_dashboard"
-SUPERADMIN_LOGOUT_REDIRECT_URL = "/auth-app/?portal=superadmin"
+SUPERADMIN_LOGOUT_REDIRECT_URL = "/?portal=superadmin"
 
 # Session settings
 SESSION_COOKIE_AGE = 3600 * 8  # 8 hours
@@ -280,6 +280,30 @@ EMAIL_USE_SSL = os.environ.get("EMAIL_USE_SSL", "False").strip().lower() in {
 }
 EMAIL_TIMEOUT = int(os.environ.get("EMAIL_TIMEOUT", "10"))
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@schoolsystem.com")
+
+# Authentication throttles must use a cache shared by all application workers.
+redis_url = os.environ.get("REDIS_URL", "").strip()
+if redis_url:
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": redis_url,
+            "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
+        }
+    }
+elif DEBUG:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "quiz-system-local",
+        }
+    }
+else:
+    raise ImproperlyConfigured("REDIS_URL must be configured when DEBUG is off.")
+
+TRUSTED_PROXY_HEADER = os.environ.get("TRUSTED_PROXY_HEADER", "").strip().upper()
+if TRUSTED_PROXY_HEADER and not TRUSTED_PROXY_HEADER.startswith("HTTP_"):
+    raise ImproperlyConfigured("TRUSTED_PROXY_HEADER must be an HTTP_ request header name.")
 
 # SITE_URL: Base URL for the application (used in emails, links, etc.)
 # For hostname access, set this in .env file, e.g.:

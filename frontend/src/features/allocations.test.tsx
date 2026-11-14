@@ -106,9 +106,14 @@ describe('Academic Allocations Feature Components', () => {
       // Check class option in filter dropdown
       expect(screen.getByText('Grade 10-A (35/40)')).toBeInTheDocument();
       expect(screen.getByText('Grade 10-B (30/30)')).toBeInTheDocument();
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Transfer' }));
+      const drawer = await screen.findByRole('dialog', { name: 'Transfer Alice Johnson' });
+      expect(within(drawer).getByText('ADM-001')).toBeInTheDocument();
+      expect(within(drawer).getByText('Current class')).toBeInTheDocument();
     });
 
-    it('opens single enrollment modal and displays unassigned/transfer options', async () => {
+    it('opens single enrollment drawer and displays unassigned/transfer options', async () => {
       global.fetch = vi.fn().mockImplementation((url: string) => {
         if (url.includes('/api/v1/enrollments/lookups/')) {
           return Promise.resolve({
@@ -140,12 +145,12 @@ describe('Academic Allocations Feature Components', () => {
       const enrollBtn = screen.getByText('Enroll Student');
       fireEvent.click(enrollBtn);
 
-      expect(screen.getByText('Enroll Student in Class')).toBeInTheDocument();
-      expect(screen.getByLabelText(/Select Student/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/Target Class Cohort/i)).toBeInTheDocument();
+      const drawer = await screen.findByRole('dialog', { name: 'Enroll Student in Class' });
+      expect(within(drawer).getByLabelText(/Select Student/i)).toBeInTheDocument();
+      expect(within(drawer).getByLabelText(/Target Class Cohort/i)).toBeInTheDocument();
     });
 
-    it('opens bulk enrollment modal and toggles selection', async () => {
+    it('opens bulk enrollment drawer and toggles selection', async () => {
       global.fetch = vi.fn().mockImplementation((url: string) => {
         if (url.includes('/api/v1/enrollments/lookups/')) {
           return Promise.resolve({
@@ -176,9 +181,9 @@ describe('Academic Allocations Feature Components', () => {
 
       fireEvent.click(screen.getByText('Bulk Enroll'));
 
-      expect(screen.getByText('Bulk Enroll Students')).toBeInTheDocument();
-      expect(screen.getByLabelText(/Target Class Cohort/i)).toBeInTheDocument();
-      expect(screen.getByText(/Select Students/i)).toBeInTheDocument();
+      const drawer = await screen.findByRole('dialog', { name: 'Bulk Enroll Students' });
+      expect(within(drawer).getByLabelText(/Target Class Cohort/i)).toBeInTheDocument();
+      expect(within(drawer).getByText(/Select Students/i)).toBeInTheDocument();
     });
 
     it('shows individual failures when a bulk enrollment has partial results', async () => {
@@ -403,7 +408,7 @@ describe('Academic Allocations Feature Components', () => {
       });
     });
 
-    it('opens assign modal and dynamically queries class subjects', async () => {
+    it('opens the assignment drawer and dynamically queries class subjects', async () => {
       global.fetch = vi.fn().mockImplementation((url: string) => {
         if (url.includes('/api/v1/teacher-assignments/lookups/')) {
           return Promise.resolve({
@@ -441,7 +446,7 @@ describe('Academic Allocations Feature Components', () => {
 
       fireEvent.click(screen.getByText('Assign Teacher'));
 
-      expect(screen.getByText('Assign Teacher to Subject & Class')).toBeInTheDocument();
+      expect(await screen.findByRole('dialog', { name: 'Assign Teacher to Subject & Class' })).toBeInTheDocument();
 
       // Select Class
       const classSelect = screen.getByLabelText(/Target Class/i);
@@ -479,7 +484,7 @@ describe('Academic Allocations Feature Components', () => {
       );
 
       fireEvent.click(await screen.findByRole('button', { name: /bulk assign/i }));
-      const bulkDialog = await screen.findByRole('dialog');
+      const bulkDialog = await screen.findByRole('dialog', { name: 'Bulk Assign Teacher' });
       fireEvent.change(within(bulkDialog).getByLabelText(/Teacher/), { target: { value: '50' } });
       fireEvent.change(within(bulkDialog).getByLabelText(/Academic year/), { target: { value: '1' } });
       fireEvent.change(within(bulkDialog).getByLabelText(/^Class$/), { target: { value: '10' } });

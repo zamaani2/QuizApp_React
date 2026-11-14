@@ -3,6 +3,7 @@ import datetime
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
+from django.utils import timezone
 
 from ..account_security import generate_account_setup_password, schedule_password_setup_email
 from ..models import (
@@ -258,7 +259,16 @@ def import_students(uploaded_file, mappings, school, class_id=None, assigned_by=
     headers, rows = read_directory_upload(uploaded_file)
     if not isinstance(mappings, dict):
         raise ValidationError({"column_mappings": ["Expected a JSON object."]})
-    required = ("full_name", "gender", "date_of_birth", "parent_contact", "admission_date")
+    required = ("full_name", "gender")
+    import_fields = (
+        "full_name",
+        "gender",
+        "date_of_birth",
+        "parent_contact",
+        "admission_date",
+        "email",
+        "admission_number",
+    )
     for key in required:
         if mappings.get(key, key) not in headers:
             raise ValidationError({"column_mappings": [f"Map the {key} column."]})
@@ -274,8 +284,10 @@ def import_students(uploaded_file, mappings, school, class_id=None, assigned_by=
     imported, assigned, errors = 0, 0, []
     seen_admission_numbers = set()
     for row_number, row in enumerate(rows, start=2):
-        payload = {field: str(row.get(mappings.get(field, field), "") or "").strip()
-                   for field in (*required, "email", "admission_number")}
+        payload = {
+            field: str(row.get(mappings.get(field, field), "") or "").strip()
+            for field in import_fields
+        }
         admission_number = payload.pop("admission_number")
         try:
             if admission_number:
@@ -284,7 +296,17 @@ def import_students(uploaded_file, mappings, school, class_id=None, assigned_by=
                 seen_admission_numbers.add(admission_number)
             payload["gender"] = payload["gender"].upper()
             for key in ("date_of_birth", "admission_date"):
-                payload[key] = datetime.date.fromisoformat(payload[key])
+                if not payload[key]:
+                    payload[key] = (
+                        None if key == "date_of_birth" else timezone.localdate()
+                    )
+                    continue
+                try:
+                    payload[key] = datetime.date.fromisoformat(payload[key])
+                except ValueError as error:
+                    raise ValidationError(
+                        {key: ["Enter a date in YYYY-MM-DD format."]}
+                    ) from error
             student = Student(school=school, **payload)
             if admission_number:
                 student.admission_number = admission_number
@@ -310,11 +332,25 @@ def import_students(uploaded_file, mappings, school, class_id=None, assigned_by=
     }
 
 
-def import_teachers(uploaded_file, school, default_department_id=None):
+def import_teachers(uploaded_file, school, default_department_id=None, mappings=None):
     headers, rows = read_directory_upload(uploaded_file)
+    if mappings is None:
+        mappings = {}
+    if not isinstance(mappings, dict):
+        raise ValidationError({"column_mappings": ["Expected a JSON object."]})
+    import_fields = ("full_name", "contact_number", "gender", "email", "department")
+    field_mappings = {
+        key: mappings.get(key, key if key in headers else "") or ""
+        for key in import_fields
+    }
     for key in ("full_name", "contact_number"):
-        if key not in headers:
-            raise ValidationError({"file": [f"File must contain the {key} column."]})
+        if field_mappings[key] not in headers:
+            raise ValidationError({"column_mappings": [f"Map the {key} column."]})
+    invalid_mappings = [
+        column for column in field_mappings.values() if column and column not in headers
+    ]
+    if invalid_mappings:
+        raise ValidationError({"column_mappings": ["Select columns from the uploaded file."]})
     default_department = None
     if default_department_id:
         default_department = Department.objects.filter(pk=default_department_id, school=school).first()
@@ -323,7 +359,7 @@ def import_teachers(uploaded_file, school, default_department_id=None):
     imported, errors = 0, []
     for row_number, row in enumerate(rows, start=2):
         department = default_department
-        department_name = str(row.get("department") or "").strip()
+        department_name = str(row.get(field_mappings["department"]) or "").strip()
         if department_name:
             choices = list(Department.objects.filter(name__iexact=department_name, school=school)[:2])
             if len(choices) != 1:
@@ -331,10 +367,10 @@ def import_teachers(uploaded_file, school, default_department_id=None):
                 continue
             department = choices[0]
         payload = {
-            "full_name": row.get("full_name", ""),
-            "contact_number": row.get("contact_number", ""),
-            "gender": row.get("gender", ""),
-            "email": row.get("email", ""),
+            "full_name": row.get(field_mappings["full_name"], ""),
+            "contact_number": row.get(field_mappings["contact_number"], ""),
+            "gender": row.get(field_mappings["gender"], "") if field_mappings["gender"] else "",
+            "email": row.get(field_mappings["email"], "") if field_mappings["email"] else "",
             "department": department.pk if department else "",
         }
         try:

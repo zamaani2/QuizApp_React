@@ -9,7 +9,6 @@ This module provides views for managing student class assignments including:
 """
 from django.shortcuts import redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.db.models import F, Q
@@ -49,8 +48,10 @@ def student_enrollment_list_view(request):
     Display list of all student class assignments with filtering and search capabilities.
     """
     if request.user.role not in ["admin", "superadmin"]:
-        messages.error(request, "You don't have permission to access this page.")
-        return redirect("quiz_app:dashboard")
+        return JsonResponse(
+            {"success": False, "error": "You don't have permission to access this page."},
+            status=403,
+        )
 
     return redirect("/app/admin/enrollments")
 
@@ -67,8 +68,10 @@ def student_enrollment_create_view(request):
     if request.user.role not in ["admin", "superadmin"]:
         if request.method == "GET":
             return JsonResponse({'error': 'Permission denied'}, status=403)
-        messages.error(request, "You don't have permission to perform this action.")
-        return redirect("quiz_app:enrollment_list")
+        return JsonResponse(
+            {"success": False, "error": "You don't have permission to perform this action."},
+            status=403,
+        )
 
     school = request.user.school
     if request.method == "GET":
@@ -218,8 +221,10 @@ def student_enrollment_bulk_create_view(request):
     if request.user.role not in ["admin", "superadmin"]:
         if request.method == "GET":
             return JsonResponse({'error': 'Permission denied'}, status=403)
-        messages.error(request, "You don't have permission to perform this action.")
-        return redirect("quiz_app:enrollment_list")
+        return JsonResponse(
+            {"success": False, "error": "You don't have permission to perform this action."},
+            status=403,
+        )
 
     school = request.user.school
     if request.method == "GET":
@@ -406,8 +411,10 @@ def student_enrollment_edit_view(request, enrollment_id):
     if request.user.role not in ["admin", "superadmin"]:
         if request.method == "GET":
             return JsonResponse({'error': 'Permission denied'}, status=403)
-        messages.error(request, "You don't have permission to perform this action.")
-        return redirect("quiz_app:enrollment_list")
+        return JsonResponse(
+            {"success": False, "error": "You don't have permission to perform this action."},
+            status=403,
+        )
     
     enrollment = get_object_or_404_with_school(
         StudentClass, request, pk=enrollment_id

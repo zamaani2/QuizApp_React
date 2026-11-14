@@ -32,7 +32,7 @@ describe('App Component (Phase 3 Routing & Integration)', () => {
     });
     expect(screen.getByRole('link', { name: /log in to quizapp/i })).toHaveAttribute(
       'href',
-      '/auth-app/?next=%2Fapp%2F'
+      '/?next=%2Fapp%2F'
     );
   });
 

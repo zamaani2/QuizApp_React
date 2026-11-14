@@ -10,6 +10,7 @@ from .models import (
     Class,
     Question,
     Quiz,
+    QuizSection,
     QuizAttempt,
     QuizResponse,
     SchoolInformation,
@@ -412,6 +413,69 @@ class AssessmentManagementApiTests(TestCase):
         response = self.client.post(reverse("quiz_app:question_create", args=[self.quiz.pk]), data={})
         self.assertEqual(response.status_code, 410)
 
+    def test_legacy_teacher_page_urls_redirect_to_working_react_routes(self):
+        question = Question.objects.create(
+            quiz=self.quiz,
+            question_text="Redirect check",
+            question_type="essay",
+            marks=1,
+            school=self.school_a,
+        )
+        attempt = QuizAttempt.objects.create(
+            quiz=self.quiz,
+            student=self.student,
+            school=self.school_a,
+            attempt_number=1,
+            is_submitted=True,
+            is_completed=True,
+        )
+        response_obj = QuizResponse.objects.create(
+            attempt=attempt, question=question, school=self.school_a
+        )
+        self.client.force_login(self.teacher_user)
+        legacy_urls = [
+            reverse("quiz_app:teacher_dashboard"),
+            reverse("quiz_app:teacher_profile"),
+            reverse("quiz_app:quiz_list"),
+            reverse("quiz_app:quiz_create"),
+            reverse("quiz_app:quiz_edit", args=[self.quiz.pk]),
+            reverse("quiz_app:quiz_delete", args=[self.quiz.pk]),
+            reverse("quiz_app:quiz_detail", args=[self.quiz.pk]),
+            reverse("quiz_app:quiz_update_status", args=[self.quiz.pk]),
+            reverse("quiz_app:get_terms_for_academic_year"),
+            reverse("quiz_app:question_list", args=[self.quiz.pk]),
+            reverse("quiz_app:question_create", args=[self.quiz.pk]),
+            reverse("quiz_app:question_edit", args=[self.quiz.pk, question.pk]),
+            reverse("quiz_app:question_delete", args=[self.quiz.pk, question.pk]),
+            reverse("quiz_app:question_duplicate", args=[self.quiz.pk, question.pk]),
+            reverse("quiz_app:question_reorder", args=[self.quiz.pk]),
+            reverse("quiz_app:question_bulk_import", args=[self.quiz.pk]),
+            reverse("quiz_app:question_bulk_delete", args=[self.quiz.pk]),
+            reverse("quiz_app:quiz_assignment_overview"),
+            reverse("quiz_app:quiz_assignment_list", args=[self.quiz.pk]),
+            reverse("quiz_app:quiz_assignment_create", args=[self.quiz.pk]),
+            reverse("quiz_app:quiz_assignment_delete", args=[self.quiz.pk, self.class_a.pk]),
+            reverse("quiz_app:quiz_assignment_bulk_delete", args=[self.quiz.pk]),
+            reverse("quiz_app:quiz_grading_list"),
+            reverse("quiz_app:quiz_attempt_grading", args=[attempt.pk]),
+            reverse("quiz_app:quiz_response_grade", args=[response_obj.pk]),
+            reverse("quiz_app:quiz_attempt_bulk_grade", args=[attempt.pk]),
+            reverse("quiz_app:quiz_results_list"),
+            reverse("quiz_app:quiz_result_detail", args=[attempt.pk]),
+            reverse("quiz_app:quiz_result_print", args=[attempt.pk]),
+            reverse("quiz_app:quiz_results_bulk_print"),
+            reverse("quiz_app:quiz_results_export"),
+        ]
+
+        for legacy_url in legacy_urls:
+            with self.subTest(legacy_url=legacy_url):
+                redirect_response = self.client.get(legacy_url)
+                self.assertEqual(redirect_response.status_code, 302)
+                self.assertTrue(redirect_response.url.startswith("/app/teacher/"))
+                target_response = self.client.get(redirect_response.url)
+                self.assertEqual(target_response.status_code, 200)
+                self.assertContains(target_response, '<div id="root"></div>', html=False)
+
     def test_quiz_creation_defaults_academic_year_and_term(self):
         from .models import Term
         term = Term.objects.create(
@@ -513,6 +577,130 @@ class AssessmentManagementApiTests(TestCase):
         self.assertEqual(self.quiz.total_marks, 80)
         # Passing marks automatically syncs to 50% of 80 = 40!
         self.assertEqual(self.quiz.passing_marks, 40)
+
+    def test_pass_mark_stays_consistent_when_questions_are_added_edited_and_removed(self):
+        self.client.force_login(self.teacher_user)
+        self.quiz.total_marks = 20
+        self.quiz.pass_percentage = 37.5
+        self.quiz.passing_marks = 8
+        self.quiz.save(update_fields=["total_marks", "pass_percentage", "passing_marks"])
+
+        endpoint = reverse("quiz_app:api_teacher_questions", args=[self.quiz.pk])
+        first = self.client.post(
+            endpoint,
+            data=json.dumps({"question_text": "First", "question_type": "essay", "marks": 8}),
+            content_type="application/json",
+        )
+        self.assertEqual(first.status_code, 201, first.content)
+        second = self.client.post(
+            endpoint,
+            data=json.dumps({"question_text": "Second", "question_type": "essay", "marks": 8}),
+            content_type="application/json",
+        )
+        self.assertEqual(second.status_code, 201, second.content)
+        self.quiz.refresh_from_db()
+        self.assertEqual((self.quiz.total_marks, self.quiz.passing_marks), (16, 6))
+
+        question_url = reverse(
+            "quiz_app:api_teacher_question_detail",
+            args=[self.quiz.pk, first.json()["question_id"]],
+        )
+        edited = self.client.patch(
+            question_url,
+            data=json.dumps({"question_text": "First edited", "marks": 4}),
+            content_type="application/json",
+        )
+        self.assertEqual(edited.status_code, 200, edited.content)
+        self.quiz.refresh_from_db()
+        self.assertEqual((self.quiz.total_marks, self.quiz.passing_marks), (12, 4))
+
+        removed = self.client.delete(
+            reverse(
+                "quiz_app:api_teacher_question_detail",
+                args=[self.quiz.pk, second.json()["question_id"]],
+            )
+        )
+        self.assertEqual(removed.status_code, 200, removed.content)
+        self.quiz.refresh_from_db()
+        self.assertEqual((self.quiz.total_marks, self.quiz.passing_marks), (4, 2))
+        self.assertEqual(self.quiz.pass_percentage, 37.5)
+
+    def test_publish_requires_nonempty_sections_and_all_questions_sectioned(self):
+        self.client.force_login(self.teacher_user)
+        self.quiz.classes.add(self.class_a)
+        section = QuizSection.objects.create(
+            quiz=self.quiz, school=self.school_a, title="Part A", order=1
+        )
+        endpoint = reverse("quiz_app:api_teacher_quiz_status", args=[self.quiz.pk])
+
+        empty_section_response = self.client.post(
+            endpoint,
+            data=json.dumps({"status": "published"}),
+            content_type="application/json",
+        )
+        self.assertEqual(empty_section_response.status_code, 409)
+        self.assertEqual(empty_section_response.json()["code"], "SECTION_EMPTY")
+        self.assertIn("Part A", empty_section_response.json()["message"])
+
+        Question.objects.create(
+            quiz=self.quiz,
+            section=section,
+            question_text="Section question",
+            question_type="essay",
+            marks=2,
+            school=self.school_a,
+        )
+        unsectioned_question = Question.objects.create(
+            quiz=self.quiz,
+            question_text="Unsectioned question",
+            question_type="essay",
+            marks=2,
+            school=self.school_a,
+        )
+        unsectioned_response = self.client.post(
+            endpoint,
+            data=json.dumps({"status": "published"}),
+            content_type="application/json",
+        )
+        self.assertEqual(unsectioned_response.status_code, 409)
+        self.assertEqual(unsectioned_response.json()["code"], "QUESTION_UNSECTIONED")
+        self.assertIn("1 question", unsectioned_response.json()["message"])
+
+        unsectioned_question.section = section
+        unsectioned_question.save(update_fields=["section"])
+        published = self.client.post(
+            endpoint,
+            data=json.dumps({"status": "published"}),
+            content_type="application/json",
+        )
+        self.assertEqual(published.status_code, 200, published.content)
+
+    def test_unsubmitted_attempt_prevents_deletion_without_inflating_submitted_count(self):
+        self.client.force_login(self.teacher_user)
+        QuizAttempt.objects.create(
+            quiz=self.quiz,
+            student=self.student,
+            school=self.school_a,
+            attempt_number=1,
+        )
+
+        detail = self.client.get(
+            reverse("quiz_app:api_teacher_quiz_detail", args=[self.quiz.pk])
+        )
+        self.assertEqual(detail.status_code, 200)
+        self.assertEqual(detail.json()["total_attempts"], 0)
+        self.assertTrue(detail.json()["has_attempts"])
+
+        quiz_list = self.client.get(reverse("quiz_app:api_teacher_quizzes"))
+        self.assertEqual(quiz_list.status_code, 200)
+        self.assertEqual(quiz_list.json()["results"][0]["total_attempts"], 0)
+        self.assertTrue(quiz_list.json()["results"][0]["has_attempts"])
+
+        deleted = self.client.delete(
+            reverse("quiz_app:api_teacher_quiz_detail", args=[self.quiz.pk])
+        )
+        self.assertEqual(deleted.status_code, 409)
+        self.assertEqual(deleted.json()["code"], "QUIZ_HAS_ATTEMPTS")
 
     def test_publish_invalid_time_limit_has_a_field_error_code(self):
         from .services.assessment_management import AssessmentConflict, update_quiz_status

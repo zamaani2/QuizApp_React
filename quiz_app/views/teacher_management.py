@@ -121,9 +121,6 @@ def teacher_create_view(request):
     POST: Creates teacher and returns JSON response
     """
     return legacy_write_gone("/api/v1/teachers/")
-    if request.user.role not in ["admin", "superadmin"]:
-        messages.error(request, "You don't have permission to perform this action.")
-        return redirect("quiz_app:teacher_list")
     
     # POST - Create teacher
     school = get_write_school(request)
@@ -202,9 +199,6 @@ def teacher_edit_view(request, teacher_id):
     POST: Updates teacher and returns JSON response
     """
     return legacy_write_gone("/api/v1/teachers/")
-    if request.user.role not in ["admin", "superadmin"]:
-        messages.error(request, "You don't have permission to perform this action.")
-        return redirect("quiz_app:teacher_list")
     
     teacher = get_object_or_404_with_school(Teacher, request, pk=teacher_id)
     school = teacher.school
@@ -492,9 +486,6 @@ def teacher_bulk_import_view(request):
     POST: Processes CSV file and imports teachers
     """
     return legacy_write_gone("/api/v1/teachers/import/")
-    if request.user.role not in ["admin", "superadmin"]:
-        messages.error(request, "You don't have permission to perform this action.")
-        return redirect("quiz_app:teacher_list")
     
     # POST - Process import
     try:

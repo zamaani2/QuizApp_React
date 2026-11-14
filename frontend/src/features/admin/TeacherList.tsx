@@ -2,22 +2,24 @@ import { AppIcon } from '../../components/common/AppIcon';
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   archiveTeacher,
-  bulkImportTeachers,
+  bulkArchiveTeachers,
   createTeacher,
   fetchSuperadminSchools,
   fetchTeachers,
-  previewTeacherImport,
   restoreTeacher,
   updateTeacher,
 } from '../../api/admin';
 import type { StructureLookups, SuperadminSchool, TeacherAdminInput, TeacherListItem } from '../../types';
+import type { TeacherImportResult } from '../../api/admin';
 import { academicApi } from '../../api/academic';
 import { DataTable, type Column } from '../../components/table/DataTable';
 import { Alert } from '../../components/common/Alert';
 import { Button } from '../../components/common/Button';
 import { Modal } from '../../components/common/Modal';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
+import { TeacherImportDialog } from './TeacherImportDialog';
 import { useAuth } from '../../auth/AuthContext';
+import { downloadAuthenticatedFile, saveDownloadedFile } from '../../api/client';
 import './AdminDirectory.css';
 
 const emptyTeacherForm = (): TeacherAdminInput => ({
@@ -40,6 +42,9 @@ export const TeacherList: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'active' | 'archived'>('active');
+  const [departmentFilter, setDepartmentFilter] = useState<number | 'all'>('all');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [lookups, setLookups] = useState<StructureLookups | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<TeacherListItem | null>(null);
@@ -49,10 +54,11 @@ export const TeacherList: React.FC = () => {
   const [archiveTarget, setArchiveTarget] = useState<TeacherListItem | null>(null);
   const [restoreTarget, setRestoreTarget] = useState<TeacherListItem | null>(null);
   const [archiveLoading, setArchiveLoading] = useState(false);
-  const [importFile, setImportFile] = useState<File | null>(null);
-  const [importHeaders, setImportHeaders] = useState<string[]>([]);
-  const [importSampleRows, setImportSampleRows] = useState<Array<Record<string, string>>>([]);
-  const [importLoading, setImportLoading] = useState(false);
+  const [selectedTeacherIds, setSelectedTeacherIds] = useState<number[]>([]);
+  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
 
   const loadTeachers = useCallback(async () => {
     setLoading(true);
@@ -61,15 +67,18 @@ export const TeacherList: React.FC = () => {
       const response = await fetchTeachers({
         is_active: statusFilter === 'active',
         school_id: selectedSchoolId === 'all' ? undefined : selectedSchoolId,
+        department_id: departmentFilter === 'all' ? undefined : departmentFilter,
+        page,
       });
       setTeachers(response.results);
       setTotalCount(response.count);
+      setTotalPages(response.total_pages || 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load teachers directory.');
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, selectedSchoolId]);
+  }, [statusFilter, selectedSchoolId, departmentFilter, page]);
 
   useEffect(() => {
     loadTeachers();
@@ -81,6 +90,23 @@ export const TeacherList: React.FC = () => {
       .then((response) => setSchools(response.results.filter((school) => school.is_active)))
       .catch((err) => setError(err instanceof Error ? err.message : 'Could not load schools.'));
   }, [isSuperadmin]);
+
+  useEffect(() => {
+    if (isSuperadmin && selectedSchoolId === 'all') {
+      setLookups(null);
+      return;
+    }
+    void academicApi.getStructureLookups({
+      school_id: selectedSchoolId === 'all' ? undefined : selectedSchoolId,
+    })
+      .then(setLookups)
+      .catch((err) => setError(err instanceof Error ? err.message : 'Could not load teacher filters.'));
+  }, [isSuperadmin, selectedSchoolId]);
+
+  useEffect(() => {
+    setPage(1);
+    setSelectedTeacherIds([]);
+  }, [statusFilter, selectedSchoolId, departmentFilter]);
 
   const loadLookups = async (targetSchoolId?: number) => {
     try {
@@ -175,47 +201,76 @@ export const TeacherList: React.FC = () => {
     }
   };
 
-  const handleTeacherFile = async (file: File | null) => {
-    setImportFile(file);
-    setImportHeaders([]);
-    setImportSampleRows([]);
-    if (!file) return;
-    setImportLoading(true);
+  const handleTeacherImport = async (result: TeacherImportResult) => {
+    setSuccessMessage(result.message);
+    if (result.errors.length) setError(result.errors.join('\n'));
+    setImportDialogOpen(false);
     try {
-      const preview = await previewTeacherImport(file);
-      setImportHeaders(preview.headers);
-      setImportSampleRows(preview.preview_rows);
-      setSuccessMessage(`Preview ready: ${preview.headers.join(', ')}`);
+      await loadTeachers();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not preview teacher import.');
-      setImportFile(null);
-    } finally {
-      setImportLoading(false);
+      setError(err instanceof Error ? err.message : 'Could not refresh teachers after import.');
     }
   };
 
-  const handleTeacherImport = async () => {
-    if (!importFile) return;
-    setImportLoading(true);
+  const handleBulkArchive = async () => {
+    if (!selectedTeacherIds.length) return;
+    const schoolId = selectedSchoolId === 'all' ? undefined : selectedSchoolId;
+    if (isSuperadmin && !schoolId) {
+      setError('Choose one school before bulk archiving or restoring teachers.');
+      setBulkDialogOpen(false);
+      return;
+    }
+    setBulkLoading(true);
     try {
-      const result = await bulkImportTeachers(
-        importFile,
-        isSuperadmin && selectedSchoolId !== 'all' ? selectedSchoolId : undefined
-      );
-      setSuccessMessage(result.message);
-      if (result.errors.length) setError(result.errors.join('\n'));
-      setImportFile(null);
-      setImportHeaders([]);
-      setImportSampleRows([]);
+      const action = statusFilter === 'active' ? 'archive' : 'restore';
+      const response = await bulkArchiveTeachers(selectedTeacherIds, action, schoolId);
+      setSuccessMessage(response.message);
+      setSelectedTeacherIds([]);
+      setBulkDialogOpen(false);
       await loadTeachers();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not import teachers.');
+      setError(err instanceof Error ? err.message : 'Could not update selected teachers.');
+      setBulkDialogOpen(false);
     } finally {
-      setImportLoading(false);
+      setBulkLoading(false);
+    }
+  };
+
+  const downloadExport = async () => {
+    setExportLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({ format: 'csv' });
+      if (isSuperadmin && selectedSchoolId !== 'all') {
+        params.set('school_id', String(selectedSchoolId));
+      }
+      const file = await downloadAuthenticatedFile(`/api/v1/teachers/export/?${params.toString()}`);
+      saveDownloadedFile(file);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not export teachers.');
+    } finally {
+      setExportLoading(false);
     }
   };
 
   const columns: Column<TeacherListItem>[] = [
+    {
+      id: 'selection',
+      header: 'Select',
+      align: 'center',
+      accessor: (row) => (
+        <input
+          type="checkbox"
+          aria-label={`Select ${row.full_name}`}
+          checked={selectedTeacherIds.includes(row.id)}
+          onChange={() => setSelectedTeacherIds((previous) =>
+            previous.includes(row.id)
+              ? previous.filter((id) => id !== row.id)
+              : [...previous, row.id]
+          )}
+        />
+      ),
+    },
     {
       id: 'staff_id',
       header: 'Staff ID',
@@ -316,16 +371,14 @@ export const TeacherList: React.FC = () => {
           <button className="directory-page__action" type="button" onClick={loadTeachers} disabled={loading}>
             <AppIcon name="rotateClockwise" aria-hidden="true" /> Refresh
           </button>
-          <label className="directory-page__action">
-            Import teachers
-            <input
-              type="file"
-              accept=".csv,.xlsx"
-              aria-label="Select teacher import file"
-              disabled={importLoading || (isSuperadmin && selectedSchoolId === 'all')}
-              onChange={(event) => void handleTeacherFile(event.target.files?.[0] || null)}
-            />
-          </label>
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            onClick={() => setImportDialogOpen(true)}
+            disabled={isSuperadmin && selectedSchoolId === 'all'}
+          >
+            <AppIcon name="upload" aria-hidden="true" /> Import teachers
+          </Button>
           {isSuperadmin && (
             <label className="core-field">
               <span className="core-field__label">School</span>
@@ -335,13 +388,15 @@ export const TeacherList: React.FC = () => {
               </select>
             </label>
           )}
-          <a
-            className="directory-page__action"
-            href={`/api/v1/teachers/export/?format=csv${isSuperadmin && selectedSchoolId !== 'all' ? `&school_id=${selectedSchoolId}` : ''}`}
-            aria-disabled={isSuperadmin && selectedSchoolId === 'all'}
-            tabIndex={isSuperadmin && selectedSchoolId === 'all' ? -1 : undefined}
-            onClick={(event) => { if (isSuperadmin && selectedSchoolId === 'all') event.preventDefault(); }}
-          >Export CSV</a>
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            onClick={() => void downloadExport()}
+            loading={exportLoading}
+            disabled={exportLoading || (isSuperadmin && selectedSchoolId === 'all')}
+          >
+            Export CSV
+          </Button>
           <Button variant="primary" size="sm" onClick={() => void openCreateModal()}>
             <AppIcon name="userRoundPlus" aria-hidden="true" /> New Teacher
           </Button>
@@ -354,25 +409,33 @@ export const TeacherList: React.FC = () => {
           {error}
         </Alert>
       )}
-      {importFile && (
-        <Alert variant="info">
-          <div>{importLoading ? 'Reading teacher file…' : `Preview: ${importHeaders.join(', ')}`}</div>
-          {importSampleRows[0] && <pre>{JSON.stringify(importSampleRows[0], null, 2)}</pre>}
-          <Button variant="primary" size="sm" onClick={() => void handleTeacherImport()} disabled={importLoading || !importHeaders.length}>
-            Import {importFile.name}
-          </Button>
-          <Button variant="secondary" size="sm" onClick={() => { setImportFile(null); setImportHeaders([]); setImportSampleRows([]); }} disabled={importLoading}>
-            Cancel
-          </Button>
-        </Alert>
-      )}
-
       <div className="directory-controls">
         <div className="directory-segmented" role="group" aria-label="Filter teachers by status">
           <button type="button" className={statusFilter === 'active' ? 'is-selected' : ''} aria-pressed={statusFilter === 'active'} onClick={() => setStatusFilter('active')}>Active</button>
           <button type="button" className={statusFilter === 'archived' ? 'is-selected' : ''} aria-pressed={statusFilter === 'archived'} onClick={() => setStatusFilter('archived')}>Archived</button>
         </div>
+        <label className="core-field">
+          <span className="core-field__label">Department</span>
+          <select
+            className="core-select"
+            value={departmentFilter}
+            onChange={(event) => setDepartmentFilter(event.target.value ? Number(event.target.value) : 'all')}
+          >
+            <option value="all">All departments</option>
+            {(lookups?.departments || []).map((department) => (
+              <option key={department.id} value={department.id}>{department.name}</option>
+            ))}
+          </select>
+        </label>
         <span className="directory-record-count">{totalCount} {statusFilter} records</span>
+        <Button
+          variant="outline-danger"
+          size="sm"
+          disabled={!selectedTeacherIds.length || bulkLoading}
+          onClick={() => setBulkDialogOpen(true)}
+        >
+          {statusFilter === 'active' ? 'Archive' : 'Restore'} selected ({selectedTeacherIds.length})
+        </Button>
       </div>
 
       <DataTable<TeacherListItem>
@@ -386,6 +449,15 @@ export const TeacherList: React.FC = () => {
         emptyTitle="No Teachers Found"
         emptyDescription="There are currently no faculty members registered in this school."
       />
+      <div className="directory-pagination" aria-label="Teacher directory pagination">
+        <Button variant="outline-secondary" size="sm" disabled={page <= 1 || loading} onClick={() => setPage((current) => Math.max(1, current - 1))}>
+          Previous
+        </Button>
+        <span>Page {page} of {totalPages}</span>
+        <Button variant="outline-secondary" size="sm" disabled={page >= totalPages || loading} onClick={() => setPage((current) => Math.min(totalPages, current + 1))}>
+          Next
+        </Button>
+      </div>
 
       <Modal
         isOpen={isModalOpen}
@@ -400,13 +472,30 @@ export const TeacherList: React.FC = () => {
             <label className="core-field"><span className="core-field__label">Gender</span><select className="core-select" value={formData.gender} onChange={(event) => setFormData({ ...formData, gender: event.target.value })}><option value="">Not specified</option><option value="F">Female</option><option value="M">Male</option></select></label>
             <label className="core-field"><span className="core-field__label">Contact number *</span><input className="core-input" required value={formData.contact_number} onChange={(event) => setFormData({ ...formData, contact_number: event.target.value })} /></label>
             <label className="core-field"><span className="core-field__label">Email</span><input className="core-input" type="email" value={formData.email} onChange={(event) => setFormData({ ...formData, email: event.target.value })} /></label>
-            <label className="core-field"><span className="core-field__label">Department</span><select className="core-select" value={formData.department} onChange={(event) => setFormData({ ...formData, department: event.target.value ? Number(event.target.value) : '' })}><option value="">No department</option>{lookups?.departments.map((department) => <option key={department.id} value={department.id}>{department.name}</option>)}</select></label>
+            <label className="core-field"><span className="core-field__label">Department</span><select className="core-select" value={formData.department} onChange={(event) => setFormData({ ...formData, department: event.target.value ? Number(event.target.value) : '' })}><option value="">No department</option>{(lookups?.departments || []).map((department) => <option key={department.id} value={department.id}>{department.name}</option>)}</select></label>
           </div>
         </form>
       </Modal>
 
       <ConfirmDialog isOpen={Boolean(archiveTarget)} onClose={() => setArchiveTarget(null)} onConfirm={handleArchive} title="Archive teacher" message={`Archive ${archiveTarget?.full_name}? Their assignment history will be retained.`} confirmLabel="Archive" confirmVariant="danger" loading={archiveLoading} />
       <ConfirmDialog isOpen={Boolean(restoreTarget)} onClose={() => setRestoreTarget(null)} onConfirm={handleRestore} title="Restore teacher" message={`Restore ${restoreTarget?.full_name} to the active faculty directory?`} confirmLabel="Restore" confirmVariant="primary" loading={archiveLoading} />
+      <ConfirmDialog
+        isOpen={bulkDialogOpen}
+        onClose={() => setBulkDialogOpen(false)}
+        onConfirm={handleBulkArchive}
+        title={`${statusFilter === 'active' ? 'Archive' : 'Restore'} selected teachers`}
+        message={`${statusFilter === 'active' ? 'Archive' : 'Restore'} ${selectedTeacherIds.length} selected teacher(s)?`}
+        confirmLabel={statusFilter === 'active' ? 'Archive selected' : 'Restore selected'}
+        confirmVariant={statusFilter === 'active' ? 'danger' : 'primary'}
+        loading={bulkLoading}
+      />
+      <TeacherImportDialog
+        isOpen={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        onImported={(result) => void handleTeacherImport(result)}
+        lookups={lookups}
+        schoolId={selectedSchoolId === 'all' ? undefined : selectedSchoolId}
+      />
     </div>
   );
 };

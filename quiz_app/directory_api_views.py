@@ -241,12 +241,12 @@ def _import_preview(request, required_headers):
 
 @require_http_methods(["POST"])
 def student_import_preview_api_view(request):
-    return _import_preview(request, ("full_name", "gender", "date_of_birth", "parent_contact", "admission_date"))
+    return _import_preview(request, ("full_name", "gender"))
 
 
 @require_http_methods(["POST"])
 def teacher_import_preview_api_view(request):
-    return _import_preview(request, ("full_name", "contact_number"))
+    return _import_preview(request, ())
 
 
 def _import(request, importer, label):
@@ -268,7 +268,13 @@ def _import(request, importer, label):
                 request.user,
             )
         else:
-            result = importer(uploaded_file, school, data.get("default_department") or None)
+            mappings = json.loads(data.get("column_mappings", "{}"))
+            result = importer(
+                uploaded_file,
+                school,
+                data.get("default_department") or None,
+                mappings,
+            )
         return JsonResponse(result)
     except json.JSONDecodeError:
         return _error("VALIDATION_ERROR", "Column mappings must be valid JSON.", 400, {"column_mappings": ["Enter valid JSON."]})

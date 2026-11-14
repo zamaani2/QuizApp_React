@@ -11,7 +11,6 @@ This module provides views for managing classes including:
 """
 from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
-from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.db import transaction
@@ -36,8 +35,10 @@ from ..utils.tenant_utils import get_object_or_404_with_school, get_write_school
 def class_list_view(request):
     """Redirect the legacy class directory URL to the React screen."""
     if request.user.role not in ["admin", "superadmin"]:
-        messages.error(request, "You don't have permission to access this page.")
-        return redirect("quiz_app:dashboard")
+        return JsonResponse(
+            {"success": False, "error": "You don't have permission to access this page."},
+            status=403,
+        )
 
     app_section = "superadmin" if request.user.role == "superadmin" else "admin"
     return redirect(f"/app/{app_section}/classes")
@@ -52,8 +53,10 @@ def class_create_view(request):
     POST: Creates class and returns JSON response
     """
     if request.user.role not in ["admin", "superadmin"]:
-        messages.error(request, "You don't have permission to perform this action.")
-        return redirect("quiz_app:class_list")
+        return JsonResponse(
+            {"success": False, "error": "You don't have permission to perform this action."},
+            status=403,
+        )
     
     # POST - Create class
     school = get_write_school(request)
@@ -169,8 +172,10 @@ def class_edit_view(request, class_id):
     POST: Updates class and returns JSON response
     """
     if request.user.role not in ["admin", "superadmin"]:
-        messages.error(request, "You don't have permission to perform this action.")
-        return redirect("quiz_app:class_list")
+        return JsonResponse(
+            {"success": False, "error": "You don't have permission to perform this action."},
+            status=403,
+        )
     
     class_obj = get_object_or_404_with_school(Class, request, pk=class_id)
     school = class_obj.school
@@ -320,8 +325,10 @@ def class_restore_view(request, class_id):
 def class_detail_view(request, class_id):
     """Redirect the legacy class detail URL to its React route."""
     if request.user.role not in ["admin", "superadmin"]:
-        messages.error(request, "You don't have permission to access this page.")
-        return redirect("quiz_app:dashboard")
+        return JsonResponse(
+            {"success": False, "error": "You don't have permission to access this page."},
+            status=403,
+        )
     class_obj = get_object_or_404_with_school(Class, request, pk=class_id)
     app_section = "superadmin" if request.user.role == "superadmin" else "admin"
     return redirect(f"/app/{app_section}/classes/{class_obj.pk}")

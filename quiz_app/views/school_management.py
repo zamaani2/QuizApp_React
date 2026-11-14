@@ -8,7 +8,6 @@ This module provides views for managing school information including:
 """
 from django.shortcuts import redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.db import transaction
@@ -32,8 +31,10 @@ def school_detail_view(request, school_id=None):
     - Superadmins can view/edit any school
     """
     if request.user.role not in ["admin", "superadmin"]:
-        messages.error(request, "You don't have permission to access this page.")
-        return redirect("quiz_app:dashboard")
+        return JsonResponse(
+            {"success": False, "error": "You don't have permission to access this page."},
+            status=403,
+        )
 
     if request.user.role == "superadmin":
         if school_id:
@@ -54,8 +55,10 @@ def school_edit_view(request, school_id=None):
     if request.user.role not in ["admin", "superadmin"]:
         if request.method == "GET":
             return JsonResponse({'error': 'Permission denied'}, status=403)
-        messages.error(request, "You don't have permission to perform this action.")
-        return redirect("quiz_app:dashboard")
+        return JsonResponse(
+            {"success": False, "error": "You don't have permission to perform this action."},
+            status=403,
+        )
 
     if request.method == "GET":
         if request.user.role == "superadmin":
@@ -70,8 +73,10 @@ def school_edit_view(request, school_id=None):
         if request.user.role != "superadmin":
             if request.method == "GET":
                 return JsonResponse({'error': 'Permission denied. You can only edit your own school.'}, status=403)
-            messages.error(request, "You don't have permission to edit other schools.")
-            return redirect("quiz_app:school_detail")
+            return JsonResponse(
+                {"success": False, "error": "You don't have permission to edit other schools."},
+                status=403,
+            )
         school = get_object_or_404(SchoolInformation, pk=school_id)
     else:
         # Admin editing their own school (no school_id in URL)
@@ -84,8 +89,10 @@ def school_edit_view(request, school_id=None):
         if not school:
             if request.method == "GET":
                 return JsonResponse({'error': 'No school associated with your account'}, status=404)
-            messages.error(request, "No school associated with your account.")
-            return redirect("quiz_app:dashboard")
+            return JsonResponse(
+                {"success": False, "error": "No school associated with your account."},
+                status=404,
+            )
     
     # POST - Update school
     try:

@@ -8,6 +8,10 @@ import { Alert } from '../../components/common/Alert';
 import { getQuestionType } from '../../question-types';
 import './student.css';
 
+const formatMarks = (value: number) => new Intl.NumberFormat(undefined, {
+  maximumFractionDigits: 2,
+}).format(value);
+
 export const StudentQuizResult: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [result, setResult] = useState<StudentQuizResultData | null>(null);
@@ -101,7 +105,7 @@ export const StudentQuizResult: React.FC = () => {
               {result.is_passed ? 'ASSESSMENT PASSED' : 'NEEDS IMPROVEMENT'}
             </div>
             <h2 className="stu-cta-card__title">
-              {result.score} / {result.total_marks} Marks ({result.percentage}%)
+              {formatMarks(result.score)} / {formatMarks(result.total_marks)} Marks ({formatMarks(result.percentage)}%)
             </h2>
             <p className="stu-cta-card__desc">
               Passing threshold: {result.passing_marks} marks. Outcome:{' '}
@@ -134,7 +138,7 @@ export const StudentQuizResult: React.FC = () => {
       <div className="stu-stats-grid core-space--margin-bottom-4">
         <div className="stu-stat-box">
           <div className="stu-stat-box__val" style={{ color: 'var(--stu-navy)' }}>
-            {result.score}
+            {formatMarks(result.score)}
           </div>
           <div className="stu-stat-box__label">Marks Obtained</div>
         </div>
@@ -164,7 +168,7 @@ export const StudentQuizResult: React.FC = () => {
             {result.section_scores.map((section) => (
               <div key={section.section_id} className="core-display-flex core-layout--justify-between core-border-bottom core-space--padding-y-2">
                 <span>{section.title}</span>
-                <strong>{section.score} / {section.total_marks}</strong>
+                <strong>{formatMarks(section.score)} / {formatMarks(section.total_marks)}</strong>
               </div>
             ))}
           </div>
@@ -197,21 +201,17 @@ export const StudentQuizResult: React.FC = () => {
           {result.questions.map((q, idx) => (
             <div
               key={q.id}
-              className="stu-card"
-              style={{
-                borderLeft: `4px solid ${q.is_correct ? 'var(--stu-success)' : 'var(--stu-danger)'}`,
-              }}
+              className={`stu-card ${q.is_correct ? 'stu-card--result-correct' : 'stu-card--result-incorrect'}`}
             >
-              <div className="core-display-flex core-layout--justify-between core-layout--align-start core-layout--gap-2 core-space--margin-bottom-2">
-                <h3 className="core-type--weight-bold core-space--margin-bottom-0 core-text--dark" style={{ fontSize: '0.95rem', lineHeight: '1.4' }}>
-                  Question {idx + 1}: {q.question_text}
-                </h3>
+              <div className="question-review__header">
+                <h3 className="question-review__number">Question {idx + 1}</h3>
                 <span
                   className={`stu-badge ${q.is_correct ? 'stu-badge--success' : 'stu-badge--danger'}`}
                 >
                   {q.marks_obtained} / {q.marks} pts
                 </span>
               </div>
+              <p className="question-review__question-title">{q.question_text}</p>
 
               {(() => {
                 const Review = getQuestionType(q.question_type).Review;

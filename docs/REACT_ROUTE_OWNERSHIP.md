@@ -50,3 +50,12 @@ assignment URLs redirect to these React routes. Quiz-specific assignment
 redirects preserve the quiz as `?quiz=<id>`. Old question editor and import URLs
 redirect to `/app/teacher/questions/<quizId>/...`; the React route definitions
 omit `/app` because the router uses `/app` as its basename.
+
+Publishing a quiz with sections requires every section to contain at least one
+question and every quiz question to belong to a section. The teacher workspace
+reports `SECTION_EMPTY` or `QUESTION_UNSECTIONED` with a human-readable reason
+when these conditions are not met. A quiz with recorded attempts cannot be
+deleted; teachers can archive it instead.
+
+On mobile, Home, Quizzes, Grading, and Results remain in the bottom navigation;
+Questions and Assignments are available from the accessible More sheet.

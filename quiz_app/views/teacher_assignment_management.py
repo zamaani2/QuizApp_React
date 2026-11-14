@@ -10,7 +10,6 @@ This module provides views for managing teacher subject assignments including:
 """
 from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
-from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.db import IntegrityError, transaction
@@ -33,8 +32,10 @@ from ..utils.tenant_utils import get_object_or_404_with_school
 def assignment_list_view(request):
     """Redirect the legacy assignment list URL to the React screen."""
     if request.user.role not in ["admin", "superadmin"]:
-        messages.error(request, "You don't have permission to access this page.")
-        return redirect("quiz_app:dashboard")
+        return JsonResponse(
+            {"success": False, "error": "You don't have permission to access this page."},
+            status=403,
+        )
 
     return redirect("/app/admin/assignments")
 
@@ -48,8 +49,10 @@ def assignment_create_view(request):
     POST: Creates assignment and returns JSON response
     """
     if request.user.role not in ["admin", "superadmin"]:
-        messages.error(request, "You don't have permission to perform this action.")
-        return redirect("quiz_app:assignment_list")
+        return JsonResponse(
+            {"success": False, "error": "You don't have permission to perform this action."},
+            status=403,
+        )
     
     school = request.user.school
 
@@ -163,8 +166,10 @@ def assignment_bulk_create_view(request):
     POST: Creates multiple assignments and returns JSON response
     """
     if request.user.role not in ["admin", "superadmin"]:
-        messages.error(request, "You don't have permission to perform this action.")
-        return redirect("quiz_app:assignment_list")
+        return JsonResponse(
+            {"success": False, "error": "You don't have permission to perform this action."},
+            status=403,
+        )
     
     school = request.user.school
 
@@ -347,8 +352,10 @@ def assignment_edit_view(request, assignment_id):
     POST: Updates assignment and returns JSON response
     """
     if request.user.role not in ["admin", "superadmin"]:
-        messages.error(request, "You don't have permission to perform this action.")
-        return redirect("quiz_app:assignment_list")
+        return JsonResponse(
+            {"success": False, "error": "You don't have permission to perform this action."},
+            status=403,
+        )
     
     school = request.user.school
     

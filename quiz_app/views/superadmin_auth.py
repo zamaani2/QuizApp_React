@@ -32,7 +32,7 @@ def _superadmin_login_failure_response(request, code, message, status, context=N
         return JsonResponse({"code": code, "message": message}, status=status)
 
     messages.error(request, message)
-    return redirect("/auth-app/?portal=superadmin")
+    return redirect("/?portal=superadmin")
 
 
 @csrf_protect
@@ -73,7 +73,7 @@ def superadmin_login_view(request):
         next_url = request.GET.get("next")
         if next_url:
             query["next"] = next_url
-        return redirect(f"/auth-app/?{urlencode(query)}")
+        return redirect(f"/?{urlencode(query)}")
     
     identifier = request.POST.get("username", "").strip()
     if is_auth_rate_limited(request, "login", identifier):
@@ -233,7 +233,7 @@ def superadmin_login_view(request):
             messages.error(request, "Invalid username or password. Please try again.")
     
     # GET request or failed POST - show login form
-    return redirect("/auth-app/?portal=superadmin")
+    return redirect("/?portal=superadmin")
 
 
 @login_required
@@ -245,7 +245,7 @@ def superadmin_logout_view(request):
     """
     if request.user.role != "superadmin":
         messages.error(request, "Access denied.")
-        return redirect("/auth-app/?portal=superadmin")
+        return redirect("/?portal=superadmin")
     
     user = request.user
     user_name = getattr(user, "full_name", None) or user.username
@@ -256,4 +256,4 @@ def superadmin_logout_view(request):
         request,
         f"Goodbye, {user_name}! You have been successfully logged out."
     )
-    return redirect("/auth-app/?portal=superadmin")
+    return redirect("/?portal=superadmin")

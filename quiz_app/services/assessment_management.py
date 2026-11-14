@@ -489,6 +489,29 @@ def update_quiz_status(quiz, status):
     if status not in {"draft", "published", "archived"}:
         raise ValidationError({"status": ["Invalid status."]})
     if status == "published":
+        sections = list(quiz.sections.filter(school_id=quiz.school_id).order_by("order", "pk"))
+        empty_section = next(
+            (
+                section
+                for section in sections
+                if not section.questions.filter(school_id=quiz.school_id).exists()
+            ),
+            None,
+        )
+        if empty_section:
+            message = f'Section "{empty_section.title}" must contain at least one question before publishing.'
+            raise AssessmentConflict("SECTION_EMPTY", message, {"sections": [message]})
+        if sections:
+            unsectioned_count = quiz.questions.filter(
+                school_id=quiz.school_id, section__isnull=True
+            ).count()
+            if unsectioned_count:
+                message = (
+                    f"{unsectioned_count} question(s) must be assigned to a section before publishing."
+                )
+                raise AssessmentConflict(
+                    "QUESTION_UNSECTIONED", message, {"questions": [message]}
+                )
         if not quiz.questions.filter(school_id=quiz.school_id).exists():
             raise AssessmentConflict(
                 "QUIZ_NO_QUESTIONS",

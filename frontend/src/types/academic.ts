@@ -174,7 +174,7 @@ export interface StructureLookups {
   learning_areas: Array<{ id: number; code: string; name: string }>;
   classes?: Array<{ id: number; name: string; academic_year_id: number | null }>;
   departments: Array<{ id: number; code: string; name: string }>;
-  available_subjects?: Array<{ id: number; subject_code: string; subject_name: string }>;
+  subjects?: Array<{ id: number; subject_code: string; subject_name: string }>;
 }
 
 export interface SchoolStructureItem {

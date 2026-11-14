@@ -190,7 +190,7 @@ class AuthenticatedWorkflowTests(TestCase):
         login_page = self.client.get(reverse("quiz_app:superadmin_login"))
         self.assertRedirects(
             login_page,
-            "/auth-app/?portal=superadmin",
+            "/?portal=superadmin",
             fetch_redirect_response=False,
         )
         login_response = self.client.post(

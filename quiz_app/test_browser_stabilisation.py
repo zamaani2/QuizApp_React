@@ -9,6 +9,7 @@ viewport overflow.
 import os
 import re
 from unittest import skipUnless
+from urllib.parse import urlsplit
 
 # Playwright's sync API uses an event loop on this thread. Django ORM calls
 # in LiveServer tests must still run synchronously.
@@ -168,7 +169,7 @@ class AuthenticatedBrowserShellTests(StaticLiveServerTestCase):
 
     def _login(self, page, username, login_url, dashboard_url):
         page.goto(f"{self.live_server_url}{login_url}")
-        if "/auth-app/" in page.url:
+        if urlsplit(page.url).path == "/":
             page.fill("input[name='username']", username)
             page.fill("input[name='password']", self.password)
             page.click("button[type='submit']")

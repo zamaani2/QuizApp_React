@@ -171,7 +171,16 @@ class ReactAppShellViewTests(TestCase):
     def test_shell_unauthenticated_redirects_to_react_auth(self):
         response = self.client.get(reverse("quiz_app:react_app"))
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, "/auth-app/?next=%2Fapp%2F")
+        self.assertEqual(response.url, "/?next=%2Fapp%2F")
+
+    def test_authenticated_root_redirects_to_role_dashboard(self):
+        self.client.force_login(self.user)
+        response = self.client.get("/")
+        self.assertRedirects(
+            response,
+            "/app/admin/dashboard",
+            fetch_redirect_response=False,
+        )
 
     def test_shell_authenticated_returns_200_with_csrf_and_root(self):
         self.client.force_login(self.user)

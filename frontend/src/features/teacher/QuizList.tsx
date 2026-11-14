@@ -29,6 +29,10 @@ function formatSchedule(from?: string | null, until?: string | null): string {
   return 'No schedule';
 }
 
+function hasQuizAttempts(quiz: QuizListItem): boolean {
+  return Boolean(quiz.has_attempts) || quiz.total_attempts > 0;
+}
+
 export const QuizList: React.FC = () => {
   const [quizzes, setQuizzes] = useState<QuizListItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -203,90 +207,110 @@ export const QuizList: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredQuizzes.map((quiz) => (
-                        <tr key={quiz.id}>
-                          <td style={{ textAlign: 'center', minWidth: '300px' }}>
-                            <div className="core-display-flex core-layout--justify-center core-layout--wrap core-layout--gap-1">
-                              <Link
-                                to={`/teacher/quizzes/${quiz.id}`}
-                                className="core-button core-button--sm core-button--primary"
-                              >
-                                Open
-                              </Link>
-                              <Link
-                                to={`/teacher/quizzes/${quiz.id}/settings`}
-                                className="core-button core-button--sm core-button--outline-secondary"
-                              >
-                                Settings
-                              </Link>
-                              <Button
-                                size="sm"
-                                variant="outline-secondary"
-                                aria-label={`${quiz.status === 'archived' ? 'Unarchive' : 'Archive'} ${quiz.title}`}
-                                onClick={() =>
-                                  handleStatusChange(
-                                    quiz.id,
-                                    quiz.status === 'archived' ? 'draft' : 'archived'
-                                  )
-                                }
-                              >
-                                {quiz.status === 'archived' ? 'Unarchive' : 'Archive'}
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline-danger"
-                                aria-label={`Delete ${quiz.title}`}
-                                onClick={() => setDeleteQuizItem(quiz)}
-                              >
-                                Delete
-                              </Button>
-                            </div>
-                          </td>
-                          <td>
-                            <div>
-                              <Link
-                                to={`/teacher/quizzes/${quiz.id}`}
-                                className="core-type--weight-bold core-text--dark core-text--decoration-none"
-                              >
-                                {quiz.title}
-                              </Link>
-                              <div className="core-type--small core-text--muted">
-                                {quiz.subject_name || 'General Subject'}
-                                {quiz.academic_year && ` · ${quiz.academic_year}`}
+                      {filteredQuizzes.map((quiz) => {
+                        const hasAttempts = hasQuizAttempts(quiz);
+                        return (
+                          <tr key={quiz.id}>
+                            <td style={{ textAlign: 'center', minWidth: '300px' }}>
+                              <div className="core-display-flex core-layout--justify-center core-layout--wrap core-layout--gap-1">
+                                <Link
+                                  to={`/teacher/quizzes/${quiz.id}`}
+                                  className="core-button core-button--sm core-button--primary"
+                                >
+                                  Open
+                                </Link>
+                                <Link
+                                  to={`/teacher/quizzes/${quiz.id}/settings`}
+                                  className="core-button core-button--sm core-button--outline-secondary"
+                                >
+                                  Settings
+                                </Link>
+                                <Button
+                                  size="sm"
+                                  variant="outline-secondary"
+                                  aria-label={`${quiz.status === 'archived' ? 'Unarchive' : 'Archive'} ${quiz.title}`}
+                                  onClick={() =>
+                                    handleStatusChange(
+                                      quiz.id,
+                                      quiz.status === 'archived' ? 'draft' : 'archived'
+                                    )
+                                  }
+                                >
+                                  {quiz.status === 'archived' ? 'Unarchive' : 'Archive'}
+                                </Button>
+                                <span
+                                  className="quiz-delete-tooltip"
+                                  title={hasAttempts
+                                    ? 'This quiz has recorded attempts and cannot be deleted. Archive it instead.'
+                                    : undefined}
+                                >
+                                  <Button
+                                    size="sm"
+                                    variant="outline-danger"
+                                    aria-label={`Delete ${quiz.title}`}
+                                    aria-describedby={hasAttempts ? `quiz-delete-help-${quiz.id}` : undefined}
+                                    title={hasAttempts
+                                      ? 'This quiz has recorded attempts and cannot be deleted. Archive it instead.'
+                                      : undefined}
+                                    disabled={hasAttempts}
+                                    onClick={() => setDeleteQuizItem(quiz)}
+                                  >
+                                    Delete
+                                  </Button>
+                                  {hasAttempts && (
+                                    <span id={`quiz-delete-help-${quiz.id}`} className="core-visually-hidden">
+                                      This quiz has recorded attempts and cannot be deleted. Archive it instead.
+                                    </span>
+                                  )}
+                                </span>
                               </div>
-                            </div>
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            <span
-                              className={`core-badge ${
-                                quiz.status === 'published'
-                                  ? 'core-surface--success'
-                                  : quiz.status === 'draft'
-                                  ? 'core-surface--warning core-text--dark'
-                                  : 'core-surface--secondary'
-                              }`}
-                            >
-                              {quiz.status.toUpperCase()}
-                            </span>
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            <span className="core-type--weight-semibold">{quiz.total_questions}</span>
-                            <div className="core-type--small core-text--muted">
-                              {quiz.total_marks} marks
-                            </div>
-                          </td>
-                          <td>
-                            <span className="core-type--small core-text--dark">
-                              {formatClasses(quiz.classes)}
-                            </span>
-                          </td>
-                          <td>
-                            <span className="core-type--small core-text--muted">
-                              {formatSchedule(quiz.available_from, quiz.available_until)}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                            <td>
+                              <div>
+                                <Link
+                                  to={`/teacher/quizzes/${quiz.id}`}
+                                  className="core-type--weight-bold core-text--dark core-text--decoration-none"
+                                >
+                                  {quiz.title}
+                                </Link>
+                                <div className="core-type--small core-text--muted">
+                                  {quiz.subject_name || 'General Subject'}
+                                  {quiz.academic_year && ` · ${quiz.academic_year}`}
+                                </div>
+                              </div>
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <span
+                                className={`core-badge ${
+                                  quiz.status === 'published'
+                                    ? 'core-surface--success'
+                                    : quiz.status === 'draft'
+                                    ? 'core-surface--warning core-text--dark'
+                                    : 'core-surface--secondary'
+                                }`}
+                              >
+                                {quiz.status.toUpperCase()}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <span className="core-type--weight-semibold">{quiz.total_questions}</span>
+                              <div className="core-type--small core-text--muted">
+                                {quiz.total_marks} marks
+                              </div>
+                            </td>
+                            <td>
+                              <span className="core-type--small core-text--dark">
+                                {formatClasses(quiz.classes)}
+                              </span>
+                            </td>
+                            <td>
+                              <span className="core-type--small core-text--muted">
+                                {formatSchedule(quiz.available_from, quiz.available_until)}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -300,7 +324,7 @@ export const QuizList: React.FC = () => {
       <ConfirmDialog
         isOpen={Boolean(deleteQuizItem)}
         title="Delete Quiz"
-        message={`Are you sure you want to delete "${deleteQuizItem?.title}"? All questions and student attempts associated with this quiz will be permanently removed.`}
+        message={`Are you sure you want to delete "${deleteQuizItem?.title}"? The quiz and its questions will be removed.`}
         confirmLabel={deleteLoading ? 'Deleting...' : 'Delete Quiz'}
         confirmVariant="danger"
         loading={deleteLoading}

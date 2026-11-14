@@ -45,6 +45,7 @@ export interface QuizListItem {
   total_questions: number;
   total_marks: number;
   total_attempts: number;
+  has_attempts?: boolean;
   avg_score: number;
   created_at: string | null;
   classes?: { id: number; name: string }[];
@@ -125,6 +126,7 @@ export interface QuizDetailData {
   total_questions: number;
   total_marks: number;
   total_attempts: number;
+  has_attempts?: boolean;
   assigned_classes: { id: number; name: string }[];
   questions: QuestionDetailItem[];
   sections?: QuizSectionData[];

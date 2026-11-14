@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { BrowserRouter, MemoryRouter, Routes, Route } from 'react-router-dom';
 import { AcademicYearsManager } from './admin/AcademicYearsManager';
 import { TermsManager } from './admin/TermsManager';
@@ -155,6 +155,49 @@ describe('Academic Structure & School Setup Feature Components', () => {
               forms: [{ id: 1, form_number: 1, name: 'Form 1' }],
               learning_areas: [{ id: 1, code: 'SCI', name: 'Sciences' }],
               departments: [],
+              subjects: [{ id: 20, subject_code: 'HIST', subject_name: 'History' }],
+            }),
+          });
+        }
+        if (url.includes('/api/v1/classes/5/subjects/add/')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => ({ success: true, message: 'Subject assigned.' }),
+          });
+        }
+        if (url.includes('/api/v1/classes/5/')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => ({
+              class: {
+                id: 5,
+                class_id: 'CLS005',
+                name: 'Form 1 Alpha',
+                form_id: 1,
+                form_name: 'Form 1',
+                learning_area_id: 1,
+                learning_area_name: 'Sciences',
+                academic_year_id: 1,
+                academic_year_name: '2026/2027',
+                maximum_students: 45,
+                is_active: true,
+                students_count: 0,
+                subjects_count: 1,
+              },
+              enrolled_students: [],
+              assigned_subjects: [
+                {
+                  id: 1,
+                  class_subject_id: 1,
+                  subject_id: 10,
+                  subject_code: 'BIO',
+                  subject_name: 'Biology',
+                  department_name: 'Science Dept',
+                  learning_area_name: 'Sciences',
+                },
+              ],
             }),
           });
         }
@@ -199,6 +242,23 @@ describe('Academic Structure & School Setup Feature Components', () => {
         expect(screen.getByText('CLS005')).toBeInTheDocument();
         expect(screen.getByText('7 Assigned')).toBeInTheDocument();
       });
+
+      fireEvent.click(screen.getByTitle('View and assign subjects for Form 1 Alpha'));
+      const drawer = await screen.findByRole('dialog', { name: 'Subjects for Form 1 Alpha' });
+      expect(within(drawer).getByText('Biology')).toBeInTheDocument();
+      expect(within(drawer).getByRole('option', { name: 'HIST - History' })).toBeInTheDocument();
+      fireEvent.change(within(drawer).getByLabelText('Add a subject to this class'), {
+        target: { value: '20' },
+      });
+      fireEvent.click(within(drawer).getByRole('button', { name: 'Assign Subject' }));
+
+      await waitFor(() => {
+        const request = vi.mocked(global.fetch).mock.calls.find(
+          ([url]) => String(url).includes('/api/v1/classes/5/subjects/add/'),
+        );
+        expect(request).toBeDefined();
+        expect(JSON.parse(String((request?.[1] as RequestInit).body))).toEqual({ subject_id: 20 });
+      });
     });
   });
 
@@ -215,7 +275,7 @@ describe('Academic Structure & School Setup Feature Components', () => {
               forms: [],
               learning_areas: [],
               departments: [],
-              available_subjects: [{ id: 20, subject_code: 'HIST', subject_name: 'History' }],
+              subjects: [{ id: 20, subject_code: 'HIST', subject_name: 'History' }],
             }),
           });
         }
@@ -279,6 +339,8 @@ describe('Academic Structure & School Setup Feature Components', () => {
         expect(screen.getByText('Biology')).toBeInTheDocument();
         expect(screen.getByText('BIO')).toBeInTheDocument();
       });
+
+      expect(screen.queryByRole('button', { name: 'Assign Subject' })).not.toBeInTheDocument();
 
       // Switch to Students tab
       const studentsTab = screen.getByRole('button', { name: /Enrolled Students/i });

@@ -1,4 +1,4 @@
-import { useState, type FC, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FC, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -6,6 +6,7 @@ import {
   ClipboardList,
   CheckSquare,
   Award,
+  ListChecks,
   PanelLeftClose,
   PanelLeftOpen,
   LogOut,
@@ -46,10 +47,10 @@ export const TEACHER_NAV_ITEMS: TeacherNavItem[] = [
     icon: CircleHelp,
     section: 'Assessments',
     isPrimary: true,
-    isActive: (p) => p === '/teacher/quizzes' || /^\/teacher\/quizzes\/\d+(?:\/settings)?\/?$/.test(p),
+    isActive: (p) => p === '/teacher/quizzes' || p === '/teacher/quizzes/new' || /^\/teacher\/quizzes\/\d+(?:\/settings)?\/?$/.test(p),
   },
   {
-    id: 'questions', label: 'Questions', to: '/teacher/questions', icon: CircleHelp,
+    id: 'questions', label: 'Questions', to: '/teacher/questions', icon: ListChecks,
     section: 'Assessments', isPrimary: false,
     isActive: (p) => p === '/teacher/questions' || p.startsWith('/teacher/questions/'),
   },
@@ -86,6 +87,45 @@ export const TeacherAppLayout: FC<TeacherAppLayoutProps> = ({ children }) => {
   const { data } = useAuth();
   const location = useLocation();
   const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const moreButtonRef = useRef<HTMLButtonElement>(null);
+  const moreSheetRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isMoreOpen) return;
+    const sheet = moreSheetRef.current;
+    const getFocusableItems = () =>
+      Array.from(
+        sheet?.querySelectorAll<HTMLElement>(
+          'a[href], button:not(:disabled), input:not(:disabled), [tabindex]:not([tabindex="-1"])'
+        ) ?? []
+      );
+    getFocusableItems()[0]?.focus();
+
+    const handleSheetKeys = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setIsMoreOpen(false);
+      } else if (event.key === 'Tab') {
+        const items = getFocusableItems();
+        if (!items.length) return;
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    sheet?.addEventListener('keydown', handleSheetKeys);
+    return () => {
+      sheet?.removeEventListener('keydown', handleSheetKeys);
+      moreButtonRef.current?.focus();
+    };
+  }, [isMoreOpen]);
 
   // Desktop sidebar collapse state
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
@@ -183,7 +223,7 @@ export const TeacherAppLayout: FC<TeacherAppLayoutProps> = ({ children }) => {
 
           {/* Group 2: Assessments */}
           <div className="portal-sidebar__nav-group">
-            <p className="portal-sidebar__nav-label">Assessments & Grading</p>
+            <p className="portal-sidebar__nav-label">Assessments</p>
             {assessmentsGroup.map((item) => {
               const Icon = item.icon;
               const active = item.isActive(pathname);
@@ -234,6 +274,12 @@ export const TeacherAppLayout: FC<TeacherAppLayoutProps> = ({ children }) => {
           </div>
 
           <div className="portal-header__right">
+            <Link to="/account" className="portal-header__btn" aria-label="Account settings">
+              Account
+            </Link>
+            <Link to="/teacher/profile" className="portal-header__btn" aria-label="Teacher profile">
+              Profile
+            </Link>
             <div className="portal-header__user">
               <div className="portal-avatar-pill" title={user?.full_name || user?.username || 'Teacher'}>
                 {initial}
@@ -291,6 +337,7 @@ export const TeacherAppLayout: FC<TeacherAppLayoutProps> = ({ children }) => {
 
         {/* More Button */}
         <button
+          ref={moreButtonRef}
           type="button"
           className={`portal-bottom-nav__item ${isMoreActive ? 'portal-bottom-nav__item--active' : ''}`}
           onClick={() => setIsMoreOpen(true)}
@@ -311,6 +358,7 @@ export const TeacherAppLayout: FC<TeacherAppLayoutProps> = ({ children }) => {
             aria-hidden="true"
           />
           <div
+            ref={moreSheetRef}
             className="portal-more-sheet"
             role="dialog"
             aria-modal="true"

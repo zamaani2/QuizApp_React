@@ -189,6 +189,69 @@ export const SUPERADMIN_NAV_ITEMS: AdminNavItem[] = [
     isActive: (p) => p.startsWith('/superadmin/users'),
   },
   {
+    id: 'students',
+    label: 'Students',
+    to: '/admin/students',
+    icon: Users,
+    section: 'Directory',
+    isPrimary: false,
+    isActive: (p) => p.startsWith('/admin/students'),
+  },
+  {
+    id: 'teachers',
+    label: 'Teachers',
+    to: '/admin/teachers',
+    icon: UserCheck,
+    section: 'Directory',
+    isPrimary: false,
+    isActive: (p) => p.startsWith('/admin/teachers'),
+  },
+  {
+    id: 'classes',
+    label: 'Classes',
+    to: '/admin/classes',
+    icon: Building,
+    section: 'Academics',
+    isPrimary: false,
+    isActive: (p) => p.startsWith('/admin/classes'),
+  },
+  {
+    id: 'subjects',
+    label: 'Subjects',
+    to: '/admin/subjects',
+    icon: BookOpen,
+    section: 'Academics',
+    isPrimary: false,
+    isActive: (p) => p.startsWith('/admin/subjects'),
+  },
+  {
+    id: 'academic-years',
+    label: 'Academic Years',
+    to: '/admin/academic-years',
+    icon: Calendar,
+    section: 'Academics',
+    isPrimary: false,
+    isActive: (p) => p.startsWith('/admin/academic-years'),
+  },
+  {
+    id: 'terms',
+    label: 'Terms',
+    to: '/admin/terms',
+    icon: CalendarRange,
+    section: 'Academics',
+    isPrimary: false,
+    isActive: (p) => p.startsWith('/admin/terms'),
+  },
+  {
+    id: 'school',
+    label: 'School Settings',
+    to: '/admin/school',
+    icon: Settings,
+    section: 'Academics',
+    isPrimary: false,
+    isActive: (p) => p.startsWith('/admin/school'),
+  },
+  {
     id: 'forms',
     label: 'Forms & Grades',
     to: '/admin/forms',
@@ -270,6 +333,8 @@ export const AdminAppLayout: FC<AdminAppLayoutProps> = ({ children }) => {
   const sections = isSuperadmin
     ? [
         { name: 'SUPERADMIN CONSOLE', items: navItems.filter((i) => i.section === 'Console') },
+        { name: 'PEOPLE & DIRECTORY', items: navItems.filter((i) => i.section === 'Directory') },
+        { name: 'ACADEMIC STRUCTURE', items: navItems.filter((i) => i.section === 'Academics') },
         { name: 'SCHOOL STRUCTURE', items: navItems.filter((i) => i.section === 'Structure') },
       ]
     : [
@@ -372,6 +437,9 @@ export const AdminAppLayout: FC<AdminAppLayoutProps> = ({ children }) => {
           </div>
 
           <div className="portal-header__right">
+          <Link to="/account" className="portal-header__btn" aria-label="Account settings">
+            Account
+          </Link>
             <div className="portal-header__user">
               <div className="portal-avatar-pill" title={user?.full_name || user?.username || 'User'}>
                 {initial}

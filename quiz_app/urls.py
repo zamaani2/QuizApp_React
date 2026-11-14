@@ -64,6 +64,7 @@ from .api_views import (
     teacher_assignment_class_subjects_api_view,
 )
 from .results_export_api import teacher_results_export_api_view
+from .account_api_views import change_password_api_view
 from .directory_api_views import (
     students_collection_api_view,
     teachers_collection_api_view,
@@ -269,7 +270,7 @@ def react_owned_page(view, destination):
     def wrapped(request, *args, **kwargs):
         if request.method in {"GET", "HEAD"}:
             if not request.user.is_authenticated:
-                return redirect("/auth-app/")
+                return redirect(f"/?{urlencode({'next': request.path})}")
             target = (
                 destination(request)
                 if callable(destination)
@@ -278,6 +279,7 @@ def react_owned_page(view, destination):
             return redirect(target)
         return view(request, *args, **kwargs)
 
+    wrapped.react_destination = destination
     return wrapped
 
 
@@ -287,6 +289,17 @@ def dashboard_destination(request):
         "teacher": "/app/teacher/dashboard",
         "student": "/app/student/dashboard",
     }.get(request.user.role, "/app/admin/dashboard")
+
+
+def app_entry_view(request):
+    if request.user.is_authenticated:
+        return redirect(dashboard_destination(request))
+    return auth_core_shell_view(request)
+
+
+def auth_app_legacy_redirect(request, subpath=""):
+    query = request.GET.urlencode()
+    return redirect(f"/?{query}" if query else "/")
 
 
 urlpatterns = [
@@ -311,7 +324,7 @@ urlpatterns = [
     path("superadmin/logout/", superadmin_logout_view, name="superadmin_logout"),
     
     # Dashboard URLs
-    path("", react_owned_page(dashboard_view, dashboard_destination), name="dashboard"),
+    path("", app_entry_view, name="dashboard"),
     path("dashboard/", react_owned_page(dashboard_view, dashboard_destination), name="dashboard"),
     # Changed from admin/dashboard/ to dashboard/admin/ to avoid conflict with Django admin
     path("dashboard/admin/", react_owned_page(admin_dashboard_view, "/app/admin/dashboard"), name="admin_dashboard"),
@@ -330,7 +343,7 @@ urlpatterns = [
     path("students/<int:student_id>/edit/", react_owned_page(student_edit_view, "/app/admin/students"), name="student_edit"),
     path("students/<int:student_id>/delete/", react_owned_page(student_delete_view, "/app/admin/students"), name="student_delete"),
     path("students/<int:student_id>/restore/", react_owned_page(student_restore_view, "/app/admin/students"), name="student_restore"),
-    path("students/<int:student_id>/detail/", react_owned_page(student_detail_view, "/app/admin/students/{student_id}"), name="student_detail"),
+    path("students/<int:student_id>/detail/", react_owned_page(student_detail_view, "/app/admin/students"), name="student_detail"),
     path("students/profile/", react_owned_page(student_profile_view, "/app/student/profile"), name="student_profile"),
     path("students/bulk-import/", react_owned_page(student_bulk_import_view, "/app/admin/students"), name="student_bulk_import"),
     path("students/bulk-import/template/", student_bulk_import_template_view, name="student_bulk_import_template"),
@@ -402,8 +415,8 @@ urlpatterns = [
     path("teachers/<int:teacher_id>/edit/", react_owned_page(teacher_edit_view, "/app/admin/teachers"), name="teacher_edit"),
     path("teachers/<int:teacher_id>/delete/", react_owned_page(teacher_delete_view, "/app/admin/teachers"), name="teacher_delete"),
     path("teachers/<int:teacher_id>/restore/", react_owned_page(teacher_restore_view, "/app/admin/teachers"), name="teacher_restore"),
-    path("teachers/<int:teacher_id>/detail/", react_owned_page(teacher_detail_view, "/app/admin/teachers/{teacher_id}"), name="teacher_detail"),
-    path("teachers/profile/", react_owned_page(teacher_profile_view, "/app/teacher/dashboard"), name="teacher_profile"),
+    path("teachers/<int:teacher_id>/detail/", react_owned_page(teacher_detail_view, "/app/admin/teachers"), name="teacher_detail"),
+    path("teachers/profile/", react_owned_page(teacher_profile_view, "/app/teacher/profile"), name="teacher_profile"),
     path("teachers/bulk-import/", react_owned_page(teacher_bulk_import_view, "/app/admin/teachers"), name="teacher_bulk_import"),
     path("teachers/bulk-import/preview/", react_owned_page(teacher_bulk_import_preview_view, "/app/admin/teachers"), name="teacher_bulk_import_preview"),
     path(
@@ -504,6 +517,7 @@ urlpatterns = [
     
     # React Migration API v1
     path("api/v1/me/", me_api_view, name="api_me"),
+    path("api/v1/me/password/", change_password_api_view, name="api_me_password"),
     path("api/v1/extend-session/", extend_session_view, name="api_extend_session"),
     path("api/v1/superadmin/dashboard/", superadmin_dashboard_api_view, name="api_superadmin_dashboard"),
     path("api/v1/superadmin/schools/", superadmin_schools_api_view, name="api_superadmin_schools"),
@@ -609,7 +623,7 @@ urlpatterns = [
     path("app/<path:subpath>/", react_app_shell_view, name="react_app_subpath"),
     path("app/<path:subpath>", react_app_shell_view, name="react_app_subpath_no_slash"),
     # Optional React Authentication & System Core frontend; Django owns all auth actions.
-    path("auth-app/", auth_core_shell_view, name="auth_core_app"),
-    path("auth-app/<path:subpath>/", auth_core_shell_view, name="auth_core_app_subpath"),
-    path("auth-app/<path:subpath>", auth_core_shell_view, name="auth_core_app_subpath_no_slash"),
+    path("auth-app/", auth_app_legacy_redirect, name="auth_core_app"),
+    path("auth-app/<path:subpath>/", auth_app_legacy_redirect, name="auth_core_app_subpath"),
+    path("auth-app/<path:subpath>", auth_app_legacy_redirect, name="auth_core_app_subpath_no_slash"),
 ]

@@ -177,7 +177,7 @@ export function AuthCoreApp() {
                 {resetSubmitting ? 'Sending...' : 'Send reset link'} <span aria-hidden="true">&#8594;</span>
               </button>
             </form>
-            <p className="auth-core__support"><a href="/auth-app/">Back to sign in</a></p>
+            <p className="auth-core__support"><a href="/">Back to sign in</a></p>
           </div>
         )}
 
@@ -196,7 +196,7 @@ export function AuthCoreApp() {
                 {resetSubmitting ? 'Updating...' : 'Update password'} <span aria-hidden="true">&#8594;</span>
               </button>
             </form>
-            <p className="auth-core__support"><a href="/auth-app/">Back to sign in</a></p>
+            <p className="auth-core__support"><a href="/">Back to sign in</a></p>
           </div>
         )}
 
@@ -211,7 +211,7 @@ export function AuthCoreApp() {
                 ? 'If an account with that email exists, a password reset link has been sent.'
                 : 'Your password has been updated. You can now sign in.'}
             </p>
-            <a className="auth-core__submit auth-core__workspace-link" href="/auth-app/">
+            <a className="auth-core__submit auth-core__workspace-link" href="/">
               Return to sign in <span aria-hidden="true">&#8594;</span>
             </a>
           </div>
@@ -240,7 +240,7 @@ export function AuthCoreApp() {
               />
               <div className="auth-core__password-label">
                 <label htmlFor="auth-password">Password</label>
-                <a href="/auth-app/?flow=password-reset">Forgot password?</a>
+                <a href="/?flow=password-reset">Forgot password?</a>
               </div>
               <input
                 id="auth-password"
@@ -260,9 +260,9 @@ export function AuthCoreApp() {
             </form>
             <p className="auth-core__support">
               {isSuperadminPortal ? (
-                <>School user? <a href="/auth-app/">Use school sign-in</a></>
+                <>School user? <a href="/">Use school sign-in</a></>
               ) : (
-                <>Superadmin? <a href="/auth-app/?portal=superadmin">Use the superadmin sign-in</a></>
+                <>Superadmin? <a href="/?portal=superadmin">Use the superadmin sign-in</a></>
               )}
             </p>
           </div>

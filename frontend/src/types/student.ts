@@ -200,6 +200,7 @@ export interface StudentQuizTakeData {
   active_section_id?: number | null;
   section_timing_enabled?: boolean;
   existing_responses: Record<string, StudentQuestionResponse>;
+  existing_response_timestamps?: Record<string, string>;
 }
 
 export interface StudentAttemptHistoryItem {

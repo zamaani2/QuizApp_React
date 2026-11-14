@@ -28,27 +28,14 @@ from django.http import JsonResponse
 
 from ..account_security import SafePasswordResetForm
 from ..models import User
+from ..rate_limiting import get_client_ip as trusted_client_ip
 from ..rate_limiting import is_auth_rate_limited, record_auth_attempt
 
 logger = logging.getLogger(__name__)
 
 
 def get_client_ip(request):
-    """
-    Get the client's IP address from the request.
-    
-    Args:
-        request: Django HttpRequest object
-        
-    Returns:
-        str: IP address or empty string if not found
-    """
-    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-    if x_forwarded_for:
-        ip = x_forwarded_for.split(',')[0]
-    else:
-        ip = request.META.get('REMOTE_ADDR', '')
-    return ip.strip()
+    return trusted_client_ip(request)
 
 
 def _wants_json_login_response(request):
@@ -58,7 +45,7 @@ def _wants_json_login_response(request):
 def _auth_app_redirect(request):
     next_url = request.GET.get("next")
     query = urlencode({"next": next_url}) if next_url else ""
-    return redirect(f"/auth-app/?{query}" if query else "/auth-app/")
+    return redirect(f"/?{query}" if query else "/")
 
 
 def _react_dashboard_url(user):
@@ -81,7 +68,7 @@ def _login_failure_response(request, code, message, status):
 @require_http_methods(["GET", "POST"])
 def password_reset_view(request):
     if request.method == "GET":
-        return redirect("/auth-app/?flow=password-reset")
+        return redirect("/?flow=password-reset")
 
     identifier = request.POST.get("email", "")
     if is_auth_rate_limited(request, "password_reset", identifier):
@@ -136,7 +123,7 @@ def password_reset_confirm_view(request, uidb64, token):
                 "token": token,
             }
         )
-        return redirect(f"/auth-app/?{query}")
+        return redirect(f"/?{query}")
 
     try:
         user_id = force_str(urlsafe_base64_decode(uidb64))
@@ -168,19 +155,19 @@ def password_reset_confirm_view(request, uidb64, token):
     return JsonResponse(
         {
             "success": True,
-            "redirect_url": "/auth-app/?flow=password-reset-complete",
+            "redirect_url": "/?flow=password-reset-complete",
         }
     )
 
 
 @require_http_methods(["GET"])
 def password_reset_done_view(request):
-    return redirect("/auth-app/?flow=password-reset-sent")
+    return redirect("/?flow=password-reset-sent")
 
 
 @require_http_methods(["GET"])
 def password_reset_complete_view(request):
-    return redirect("/auth-app/?flow=password-reset-complete")
+    return redirect("/?flow=password-reset-complete")
 
 
 @csrf_protect

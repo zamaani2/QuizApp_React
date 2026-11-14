@@ -9,7 +9,6 @@ This module provides views for managing subjects including:
 """
 from django.shortcuts import redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.db import transaction
@@ -31,8 +30,10 @@ def subject_list_view(request):
     Display list of all subjects with filtering and search capabilities.
     """
     if request.user.role not in ["admin", "superadmin"]:
-        messages.error(request, "You don't have permission to access this page.")
-        return redirect("quiz_app:dashboard")
+        return JsonResponse(
+            {"success": False, "error": "You don't have permission to access this page."},
+            status=403,
+        )
 
     return redirect("/app/admin/subjects")
 
@@ -49,8 +50,10 @@ def subject_create_view(request):
     if request.user.role not in ["admin", "superadmin"]:
         if request.method == "GET":
             return JsonResponse({'error': 'Permission denied'}, status=403)
-        messages.error(request, "You don't have permission to perform this action.")
-        return redirect("quiz_app:subject_list")
+        return JsonResponse(
+            {"success": False, "error": "You don't have permission to perform this action."},
+            status=403,
+        )
     
     if request.method == "GET":
         return redirect("/app/admin/subjects")
@@ -149,8 +152,10 @@ def subject_edit_view(request, subject_id):
     if request.user.role not in ["admin", "superadmin"]:
         if request.method == "GET":
             return JsonResponse({'error': 'Permission denied'}, status=403)
-        messages.error(request, "You don't have permission to perform this action.")
-        return redirect("quiz_app:subject_list")
+        return JsonResponse(
+            {"success": False, "error": "You don't have permission to perform this action."},
+            status=403,
+        )
     
     if request.method == "GET":
         return redirect("/app/admin/subjects")

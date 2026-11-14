@@ -131,7 +131,12 @@ describe('Phase 4 Teacher Feature Components', () => {
         '/teacher/quizzes/1/settings'
       );
       expect(within(quizRow).getByRole('button', { name: 'Archive Potions Midterm' })).toBeInTheDocument();
-      expect(within(quizRow).getByRole('button', { name: 'Delete Potions Midterm' })).toBeInTheDocument();
+      const deleteButton = within(quizRow).getByRole('button', { name: 'Delete Potions Midterm' });
+      expect(deleteButton).toBeDisabled();
+      expect(deleteButton.parentElement).toHaveAttribute(
+        'title',
+        'This quiz has recorded attempts and cannot be deleted. Archive it instead.'
+      );
     });
 
     it('filters by search and status and shows an empty state', async () => {
@@ -185,6 +190,60 @@ describe('Phase 4 Teacher Feature Components', () => {
   });
 
   describe('QuizDetail Component', () => {
+    it('supports keyboard navigation and dismissal for the options menu', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          id: 9,
+          title: 'Keyboard quiz',
+          description: '',
+          subject_name: 'Spellcraft',
+          status: 'draft',
+          duration_minutes: 0,
+          pass_percentage: 50,
+          max_attempts: 1,
+          total_questions: 1,
+          total_marks: 1,
+          total_attempts: 0,
+          assigned_classes: [],
+          questions: [{
+            id: 19,
+            question_text: 'Question',
+            question_type: 'essay',
+            marks: 1,
+            order: 1,
+            choices: [],
+          }],
+        }),
+      });
+
+      render(
+        <MemoryRouter initialEntries={['/teacher/quizzes/9']}>
+          <Routes>
+            <Route path="/teacher/quizzes/:id" element={<QuizDetail />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      const trigger = await screen.findByRole('button', { name: 'Quiz options menu' });
+      expect(trigger).toHaveAttribute('aria-haspopup', 'menu');
+      fireEvent.click(trigger);
+      expect(trigger).toHaveAttribute('aria-expanded', 'true');
+      const settings = screen.getByRole('menuitem', { name: 'Settings' });
+      expect(settings).toHaveFocus();
+      fireEvent.keyDown(settings, { key: 'ArrowDown' });
+      expect(screen.getByRole('menuitem', { name: 'Archive' })).toHaveFocus();
+      fireEvent.keyDown(screen.getByRole('menuitem', { name: 'Archive' }), { key: 'Escape' });
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+      expect(trigger).toHaveAttribute('aria-expanded', 'false');
+      expect(trigger).toHaveFocus();
+
+      fireEvent.click(trigger);
+      fireEvent.mouseDown(document.body);
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    });
+
     it('renders the quiz overview without the question list', async () => {
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
@@ -234,10 +293,21 @@ describe('Phase 4 Teacher Feature Components', () => {
 
       expect(screen.getByText('Spellcraft')).toBeInTheDocument();
       expect(screen.getByText('Setup Checklist')).toBeInTheDocument();
+      expect(screen.getByText('Progress: 3 of 3 completed')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute(
+        'href',
+        '/teacher/quizzes/1/settings'
+      );
       expect(screen.getByText('Submissions & Results')).toBeInTheDocument();
       expect(screen.queryByText('What incantation is used to levitate objects?')).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Unpublish' })).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Publish' })).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Quiz options menu' }));
+      const deleteAction = screen.getByRole('menuitem', { name: 'Delete' });
+      expect(deleteAction).toBeDisabled();
+      expect(screen.getByText(/recorded attempts and cannot be deleted\. Archive it instead/i)).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: 'Archive' })).toBeInTheDocument();
     });
 
     it('shows one disabled publish action and the reason while a draft is incomplete', async () => {
@@ -275,7 +345,61 @@ describe('Phase 4 Teacher Feature Components', () => {
       const publishButton = await screen.findByRole('button', { name: 'Publish' });
       expect(publishButton).toBeDisabled();
       expect(screen.getAllByText(/Add at least one question before publishing/).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText('Progress: 0 of 3 completed')).toBeInTheDocument();
+      expect(screen.getByText('Review settings')).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Unpublish' })).not.toBeInTheDocument();
+    });
+
+    it('shows section-specific publish blockers in the checklist', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          id: 8,
+          title: 'Sectioned quiz',
+          description: '',
+          subject_name: 'Spellcraft',
+          status: 'draft',
+          duration_minutes: 0,
+          pass_percentage: 50,
+          max_attempts: 1,
+          total_questions: 1,
+          total_marks: 2,
+          total_attempts: 0,
+          assigned_classes: [{ id: 3, name: 'Gryffindor Year 1' }],
+          sections: [{
+            id: 1,
+            title: 'Part A',
+            instructions: '',
+            order: 1,
+            time_limit_minutes: null,
+            choose_n: null,
+            question_ids: [],
+            groups: [],
+          }],
+          questions: [{
+            id: 17,
+            question_text: 'Unassigned',
+            question_type: 'essay',
+            marks: 2,
+            order: 1,
+            section_id: null,
+            choices: [],
+          }],
+        }),
+      });
+
+      render(
+        <MemoryRouter initialEntries={['/teacher/quizzes/8']}>
+          <Routes>
+            <Route path="/teacher/quizzes/:id" element={<QuizDetail />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      expect(await screen.findByRole('button', { name: 'Publish' })).toBeDisabled();
+      expect(screen.getAllByText(/Section "Part A" has no questions/).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/1 question\(s\) need to be assigned to a section/).length).toBeGreaterThan(0);
     });
   });
 

@@ -7,6 +7,7 @@ from unittest.mock import Mock, patch
 
 from django.contrib import admin as django_admin
 from django.contrib.auth.models import AnonymousUser
+from django.conf import settings
 from django.core.cache import cache
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -14,12 +15,12 @@ from django.db import IntegrityError, transaction
 from django.db.models import F, Prefetch
 from django.db.models.deletion import ProtectedError
 from django.http import HttpResponse
-from django.test import Client, RequestFactory, SimpleTestCase, TestCase
+from django.test import Client, RequestFactory, SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 from django.urls import reverse
 
 from .middleware import TenantAccessMiddleware
-from .rate_limiting import AUTH_RATE_LIMITS
+from .rate_limiting import AUTH_RATE_LIMITS, get_client_ip
 from .urls import urlpatterns
 from .models import (
     AcademicYear,
@@ -565,7 +566,7 @@ class SchoolScopedManagementEndpointTests(TestCase):
                     response = self.client.get(path)
                     self.assertEqual(response.status_code, 302)
                     self.assertTrue(
-                        response["Location"].startswith(("/app/", "/auth-app/")),
+                        response["Location"].startswith(("/app/", "/")),
                         response["Location"],
                     )
 
@@ -2752,25 +2753,28 @@ class SchoolScopedManagementEndpointTests(TestCase):
             self.school_a,
         )
 
-    def test_student_import_does_not_invent_missing_required_details(self):
+    def test_student_import_requires_only_name_and_gender(self):
         response = self.client.post(
-            reverse("quiz_app:student_bulk_import"),
+            "/api/v1/students/import/",
             {
-                "csv_file": SimpleUploadedFile(
+                "file": SimpleUploadedFile(
                     "students.csv",
-                    b"full_name,gender\nImported Without Details,F\n",
+                    b"full_name,gender\nImported With Optional Fields,F\n",
                     content_type="text/csv",
                 )
             },
         )
 
-        self.assertEqual(response.status_code, 200)
-        self.assertFalse(response.json()["complete"])
-        self.assertEqual(response.json()["imported"], 0)
-        self.assertIn("date_of_birth", response.json()["errors"][0])
-        self.assertFalse(
-            Student.objects.filter(full_name="Imported Without Details").exists()
-        )
+        self.assertEqual(response.status_code, 200, response.content)
+        payload = response.json()
+        self.assertTrue(payload["complete"])
+        self.assertEqual(payload["imported"], 1)
+        student = Student.objects.get(full_name="Imported With Optional Fields")
+        self.assertEqual(student.gender, "F")
+        self.assertIsNone(student.date_of_birth)
+        self.assertEqual(student.parent_contact, "")
+        self.assertEqual(student.admission_date, timezone.localdate())
+        self.assertTrue(student.admission_number)
 
     def test_student_import_rejects_mixed_valid_and_invalid_rows_without_writes(self):
         response = self.client.post(
@@ -3085,14 +3089,41 @@ class SchoolScopedManagementEndpointTests(TestCase):
         )
 
         self.assertEqual(csv_response.status_code, 200)
-        self.assertIn(b"full_name", csv_response.content)
         self.assertEqual(xlsx_response.status_code, 200)
+        import csv
+
+        csv_rows = list(csv.reader(csv_response.content.decode("utf-8-sig").splitlines()))
         from openpyxl import load_workbook
 
         workbook = load_workbook(BytesIO(xlsx_response.content), read_only=True)
-        headers = next(workbook.active.iter_rows(values_only=True))
-        self.assertEqual(headers[0], "full_name")
+        xlsx_rows = [
+            [value or "" for value in row]
+            for row in workbook.active.iter_rows(values_only=True)
+        ]
         workbook.close()
+        self.assertEqual(csv_rows, xlsx_rows)
+        self.assertEqual(csv_rows[3][3:6], ["", "", ""])
+
+        import_response = self.client.post(
+            "/api/v1/students/import/",
+            {
+                "file": SimpleUploadedFile(
+                    "student_template.xlsx",
+                    xlsx_response.content,
+                    content_type=(
+                        "application/vnd.openxmlformats-officedocument."
+                        "spreadsheetml.sheet"
+                    ),
+                )
+            },
+        )
+        self.assertEqual(import_response.status_code, 200, import_response.content)
+        self.assertEqual(import_response.json()["imported"], 3)
+        optional_fields_student = Student.objects.get(full_name="Michael Johnson")
+        self.assertIsNone(optional_fields_student.date_of_birth)
+        self.assertEqual(optional_fields_student.parent_contact, "")
+        self.assertEqual(optional_fields_student.admission_date, timezone.localdate())
+        self.assertTrue(optional_fields_student.admission_number)
 
     def test_question_import_rejects_row_limit_overflow_without_writes(self):
         question_count = self.quiz_a.questions.count()
@@ -4774,23 +4805,15 @@ class AuthenticationRateLimitTests(TestCase):
     def setUp(self):
         cache.clear()
 
-    def test_login_is_limited_per_identifier(self):
-        limit = AUTH_RATE_LIMITS["login"]["identifier"][0]
-        for _ in range(limit):
+    def test_same_identifier_is_not_limited_across_different_ips(self):
+        for attempt in range(8):
             response = self.client.post(
                 reverse("quiz_app:login"),
                 {"username": "unknown@example.test", "password": "wrong"},
+                REMOTE_ADDR=f"192.0.2.{attempt + 1}",
                 HTTP_ACCEPT="application/json",
             )
             self.assertEqual(response.status_code, 401)
-
-        response = self.client.post(
-            reverse("quiz_app:login"),
-            {"username": "unknown@example.test", "password": "wrong"},
-            HTTP_ACCEPT="application/json",
-        )
-        self.assertEqual(response.status_code, 429)
-        self.assertEqual(response.json()["code"], "RATE_LIMITED")
 
     def test_login_is_limited_per_ip_across_identifiers(self):
         limit = AUTH_RATE_LIMITS["login"]["ip"][0]
@@ -4815,7 +4838,7 @@ class AuthenticationRateLimitTests(TestCase):
         self.assertEqual(response.status_code, 429)
 
     def test_superadmin_login_uses_login_rate_limits(self):
-        limit = AUTH_RATE_LIMITS["login"]["identifier"][0]
+        limit = AUTH_RATE_LIMITS["login"]["ip"][0]
         for _ in range(limit):
             response = self.client.post(
                 reverse("quiz_app:superadmin_login"),
@@ -4831,21 +4854,14 @@ class AuthenticationRateLimitTests(TestCase):
         )
         self.assertEqual(response.status_code, 429)
 
-    def test_password_reset_is_limited_per_identifier(self):
-        limit = AUTH_RATE_LIMITS["password_reset"]["identifier"][0]
-        for _ in range(limit):
+    def test_same_password_reset_identifier_is_not_limited_across_different_ips(self):
+        for attempt in range(8):
             response = self.client.post(
                 reverse("quiz_app:password_reset"),
                 {"email": "unknown@example.test"},
+                REMOTE_ADDR=f"198.51.100.{attempt + 1}",
             )
             self.assertEqual(response.status_code, 200)
-
-        response = self.client.post(
-            reverse("quiz_app:password_reset"),
-            {"email": "unknown@example.test"},
-        )
-        self.assertEqual(response.status_code, 429)
-        self.assertEqual(response.json()["code"], "RATE_LIMITED")
 
     def test_password_reset_is_limited_per_ip_across_identifiers(self):
         limit = AUTH_RATE_LIMITS["password_reset"]["ip"][0]
@@ -4863,3 +4879,50 @@ class AuthenticationRateLimitTests(TestCase):
             REMOTE_ADDR="192.0.2.11",
         )
         self.assertEqual(response.status_code, 429)
+
+    def test_proxy_ip_is_used_only_when_trusted_header_is_configured(self):
+        request = RequestFactory().get(
+            "/",
+            REMOTE_ADDR="10.0.0.4",
+            HTTP_X_FORWARDED_FOR="192.0.2.45, 10.0.0.4",
+        )
+        self.assertEqual(get_client_ip(request), "10.0.0.4")
+        with override_settings(TRUSTED_PROXY_HEADER="HTTP_X_FORWARDED_FOR"):
+            self.assertEqual(get_client_ip(request), "192.0.2.45")
+
+
+class ReactOwnedRouteContractTests(SimpleTestCase):
+    def test_every_react_owned_redirect_target_matches_an_app_route(self):
+        app_source = (
+            settings.BASE_DIR / "frontend" / "src" / "App.tsx"
+        ).read_text(encoding="utf-8")
+        route_paths = re.findall(r'<Route\s+path="([^"]+)"', app_source)
+
+        def matches_route(path):
+            for route in route_paths:
+                if route == "*":
+                    continue
+                route_pattern = "/".join(
+                    "[^/]+" if segment.startswith(":") else re.escape(segment)
+                    for segment in route.strip("/").split("/")
+                )
+                if re.fullmatch(route_pattern, path.strip("/")):
+                    return True
+            return False
+
+        targets = []
+        for pattern in urlpatterns:
+            destination = getattr(pattern.callback, "react_destination", None)
+            if destination is None:
+                continue
+            kwargs = {name: "1" for name in pattern.pattern.converters}
+            for role in ("admin", "superadmin", "teacher", "student"):
+                request = SimpleNamespace(user=SimpleNamespace(role=role))
+                target = destination(request) if callable(destination) else destination.format(**kwargs)
+                target_path = target.split("?", 1)[0]
+                if target_path.startswith("/app/"):
+                    targets.append(target_path[len("/app"):])
+
+        missing = [target for target in targets if not matches_route(target)]
+        self.assertTrue(targets, "Expected to find React-owned redirects in urls.py")
+        self.assertEqual(missing, [])

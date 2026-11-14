@@ -20,6 +20,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.db.models import Sum, Count, Avg
 import json
+from decimal import Decimal, ROUND_HALF_UP
 
 
 def generate_unique_id(entity_type=None, length=5):
@@ -446,12 +447,12 @@ class Student(models.Model):
         ("F", "Female"),
     )
 
-    admission_number = models.CharField(max_length=10, unique=True)
+    admission_number = models.CharField(max_length=10, unique=True, blank=True)
     full_name = models.CharField(max_length=100)
-    date_of_birth = models.DateField()
+    date_of_birth = models.DateField(blank=True, null=True)
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
-    parent_contact = models.CharField(max_length=15)
-    admission_date = models.DateField()
+    parent_contact = models.CharField(max_length=15, blank=True)
+    admission_date = models.DateField(default=timezone.localdate, blank=True)
     profile_picture = models.ImageField(
         upload_to="profile_pictures/students/", null=True, blank=True
     )
@@ -559,6 +560,8 @@ class Student(models.Model):
         return current_class.learning_area if current_class else self.learning_area
 
     def calculate_age(self):
+        if not self.date_of_birth:
+            return None
         today = date.today()
         return (
             today.year
@@ -2005,12 +2008,13 @@ class Quiz(models.Model):
                         questions.order_by().values_list("marks", flat=True).first() or 0
                     )
                 total += section_marks
-        if self.total_marks != total:
+        pct = self.pass_percentage
+        if pct is None:
+            pct = 50.0
+        passing_marks = round((pct / 100.0) * total) if total > 0 else 0
+        if self.total_marks != total or self.passing_marks != passing_marks:
             self.total_marks = total
-            pct = getattr(self, "pass_percentage", 50.0)
-            if pct is None:
-                pct = 50.0
-            self.passing_marks = round((pct / 100.0) * total) if total > 0 else 0
+            self.passing_marks = passing_marks
             self.save(update_fields=["total_marks", "passing_marks"])
         return total
 
@@ -2913,7 +2917,7 @@ class QuizAttempt(models.Model):
                 "selected_choices"
             )
         )
-        total_score = 0
+        total_score = Decimal("0")
         correct_count = 0
         wrong_count = 0
         needs_grading = False
@@ -2941,19 +2945,25 @@ class QuizAttempt(models.Model):
                 response.save(update_fields=["is_correct", "marks_awarded", "updated_at"])
 
             # Calculate score based on marks awarded
-            if response.marks_awarded > 0:
-                total_score += response.marks_awarded
+            awarded_marks = Decimal(str(response.marks_awarded or 0))
+            if awarded_marks > 0:
+                total_score += awarded_marks
                 if response.is_correct:
                     correct_count += 1
                 else:
                     wrong_count += 1
-            elif response.marks_awarded < 0:
-                total_score += response.marks_awarded  # Negative marks
+            elif awarded_marks < 0:
+                total_score += awarded_marks  # Negative marks
                 wrong_count += 1
             else:
                 wrong_count += 1
 
-        self.score = max(0, total_score)  # Ensure score doesn't go negative
+        # Scores support hundredths of a mark. Sum as decimals to avoid
+        # binary-float artifacts such as 13.100000000000001.
+        rounded_score = max(Decimal("0"), total_score).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
+        self.score = float(rounded_score)
         quiz_snapshot = self.configuration_snapshot.get("quiz", {})
         self.total_questions = len(
             self.configuration_snapshot.get("questions", {})
@@ -2969,16 +2979,14 @@ class QuizAttempt(models.Model):
             or response._selected_choice_ids_for_score
         }
         self.unanswered = max(0, self.total_questions - len(answered_question_ids))
+        snapshot_total_marks = quiz_snapshot.get("total_marks", self.quiz.total_marks)
         self.percentage = (
-            round(
-                (
-                    self.score
-                    / quiz_snapshot.get("total_marks", self.quiz.total_marks)
-                    * 100
-                ),
-                2,
+            float(
+                (rounded_score / Decimal(str(snapshot_total_marks)) * 100).quantize(
+                    Decimal("0.01"), rounding=ROUND_HALF_UP
+                )
             )
-            if quiz_snapshot.get("total_marks", self.quiz.total_marks) > 0
+            if snapshot_total_marks > 0
             else 0
         )
         self.needs_grading = needs_grading

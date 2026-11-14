@@ -77,7 +77,7 @@ export const StudentProfileView: React.FC = () => {
           <Link to="/student/attempts" className="stu-shortcut-btn">
             <AppIcon name="award" className="core-text--success" aria-hidden="true" /> My Attempts
           </Link>
-          <a href="/auth-app/?next=%2Fapp%2F" className="stu-shortcut-btn">
+          <a href="/?next=%2Fapp%2F" className="stu-shortcut-btn">
             <AppIcon name="logOut" className="core-text--muted" aria-hidden="true" /> Switch Session
           </a>
         </div>
