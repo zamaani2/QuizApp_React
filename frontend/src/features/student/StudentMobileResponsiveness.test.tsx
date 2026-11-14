@@ -180,6 +180,8 @@ describe('Mobile-First Responsive Verification', () => {
             quiz_id: 1,
             quiz_title: 'Core Mathematics Mock Exam',
             started_at: '2026-11-08T09:00:00Z',
+            server_time: new Date().toISOString(),
+            attempt_deadline_at: new Date(Date.now() + 1800 * 1000).toISOString(),
             time_remaining_seconds: 1800,
             is_submitted: false,
             total_questions: 1,

@@ -773,6 +773,89 @@ class AssessmentManagementApiTests(TestCase):
         self.assertEqual(response.json()["score"], 7)
         self.assertTrue(response.json()["results_available"])
 
+    def test_student_result_reports_pending_manual_marks_with_tenant_scope(self):
+        self.quiz.show_results_immediately = True
+        self.quiz.allow_review = True
+        self.quiz.total_marks = 5
+        self.quiz.save()
+        question = Question.objects.create(
+            quiz=self.quiz,
+            question_text="Explain your answer",
+            question_type="essay",
+            marks=5,
+            school=self.school_a,
+        )
+        snapshot = {
+            "quiz": {
+                "show_results_immediately": True,
+                "show_correct_answers": False,
+                "allow_review": True,
+                "total_marks": 5,
+                "passing_marks": 3,
+            },
+            "questions": {
+                str(question.pk): {
+                    "question_type": "essay",
+                    "marks": 5,
+                    "config": {"rubric": ""},
+                },
+            },
+            "sections": [],
+        }
+        pending_attempt = QuizAttempt.objects.create(
+            quiz=self.quiz,
+            student=self.student,
+            school=self.school_a,
+            attempt_number=1,
+            is_submitted=True,
+            is_completed=True,
+            score=0,
+            configuration_snapshot=snapshot,
+        )
+        QuizResponse.objects.create(
+            attempt=pending_attempt,
+            question=question,
+            school=self.school_a,
+            text_answer="An ungraded explanation",
+        )
+
+        self.client.force_login(self.student_user)
+        pending_result = self.client.get(
+            reverse("quiz_app:api_student_quiz_result", args=[pending_attempt.pk])
+        )
+        self.assertEqual(pending_result.status_code, 200)
+        self.assertTrue(pending_result.json()["has_pending_marking"])
+        self.assertTrue(pending_result.json()["questions"][0]["is_pending_marking"])
+
+        foreign_question = Question.objects.create(
+            quiz=self.beta_quiz,
+            question_text="Foreign essay",
+            question_type="essay",
+            marks=5,
+            school=self.school_b,
+        )
+        foreign_response_attempt = QuizAttempt.objects.create(
+            quiz=self.quiz,
+            student=self.student,
+            school=self.school_a,
+            attempt_number=2,
+            is_submitted=True,
+            is_completed=True,
+            configuration_snapshot=snapshot,
+        )
+        QuizResponse.objects.create(
+            attempt=foreign_response_attempt,
+            question=foreign_question,
+            school=self.school_b,
+            text_answer="A foreign response",
+        )
+        tenant_scoped_result = self.client.get(
+            reverse("quiz_app:api_student_quiz_result", args=[foreign_response_attempt.pk])
+        )
+        self.assertEqual(tenant_scoped_result.status_code, 200)
+        self.assertFalse(tenant_scoped_result.json()["has_pending_marking"])
+        self.assertFalse(tenant_scoped_result.json()["questions"][0]["is_pending_marking"])
+
     def test_delayed_results_become_available_when_manual_grading_is_complete(self):
         self.quiz.status = "published"
         self.quiz.show_results_immediately = False

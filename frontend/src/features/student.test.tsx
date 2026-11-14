@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import { BrowserRouter, MemoryRouter, Routes, Route } from 'react-router-dom';
 import { StudentDashboard } from './student/StudentDashboard';
 import { StudentQuizList } from './student/StudentQuizList';
@@ -8,6 +8,7 @@ import { StudentAttemptsList } from './student/StudentAttemptsList';
 import { StudentQuizResult } from './student/StudentQuizResult';
 import { StudentQuizTake } from './student/StudentQuizTake';
 import { StudentProfileView } from './student/StudentProfileView';
+import { StudentProgressView } from './student/StudentProgressView';
 import { fireEvent } from '@testing-library/react';
 
 describe('Phase 5 Student Feature Components', () => {
@@ -136,6 +137,11 @@ describe('Phase 5 Student Feature Components', () => {
       expect(screen.getByText('By Prof. McGonagall')).toBeInTheDocument();
       expect(screen.getByText('45 mins')).toBeInTheDocument();
       expect(screen.getByText('Take Quiz')).toBeInTheDocument();
+      const filterGroup = screen.getByRole('group', { name: 'Quiz status filters' });
+      expect(within(filterGroup).getByRole('button', { name: 'All' })).toHaveAttribute(
+        'aria-pressed',
+        'true'
+      );
     });
   });
 
@@ -259,6 +265,7 @@ describe('Phase 5 Student Feature Components', () => {
           percentage: 100,
           passing_marks: 5,
           is_passed: true,
+          has_pending_marking: false,
           started_at: '2026-11-04T09:00:00Z',
           submitted_at: '2026-11-04T09:25:00Z',
           allow_review: true,
@@ -271,6 +278,7 @@ describe('Phase 5 Student Feature Components', () => {
               marks: 10,
               marks_obtained: 10,
               is_correct: true,
+              is_pending_marking: false,
               student_answer: 'Fluffy pink',
               correct_answer: 'Fluffy pink',
               explanation: 'Mandrake cries can be fatal to anyone hearing them unprotected.',
@@ -303,6 +311,62 @@ describe('Phase 5 Student Feature Components', () => {
       expect(screen.getByText('Fluffy pink')).toBeInTheDocument();
       expect(screen.getByText('Correct answer')).toBeInTheDocument();
     });
+
+    it('shows pending essays as provisional without a fail state or zero points', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          attempt_id: 102,
+          quiz_id: 6,
+          quiz_title: 'Essay Assessment',
+          subject_name: 'History',
+          student_name: 'Harry Potter',
+          admission_number: 'ADM-001',
+          score: 0,
+          total_marks: 5,
+          percentage: 0,
+          passing_marks: 3,
+          is_passed: false,
+          has_pending_marking: true,
+          started_at: '2026-11-04T09:00:00Z',
+          submitted_at: '2026-11-04T09:25:00Z',
+          allow_review: true,
+          show_correct_answers: false,
+          questions: [
+            {
+              id: 2,
+              question_text: 'Explain the historical context.',
+              question_type: 'essay',
+              marks: 5,
+              marks_obtained: 0,
+              is_correct: false,
+              is_pending_marking: true,
+              student_answer: 'An essay answer.',
+              choices: [],
+            },
+          ],
+        }),
+      });
+
+      const { container } = render(
+        <MemoryRouter initialEntries={['/student/attempts/102/result']}>
+          <Routes>
+            <Route path="/student/attempts/:id/result" element={<StudentQuizResult />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      expect(await screen.findByText('Essay Assessment')).toBeInTheDocument();
+      expect(screen.getByText('Provisional')).toBeInTheDocument();
+      expect(screen.getByText('Awaiting marking')).toBeInTheDocument();
+      expect(screen.getByText(/Awaiting teacher marking/)).toBeInTheDocument();
+      expect(screen.queryByText('Failed')).not.toBeInTheDocument();
+      expect(screen.queryByText('0 / 5 pts')).not.toBeInTheDocument();
+      expect(screen.queryByText('0%')).not.toBeInTheDocument();
+      expect(screen.queryByText('Print Result')).not.toBeInTheDocument();
+      expect(container.querySelector('.stu-card--result-incorrect')).toBeNull();
+    });
   });
 
   describe('StudentQuizTake Component', () => {
@@ -314,7 +378,11 @@ describe('Phase 5 Student Feature Components', () => {
       clear: () => draftStorage.clear(),
     };
 
-    const renderQuizWithDraft = async (savedAt: number, serverUpdatedAt: string) => {
+    const renderQuizWithDraft = async (
+      savedAt: number,
+      serverUpdatedAt: string,
+      responseTimestamp?: number
+    ) => {
       localStorage.setItem('quiz_draft_202', JSON.stringify({
         responses: {
           '50': {
@@ -324,6 +392,7 @@ describe('Phase 5 Student Feature Components', () => {
             answer_data: { choice_ids: [2] },
           },
         },
+        response_timestamps: { '50': responseTimestamp ?? savedAt },
         savedAt,
       }));
       global.fetch = vi.fn().mockResolvedValue({
@@ -377,6 +446,7 @@ describe('Phase 5 Student Feature Components', () => {
     });
 
     afterEach(() => {
+      vi.useRealTimers();
       vi.unstubAllGlobals();
     });
 
@@ -390,10 +460,230 @@ describe('Phase 5 Student Feature Components', () => {
 
     it('restores a local answer only when the saved draft is newer', async () => {
       const serverUpdatedAt = new Date(Date.now() - 1000).toISOString();
-      await renderQuizWithDraft(Date.now(), serverUpdatedAt);
+      await renderQuizWithDraft(Date.now() + 60000, serverUpdatedAt);
 
       expect(screen.getByRole('radio', { name: 'Local answer' })).toBeChecked();
       expect(screen.getByRole('radio', { name: 'Server answer' })).not.toBeChecked();
+    });
+
+    it('uses the timestamp for each answer instead of the draft-wide timestamp', async () => {
+      const serverUpdatedAt = new Date(Date.now() - 1000).toISOString();
+      await renderQuizWithDraft(Date.now(), serverUpdatedAt, Date.now() - 2000);
+
+      expect(screen.getByRole('radio', { name: 'Server answer' })).toBeChecked();
+      expect(screen.getByRole('radio', { name: 'Local answer' })).not.toBeChecked();
+    });
+
+    it('resumes at the last saved question and section', async () => {
+      localStorage.setItem('quiz_draft_202', JSON.stringify({
+        responses: {},
+        response_timestamps: {},
+        pending_saves: [],
+        last_question_id: 51,
+        last_section_id: 301,
+        client_sequence: 0,
+      }));
+      const questions = [
+        { id: 50, order: 1, question_type: 'essay', question_text: 'First question.', marks: 1, choices: [], section_id: 301 },
+        { id: 51, order: 2, question_type: 'essay', question_text: 'Last question.', marks: 1, choices: [], section_id: 301 },
+        { id: 52, order: 3, question_type: 'essay', question_text: 'Other section.', marks: 1, choices: [], section_id: 302 },
+      ];
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          attempt_id: 202,
+          quiz_id: 12,
+          quiz_title: 'Resume test',
+          started_at: new Date().toISOString(),
+          server_time: new Date().toISOString(),
+          attempt_deadline_at: null,
+          time_remaining_seconds: null,
+          is_submitted: false,
+          total_questions: 3,
+          answered_count: 0,
+          questions,
+          sections: [
+            { id: 301, title: 'First section', questions: questions.slice(0, 2), groups: [], time_limit_minutes: null, choose_n: null },
+            { id: 302, title: 'Second section', questions: questions.slice(2), groups: [], time_limit_minutes: null, choose_n: null },
+          ],
+          section_timing_enabled: false,
+          existing_responses: {},
+        }),
+      });
+
+      render(
+        <MemoryRouter initialEntries={['/student/take/202']}>
+          <Routes>
+            <Route path="/student/take/:attemptId" element={<StudentQuizTake />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      expect(await screen.findByText('Last question.')).toBeInTheDocument();
+      expect(screen.getByText('Question 2 of 2')).toBeInTheDocument();
+      expect(screen.queryByText('Other section.')).not.toBeInTheDocument();
+    });
+
+    it('recalculates the absolute deadline after returning from a sleeping tab', async () => {
+      vi.useFakeTimers();
+      const serverNow = new Date('2026-11-07T05:00:00.000Z');
+      vi.setSystemTime(serverNow);
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          attempt_id: 202,
+          quiz_id: 12,
+          quiz_title: 'Deadline test',
+          started_at: serverNow.toISOString(),
+          server_time: serverNow.toISOString(),
+          attempt_deadline_at: '2026-11-07T05:01:00.000Z',
+          time_remaining_seconds: 60,
+          is_submitted: false,
+          total_questions: 1,
+          answered_count: 0,
+          questions: [{
+            id: 50,
+            order: 1,
+            question_type: 'essay',
+            question_text: 'Describe the answer.',
+            marks: 1,
+            choices: [],
+          }],
+          existing_responses: {},
+          existing_response_timestamps: {},
+          existing_response_sequences: {},
+        }),
+      });
+
+      render(
+        <MemoryRouter initialEntries={['/student/take/202']}>
+          <Routes>
+            <Route path="/student/take/:attemptId" element={<StudentQuizTake />} />
+          </Routes>
+        </MemoryRouter>
+      );
+      await act(async () => {
+        for (let index = 0; index < 8; index += 1) await Promise.resolve();
+      });
+
+      expect(screen.getByTestId('quiz-timer')).toHaveTextContent('1:00');
+      vi.setSystemTime(new Date('2026-11-07T05:00:30.000Z'));
+      fireEvent.focus(window);
+      expect(screen.getByTestId('quiz-timer')).toHaveTextContent('0:30');
+    });
+
+    it('saves text answers after 1.5 seconds of idle time', async () => {
+      vi.useFakeTimers();
+      const takeData = {
+        attempt_id: 202,
+        quiz_id: 12,
+        quiz_title: 'Text autosave test',
+        started_at: new Date().toISOString(),
+        server_time: new Date().toISOString(),
+        attempt_deadline_at: null,
+        time_remaining_seconds: null,
+        is_submitted: false,
+        total_questions: 1,
+        answered_count: 0,
+        questions: [{
+          id: 50,
+          order: 1,
+          question_type: 'essay',
+          question_text: 'Write a response.',
+          marks: 1,
+          choices: [],
+        }],
+        existing_responses: {},
+      };
+      const fetchMock = vi.fn().mockImplementation((url: string) => (
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => url.includes('/save/')
+            ? {
+              success: true,
+              server_time: new Date().toISOString(),
+              attempt_deadline_at: null,
+              section_deadline_at: null,
+              response_updated_at: new Date().toISOString(),
+            }
+            : takeData,
+        })
+      ));
+      global.fetch = fetchMock as typeof fetch;
+
+      render(
+        <MemoryRouter initialEntries={['/student/take/202']}>
+          <Routes>
+            <Route path="/student/take/:attemptId" element={<StudentQuizTake />} />
+          </Routes>
+        </MemoryRouter>
+      );
+      await act(async () => {
+        for (let index = 0; index < 8; index += 1) await Promise.resolve();
+      });
+      fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Drafted essay' } });
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1499);
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      const saveRequest = fetchMock.mock.calls[1][1];
+      expect(JSON.parse(String(saveRequest?.body)).client_sequence).toBe(1);
+    });
+
+    it('blocks submission while offline and keeps the answer count visible', async () => {
+      vi.stubGlobal('navigator', { onLine: false });
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          attempt_id: 202,
+          quiz_id: 12,
+          quiz_title: 'Offline test',
+          started_at: '2026-11-07T05:00:00Z',
+          server_time: new Date().toISOString(),
+          attempt_deadline_at: null,
+          time_remaining_seconds: null,
+          is_submitted: false,
+          total_questions: 1,
+          answered_count: 0,
+          questions: [{
+            id: 50,
+            order: 1,
+            question_type: 'essay',
+            question_text: 'Answer offline.',
+            marks: 1,
+            choices: [],
+          }],
+          existing_responses: {},
+        }),
+      });
+      global.fetch = fetchMock;
+
+      render(
+        <MemoryRouter initialEntries={['/student/take/202']}>
+          <Routes>
+            <Route path="/student/take/:attemptId" element={<StudentQuizTake />} />
+          </Routes>
+        </MemoryRouter>
+      );
+      expect(await screen.findByText('Answer offline.')).toBeInTheDocument();
+      fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Local answer' } });
+      expect(screen.getByText(/You are offline\. Your 1 answer is safe on this device/)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Submit Quiz' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm and Submit' }));
+
+      expect(screen.getAllByText(/Reconnect to submit/).length).toBeGreaterThan(0);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
     it('renders quiz taking session with timer countdown and choice options without leaking correct keys', async () => {
@@ -405,6 +695,8 @@ describe('Phase 5 Student Feature Components', () => {
           quiz_id: 12,
           quiz_title: 'Care of Magical Creatures Test',
           started_at: '2026-11-07T05:00:00Z',
+          server_time: new Date().toISOString(),
+          attempt_deadline_at: new Date(Date.now() + 1800 * 1000).toISOString(),
           time_remaining_seconds: 1800,
           is_submitted: false,
           total_questions: 1,
@@ -515,6 +807,8 @@ describe('Phase 5 Student Feature Components', () => {
           quiz_id: 12,
           quiz_title: 'Sectioned assessment',
           started_at: '2026-11-07T05:00:00Z',
+          server_time: new Date().toISOString(),
+          attempt_deadline_at: null,
           time_remaining_seconds: 1800,
           is_submitted: false,
           total_questions: questions.length,
@@ -522,6 +816,12 @@ describe('Phase 5 Student Feature Components', () => {
           questions,
           sections: sections.map((section) => ({
             ...section,
+            deadline_at: section.id === 302
+              ? new Date(Date.now() + 120 * 1000).toISOString()
+              : null,
+            started_at: section.id === 302
+              ? new Date().toISOString()
+              : section.started_at,
             is_active: section.id === activeSectionId,
             is_locked: section.id < activeSectionId,
           })),
@@ -668,6 +968,58 @@ describe('Phase 5 Student Feature Components', () => {
         expect(screen.getByText('DADA')).toBeInTheDocument();
         expect(screen.getByText('Scorecard')).toBeInTheDocument();
       });
+      expect(screen.getByText('Scorecard').closest('a')).toHaveAttribute(
+        'href',
+        '/student/attempts/901/result'
+      );
+    });
+  });
+
+  describe('StudentProgressView Component', () => {
+    it('links each recent milestone scorecard to its attempt result', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          personal: {
+            full_name: 'Harry Potter',
+            admission_number: 'ADM-001',
+          },
+          academic: {
+            school_name: 'Gryffindor Academy',
+            current_class: { name: 'Year 1' },
+          },
+          stats: {
+            total_completed: 1,
+            passed_count: 1,
+            pass_rate: 100,
+            avg_score: 98,
+            best_score: 98,
+            recent_activity: [
+              {
+                id: 901,
+                quiz_title: 'Defense Against Dark Arts Final',
+                subject_name: 'DADA',
+                percentage: 98,
+                is_passed: true,
+                submitted_at: '2026-02-15T10:00:00Z',
+              },
+            ],
+          },
+        }),
+      });
+
+      render(
+        <BrowserRouter>
+          <StudentProgressView />
+        </BrowserRouter>
+      );
+
+      expect(await screen.findByText('Defense Against Dark Arts Final')).toBeInTheDocument();
+      expect(screen.getByText('Scorecard →').closest('a')).toHaveAttribute(
+        'href',
+        '/student/attempts/901/result'
+      );
     });
   });
 

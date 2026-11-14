@@ -3118,6 +3118,10 @@ class QuizResponse(models.Model):
         blank=True,
         help_text="Structured answer for any registered question type",
     )
+    client_sequence = models.PositiveBigIntegerField(
+        default=0,
+        help_text="Latest client save sequence accepted for this question in the attempt",
+    )
     is_correct = models.BooleanField(
         default=False, help_text="Whether the response is correct"
     )

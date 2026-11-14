@@ -145,7 +145,7 @@ export const StudentProgressView: React.FC = () => {
                   {item.percentage}% ({item.is_passed ? 'Passed' : 'Failed'})
                 </span>
                 <Link
-                  to={`/student/attempts`}
+                  to={`/student/attempts/${item.id}/result`}
                   className="stu-section-head__link"
                   style={{ fontSize: '0.75rem' }}
                 >

@@ -56,6 +56,7 @@ export const studentApi = {
     attemptId: number,
     data: {
       question_id: number;
+      client_sequence: number;
       choice_id?: number | null;
       choice_ids?: number[];
       text_answer?: string;
@@ -79,6 +80,9 @@ export const studentApi = {
     success: boolean;
     active_section_id: number | null;
     section_timing_enabled: boolean;
+    server_time?: string;
+    attempt_deadline_at?: string | null;
+    section_deadline_at?: string | null;
   }> {
     return apiClient(
       `/api/v1/student/attempts/${attemptId}/sections/${sectionId}/submit/`,

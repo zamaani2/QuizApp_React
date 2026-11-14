@@ -54,6 +54,8 @@ Standard HTTP status codes:
 }
 ```
 
+`has_pending_marking` is true while any submitted response still requires manual grading. Each question includes `is_pending_marking`; a pending question's provisional zero score is not a final mark.
+
 ---
 
 ## 2. Phase 1 Core Endpoints
@@ -856,6 +858,7 @@ Quiz `total_marks` is recalculated after question create, update, delete, duplic
 - **Method:** `GET`
 - **Auth Required:** Yes (Role: `student` who owns the attempt)
 - **High-Risk Rule:** Correct answers (`is_correct`) are NEVER returned.
+- The response includes `server_time`, the absolute `attempt_deadline_at` (or `null` for untimed attempts), and a `deadline_at` on every timed section that has started. Existing `time_remaining_seconds` fields remain for compatibility.
 - When sections exist, the response also includes ordered `sections`; each section has its instructions, questions, stimulus groups, `choose_n`, `remaining_seconds`, `is_active`, and `is_locked`. The legacy flat `questions` list remains available.
 - If any section is timed, sections advance in order. `POST /api/v1/student/attempts/{attempt_id}/sections/{section_id}/submit/` submits and locks the active section and starts the next. Save requests for expired or locked sections return `409 SECTION_TIME_EXPIRED` or `409 SECTION_LOCKED`.
 - A Choose-N overflow returns `400 CHOOSE_N_LIMIT`.
@@ -894,6 +897,8 @@ Quiz `total_marks` is recalculated after question create, update, delete, duplic
       "choices": []
     }
   ],
+  "server_time": "2026-11-07T05:00:00Z",
+  "attempt_deadline_at": "2026-11-07T05:45:00Z",
   "existing_responses": {
     "101": {
       "selected_choice_id": 1,
@@ -901,7 +906,9 @@ Quiz `total_marks` is recalculated after question create, update, delete, duplic
       "text_answer": "",
       "answer_data": { "choice_ids": [1] }
     }
-  }
+  },
+  "existing_response_timestamps": { "101": "2026-11-07T05:00:12Z" },
+  "existing_response_sequences": { "101": 12 }
 }
 ```
 
@@ -918,6 +925,7 @@ never contain a correctness flag or correct-answer mapping.
 ```json
 {
   "question_id": 101,
+  "client_sequence": 12,
   "choice_id": 1,
   "choice_ids": [1],
   "text_answer": "",
@@ -928,14 +936,25 @@ never contain a correctness flag or correct-answer mapping.
   `{"text": ["..."]}`, `{"matches": {"left-id": "right-id"}}`, or
   `{"items": ["item-id"]}` as appropriate for the question type). The legacy
   `choice_id`, `choice_ids`, and `text_answer` fields remain accepted.
+- `client_sequence` is a positive, monotonically increasing integer for the attempt.
+  The server stores the last accepted sequence per question and ignores older or
+  duplicate writes, returning the stored response with `stale: true`.
 - **Response `200 OK`:**
 ```json
 {
   "success": true,
   "message": "Response saved successfully",
-  "answered_count": 1
+  "answered_count": 1,
+  "client_sequence": 12,
+  "server_time": "2026-11-07T05:00:12Z",
+  "attempt_deadline_at": "2026-11-07T05:45:00Z",
+  "section_deadline_at": null
 }
 ```
+
+Take responses expose per-question timestamps and accepted client sequences so a
+resumed client can merge local drafts and continue its sequence above the server
+state.
 
 ### 5.7 Submit Quiz Attempt (`POST /api/v1/student/attempts/<int:attempt_id>/submit/`)
 - **Method:** `POST`
@@ -1003,6 +1022,7 @@ never contain a correctness flag or correct-answer mapping.
   "percentage": 90.0,
   "passing_marks": 25,
   "is_passed": true,
+  "has_pending_marking": false,
   "started_at": "2026-11-07T05:00:00Z",
   "submitted_at": "2026-11-07T05:30:00Z",
   "allow_review": true,
@@ -1015,6 +1035,7 @@ never contain a correctness flag or correct-answer mapping.
       "marks": 5,
       "marks_obtained": 5,
       "is_correct": true,
+      "is_pending_marking": false,
       "student_answer": "Riddikulus",
       "correct_answer": "Riddikulus",
       "explanation": "Riddikulus forces the Boggart to assume an amusing shape.",

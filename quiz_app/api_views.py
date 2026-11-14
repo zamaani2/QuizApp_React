@@ -2586,6 +2586,28 @@ def _section_time_remaining(section, state, now=None):
     return max(0, int(limit * 60 - (now - started_at).total_seconds()))
 
 
+def _attempt_deadline_at(attempt):
+    time_limit = attempt.configuration_snapshot.get("quiz", {}).get(
+        "time_limit", attempt.quiz.time_limit
+    )
+    if not time_limit or not attempt.started_at:
+        return None
+    return (
+        attempt.started_at + timezone.timedelta(minutes=time_limit)
+    ).isoformat()
+
+
+def _section_deadline_at(section, state):
+    time_limit = section.get("time_limit_minutes")
+    started_at = (state or {}).get(str(section.get("id")), {}).get("started_at")
+    if time_limit is None or not started_at:
+        return None
+    deadline = datetime.fromisoformat(started_at) + timezone.timedelta(
+        minutes=time_limit
+    )
+    return deadline.isoformat()
+
+
 def _answer_data_has_answer(question_type, answer_data, choice_ids=None):
     if question_type in {"multiple_choice", "true_false"}:
         return bool(choice_ids)
@@ -2660,22 +2682,29 @@ def student_quiz_take_api_view(request, attempt_id):
     )
 
     if attempt.is_submitted:
+        server_time = timezone.now()
         return JsonResponse({
             "attempt_id": attempt.id,
             "is_submitted": True,
             "message": "This quiz has already been submitted.",
+            "server_time": server_time.isoformat(),
+            "attempt_deadline_at": _attempt_deadline_at(attempt),
         })
 
     if attempt.is_time_expired():
         _submit_attempt_safely(attempt.pk, student, school)
+        server_time = timezone.now()
         return JsonResponse({
             "attempt_id": attempt.id,
             "is_submitted": True,
             "time_expired": True,
             "message": "Time limit expired. Your quiz has been automatically submitted.",
+            "server_time": server_time.isoformat(),
+            "attempt_deadline_at": _attempt_deadline_at(attempt),
         })
 
     quiz = attempt.quiz
+    server_time = timezone.now()
     if not attempt.configuration_snapshot:
         with transaction.atomic():
             attempt = QuizAttempt.objects.select_for_update().get(pk=attempt.pk)
@@ -2686,7 +2715,9 @@ def student_quiz_take_api_view(request, attempt_id):
     if _section_timing_enabled(attempt):
         with transaction.atomic():
             attempt = QuizAttempt.objects.select_for_update().get(pk=attempt.pk)
-            active_section_id, expired_section_ids = _section_progress(attempt)
+            active_section_id, expired_section_ids = _section_progress(
+                attempt, now=server_time
+            )
 
     questions = list(quiz.questions.filter(school=school).prefetch_related(
         "answer_choices"
@@ -2743,7 +2774,7 @@ def student_quiz_take_api_view(request, attempt_id):
         "time_limit", quiz.time_limit
     )
     if attempt_time_limit and attempt_time_limit > 0:
-        elapsed = timezone.now() - attempt.started_at
+        elapsed = server_time - attempt.started_at
         elapsed_minutes = elapsed.total_seconds() / 60
         time_remaining_minutes = max(0, attempt_time_limit - elapsed_minutes)
         time_remaining_seconds = int(time_remaining_minutes * 60)
@@ -2781,8 +2812,9 @@ def student_quiz_take_api_view(request, attempt_id):
                 )
             ),
             "remaining_seconds": _section_time_remaining(
-                section, attempt.section_state
+                section, attempt.section_state, now=server_time
             ),
+            "deadline_at": _section_deadline_at(section, attempt.section_state),
             "time_expired": section["id"] in expired_section_ids,
         })
     unsectioned_questions = [
@@ -2818,6 +2850,7 @@ def student_quiz_take_api_view(request, attempt_id):
             "is_active": not _section_timing_enabled(attempt),
             "is_locked": False,
             "remaining_seconds": None,
+            "deadline_at": None,
             "time_expired": False,
         })
 
@@ -2827,6 +2860,8 @@ def student_quiz_take_api_view(request, attempt_id):
         "quiz_title": quiz.title,
         "started_at": attempt.started_at.isoformat() if attempt.started_at else None,
         "time_remaining_seconds": time_remaining_seconds,
+        "server_time": server_time.isoformat(),
+        "attempt_deadline_at": _attempt_deadline_at(attempt),
         "is_submitted": False,
         "total_questions": len(questions_data),
         "answered_count": answered_count,
@@ -2836,6 +2871,10 @@ def student_quiz_take_api_view(request, attempt_id):
         "section_timing_enabled": _section_timing_enabled(attempt),
         "existing_responses": existing_responses,
         "existing_response_timestamps": existing_response_timestamps,
+        "existing_response_sequences": {
+            str(response.question_id): response.client_sequence
+            for response in attempt.responses.filter(school=school)
+        },
     })
 
 
@@ -2851,6 +2890,23 @@ def student_quiz_save_api_view(request, attempt_id):
 
     data = _parse_request_data(request)
     question_id = data.get("question_id")
+    raw_client_sequence = data.get("client_sequence")
+    try:
+        if isinstance(raw_client_sequence, bool):
+            raise ValueError
+        client_sequence = int(raw_client_sequence)
+        if isinstance(raw_client_sequence, float) and not raw_client_sequence.is_integer():
+            raise ValueError
+    except (TypeError, ValueError):
+        client_sequence = 0
+    if client_sequence < 1:
+        return JsonResponse(
+            {
+                "code": "INVALID_CLIENT_SEQUENCE",
+                "message": "A positive client sequence number is required.",
+            },
+            status=400,
+        )
     if not question_id:
         return JsonResponse(
             {"code": "MISSING_QUESTION_ID", "message": "Question ID required."},
@@ -2879,11 +2935,15 @@ def student_quiz_save_api_view(request, attempt_id):
 
             if attempt.is_time_expired():
                 attempt.submit()
+                server_time = timezone.now()
                 return JsonResponse(
                     {
+                        "code": "TIME_EXPIRED",
                         "success": False,
                         "submitted": True,
                         "error": "Time limit expired. Quiz has been submitted.",
+                        "server_time": server_time.isoformat(),
+                        "attempt_deadline_at": _attempt_deadline_at(attempt),
                     },
                     status=400,
                 )
@@ -2907,6 +2967,43 @@ def student_quiz_save_api_view(request, attempt_id):
                 )
 
             section_id = question_snapshot.get("section_id")
+            stored_response = attempt.responses.filter(
+                question=question, school=school
+            ).first()
+            if stored_response and client_sequence <= stored_response.client_sequence:
+                server_time = timezone.now()
+                selected_choice_ids = list(
+                    stored_response.selected_choices.values_list("pk", flat=True)
+                )
+                if not selected_choice_ids and stored_response.selected_choice_id:
+                    selected_choice_ids = [stored_response.selected_choice_id]
+                section_snapshot = next(
+                    (
+                        section for section in attempt.configuration_snapshot.get("sections", [])
+                        if section.get("id") == section_id
+                    ),
+                    None,
+                )
+                return JsonResponse({
+                    "success": True,
+                    "stale": True,
+                    "client_sequence": stored_response.client_sequence,
+                    "response_updated_at": stored_response.updated_at.isoformat(),
+                    "stored_response": {
+                        "selected_choice_id": stored_response.selected_choice_id,
+                        "selected_choice_ids": selected_choice_ids,
+                        "text_answer": stored_response.text_answer or "",
+                        "answer_data": stored_response.answer_data or {},
+                    },
+                    "server_time": server_time.isoformat(),
+                    "attempt_deadline_at": _attempt_deadline_at(attempt),
+                    "section_deadline_at": (
+                        _section_deadline_at(section_snapshot, attempt.section_state)
+                        if section_snapshot
+                        else None
+                    ),
+                })
+
             if section_id is not None and _section_timing_enabled(attempt):
                 active_section_id, expired_section_ids = _section_progress(attempt)
                 if section_id in expired_section_ids:
@@ -3135,13 +3232,31 @@ def student_quiz_save_api_view(request, attempt_id):
                     text_answer = submitted_answer_data["text"]
                 response.text_answer = text_answer
             response.answer_data = submitted_answer_data
+            response.client_sequence = client_sequence
 
             response.save()
 
+            server_time = timezone.now()
+            section_snapshot = next(
+                (
+                    section for section in attempt.configuration_snapshot.get("sections", [])
+                    if section.get("id") == section_id
+                ),
+                None,
+            )
             return JsonResponse({
                 "success": True,
                 "message": "Response saved successfully",
                 "answered_count": attempt.responses.count(),
+                "client_sequence": response.client_sequence,
+                "response_updated_at": response.updated_at.isoformat(),
+                "server_time": server_time.isoformat(),
+                "attempt_deadline_at": _attempt_deadline_at(attempt),
+                "section_deadline_at": (
+                    _section_deadline_at(section_snapshot, attempt.section_state)
+                    if section_snapshot
+                    else None
+                ),
             })
     except Exception as e:
         return JsonResponse({"code": "SERVER_ERROR", "message": str(e)}, status=500)
@@ -3185,15 +3300,25 @@ def student_quiz_section_submit_api_view(request, attempt_id, section_id):
                 )
             if attempt.is_time_expired():
                 attempt.submit()
+                server_time = timezone.now()
                 return JsonResponse(
-                    {"code": "TIME_EXPIRED", "message": "The quiz time limit has expired."},
+                    {
+                        "code": "TIME_EXPIRED",
+                        "message": "The quiz time limit has expired.",
+                        "server_time": server_time.isoformat(),
+                        "attempt_deadline_at": _attempt_deadline_at(attempt),
+                    },
                     status=409,
                 )
             if not _section_timing_enabled(attempt):
+                server_time = timezone.now()
                 return JsonResponse({
                     "success": True,
                     "active_section_id": None,
                     "section_timing_enabled": False,
+                    "server_time": server_time.isoformat(),
+                    "attempt_deadline_at": _attempt_deadline_at(attempt),
+                    "section_deadline_at": None,
                 })
 
             active_section_id, expired_section_ids = _section_progress(attempt)
@@ -3238,10 +3363,18 @@ def student_quiz_section_submit_api_view(request, attempt_id, section_id):
             attempt.section_state = state
             attempt.save(update_fields=["section_state"])
 
+        server_time = timezone.now()
         return JsonResponse({
             "success": True,
             "active_section_id": next_section["id"] if next_section else None,
             "section_timing_enabled": True,
+            "server_time": server_time.isoformat(),
+            "attempt_deadline_at": _attempt_deadline_at(attempt),
+            "section_deadline_at": (
+                _section_deadline_at(next_section, attempt.section_state)
+                if next_section
+                else None
+            ),
         })
     except Exception as e:
         return JsonResponse({"code": "SERVER_ERROR", "message": str(e)}, status=500)
@@ -3415,6 +3548,13 @@ def student_quiz_result_api_view(request, attempt_id):
     show_correct_answers = getattr(quiz, "show_correct_answers", True)
 
     responses_by_q = {r.question_id: r for r in review_responses}
+    from .services.assessment_management import get_manual_grading_responses
+
+    pending_marking_question_ids = {
+        response.question_id
+        for response in get_manual_grading_responses(attempt, school)
+        if not response.is_graded
+    }
     questions_data = []
 
     if allow_review:
@@ -3468,6 +3608,7 @@ def student_quiz_result_api_view(request, attempt_id):
                 "marks": q.marks,
                 "marks_obtained": marks_obtained,
                 "is_correct": is_correct,
+                "is_pending_marking": q.pk in pending_marking_question_ids,
                 "student_answer": student_ans,
                 "choices": choices_data,
                 "review_data": (
@@ -3509,6 +3650,7 @@ def student_quiz_result_api_view(request, attempt_id):
         "school_info": _serialize_result_school_info(school),
         "passing_marks": quiz.passing_marks,
         "is_passed": attempt.is_passed() if callable(getattr(attempt, "is_passed", None)) else False,
+        "has_pending_marking": bool(pending_marking_question_ids),
         "started_at": attempt.started_at.isoformat() if attempt.started_at else None,
         "submitted_at": attempt.submitted_at.isoformat() if attempt.submitted_at else None,
         "allow_review": allow_review,

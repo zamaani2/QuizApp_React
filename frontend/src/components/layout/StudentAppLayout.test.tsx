@@ -44,14 +44,38 @@ describe('StudentAppLayout Component', () => {
     expect(screen.getAllByText('A').length).toBeGreaterThanOrEqual(1);
     // School pill badge
     expect(screen.getAllByText('Akontombra SHS').length).toBeGreaterThanOrEqual(1);
-    // Search & notification icons
-    expect(screen.getByLabelText('Search Quizzes')).toBeInTheDocument();
-    expect(screen.getByLabelText('Notifications')).toBeInTheDocument();
+    expect(screen.getByLabelText('Account settings')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Search Quizzes')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Notifications')).not.toBeInTheDocument();
+    expect(document.querySelector('.stu-icon-btn__badge')).toBeNull();
     // Children content
     expect(screen.getByText('Dashboard Content')).toBeInTheDocument();
   });
 
-  it('renders 5 primary navigation destinations on both desktop sidebar and mobile bottom bar', () => {
+  it('uses CSRF-protected POST forms for both sign-out actions', () => {
+    document.cookie = 'csrftoken=student-csrf-token; path=/';
+    render(
+      <MemoryRouter initialEntries={['/student/dashboard']}>
+        <StudentAppLayout>
+          <div>Dashboard Content</div>
+        </StudentAppLayout>
+      </MemoryRouter>
+    );
+
+    const signOutButtons = screen.getAllByRole('button', { name: /sign out/i });
+    expect(signOutButtons).toHaveLength(2);
+    signOutButtons.forEach((button) => {
+      const form = button.closest('form');
+      expect(form).toHaveAttribute('method', 'post');
+      expect(form).toHaveAttribute('action', '/logout/');
+      expect(form?.querySelector('input[name="csrfmiddlewaretoken"]')).toHaveValue('student-csrf-token');
+    });
+    expect(screen.queryByRole('link', { name: /sign out/i })).not.toBeInTheDocument();
+    expect(document.querySelector('a[href="/logout/"]')).toBeNull();
+    document.cookie = 'csrftoken=; max-age=0; path=/';
+  });
+
+  it('renders primary navigation destinations on both desktop sidebar and mobile bottom bar', () => {
     render(
       <MemoryRouter initialEntries={['/student/dashboard']}>
         <StudentAppLayout>
@@ -66,8 +90,8 @@ describe('StudentAppLayout Component', () => {
     const sidebar = screen.getByTestId('student-desktop-sidebar');
     expect(sidebar).toBeInTheDocument();
 
-    // 5 primary destinations: Home, Quizzes, Assignments, Results, Account
-    ['Home', 'Quizzes', 'Assignments', 'Results', 'Account'].forEach((label) => {
+    // Primary destinations appear in both desktop and mobile navigation.
+    ['Home', 'Quizzes', 'Assignments', 'Results', 'Progress', 'Account'].forEach((label) => {
       expect(screen.getAllByText(label).length).toBeGreaterThanOrEqual(2); // In sidebar & bottom nav
     });
   });
@@ -147,6 +171,7 @@ describe('StudentAppLayout Component', () => {
       'Quizzes',
       'Assignments',
       'Results',
+      'Progress',
       'Account',
     ]);
   });

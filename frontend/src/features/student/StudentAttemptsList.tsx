@@ -84,12 +84,13 @@ export const StudentAttemptsList: React.FC = () => {
       )}
 
       {/* Filter Horizontal Pills */}
-      <div className="stu-filter-pills" role="tablist" aria-label="Attempt status filters">
+      <div className="stu-filter-pills" role="group" aria-label="Attempt status filters">
         {STATUS_FILTERS.map((opt) => (
           <button
             key={opt.value}
             type="button"
             className={`stu-filter-pill ${statusFilter === opt.value ? 'stu-filter-pill--active' : ''}`}
+            aria-pressed={statusFilter === opt.value}
             onClick={() => setStatusFilter(opt.value)}
           >
             {opt.label}

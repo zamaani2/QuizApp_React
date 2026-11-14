@@ -69,6 +69,7 @@ class ExamSectionsApiTests(TestCase):
             time_limit=0,
             max_attempts=3,
         )
+        self._save_sequences = {}
         self.other_teacher = Teacher.objects.create(
             full_name="Other Section Teacher",
             contact_number="222",
@@ -108,11 +109,56 @@ class ExamSectionsApiTests(TestCase):
         return attempt
 
     def save_text_answer(self, attempt, question, text="answer"):
+        sequence = self._save_sequences.get(attempt.pk, 0) + 1
+        self._save_sequences[attempt.pk] = sequence
         return self.client.post(
             reverse("quiz_app:api_student_quiz_save", args=[attempt.pk]),
-            data=json.dumps({"question_id": question.pk, "text_answer": text}),
+            data=json.dumps({
+                "question_id": question.pk,
+                "text_answer": text,
+                "client_sequence": sequence,
+            }),
             content_type="application/json",
         )
+
+    def test_take_and_save_return_server_time_and_absolute_deadlines(self):
+        self.quiz.time_limit = 30
+        self.quiz.save(update_fields=["time_limit"])
+        section = QuizSection.objects.create(
+            quiz=self.quiz,
+            school=self.school,
+            title="Timed",
+            order=1,
+            time_limit_minutes=5,
+        )
+        question = self.create_essay("Timed answer", section)
+        attempt = self.create_attempt()
+        self.client.force_login(self.student_user)
+
+        take = self.client.get(
+            reverse("quiz_app:api_student_quiz_take", args=[attempt.pk])
+        )
+        self.assertEqual(take.status_code, 200)
+        take_data = take.json()
+        self.assertIsNotNone(take_data["server_time"])
+        self.assertEqual(
+            datetime.datetime.fromisoformat(take_data["attempt_deadline_at"])
+            - attempt.started_at,
+            timedelta(minutes=30),
+        )
+        section_data = take_data["sections"][0]
+        self.assertIsNotNone(section_data["deadline_at"])
+        self.assertEqual(
+            datetime.datetime.fromisoformat(section_data["deadline_at"])
+            - datetime.datetime.fromisoformat(section_data["started_at"]),
+            timedelta(minutes=5),
+        )
+
+        saved = self.save_text_answer(attempt, question)
+        self.assertEqual(saved.status_code, 200, saved.content)
+        self.assertIsNotNone(saved.json()["server_time"])
+        self.assertEqual(saved.json()["attempt_deadline_at"], take_data["attempt_deadline_at"])
+        self.assertEqual(saved.json()["section_deadline_at"], section_data["deadline_at"])
 
     def test_section_crud_and_tenant_isolation(self):
         self.client.force_login(self.teacher_user)

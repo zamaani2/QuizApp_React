@@ -167,6 +167,7 @@ export interface StudentTakeSection {
   is_active: boolean;
   is_locked: boolean;
   remaining_seconds: number | null;
+  deadline_at: string | null;
   time_expired: boolean;
 }
 
@@ -190,6 +191,8 @@ export interface StudentQuizTakeData {
   quiz_title: string;
   started_at: string | null;
   time_remaining_seconds: number | null;
+  server_time: string;
+  attempt_deadline_at: string | null;
   is_submitted: boolean;
   time_expired?: boolean;
   message?: string;
@@ -201,6 +204,7 @@ export interface StudentQuizTakeData {
   section_timing_enabled?: boolean;
   existing_responses: Record<string, StudentQuestionResponse>;
   existing_response_timestamps?: Record<string, string>;
+  existing_response_sequences?: Record<string, number>;
 }
 
 export interface StudentAttemptHistoryItem {
@@ -243,6 +247,7 @@ export interface StudentReviewQuestion {
   marks: number;
   marks_obtained: number;
   is_correct: boolean;
+  is_pending_marking: boolean;
   student_answer: string;
   correct_answer?: string;
   review_data?: {
@@ -274,6 +279,7 @@ export interface StudentQuizResultData {
   percentage: number;
   passing_marks: number;
   is_passed: boolean;
+  has_pending_marking: boolean;
   started_at: string | null;
   submitted_at: string | null;
   duration_minutes?: number | null;
@@ -300,6 +306,21 @@ export interface SaveResponseResult {
   error?: string;
   submitted?: boolean;
   answered_count?: number;
+  client_sequence?: number;
+  stale?: boolean;
+  stored_response?: StudentQuestionResponse;
+  response_updated_at?: string;
+  server_time?: string;
+  attempt_deadline_at?: string | null;
+  section_deadline_at?: string | null;
+}
+
+export interface PendingStudentSave {
+  question_id: number;
+  response: StudentQuestionResponse;
+  timestamp: number;
+  client_sequence: number;
+  section_id: number | null;
 }
 
 export interface SubmitQuizResponse {

@@ -8,14 +8,13 @@ import {
   User,
   PanelLeftClose,
   PanelLeftOpen,
-  Search,
-  Bell,
   LogOut,
   GraduationCap,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { ErrorBoundary } from '../common/ErrorBoundary';
+import { SignOutForm } from '../SignOutForm';
 import '../../features/student/student.css';
 
 export interface StudentNavItem {
@@ -180,17 +179,16 @@ export const StudentAppLayout: FC<StudentAppLayoutProps> = ({ children }) => {
             )}
           </Link>
 
-          <a
-            href="/?next=%2Fapp%2F"
+          <SignOutForm
             className={`stu-sidebar__link core-text--danger ${isCollapsed ? 'core-layout--justify-center core-space--padding-x-0' : ''}`}
             title="Sign out of student account"
-            aria-label="Sign out"
+            ariaLabel="Sign out"
           >
             <span className="stu-sidebar__link-icon" aria-hidden="true">
               <LogOut size={18} />
             </span>
             {!isCollapsed && <span>Sign Out</span>}
-          </a>
+          </SignOutForm>
         </div>
       </aside>
 
@@ -218,24 +216,6 @@ export const StudentAppLayout: FC<StudentAppLayoutProps> = ({ children }) => {
           {/* Header Action Icons */}
           <div className="stu-header__actions">
             <Link
-              to="/student/quizzes"
-              className="stu-icon-btn"
-              title="Search Quizzes"
-              aria-label="Search Quizzes"
-            >
-              <Search size={18} aria-hidden="true" />
-            </Link>
-
-            <Link
-              to="/student/dashboard"
-              className="stu-icon-btn"
-              title="Notifications"
-              aria-label="Notifications"
-            >
-              <Bell size={18} aria-hidden="true" />
-              <span className="stu-icon-btn__badge">1</span>
-            </Link>
-            <Link
               to="/account"
               className="stu-icon-btn"
               title="Account settings"
@@ -244,14 +224,13 @@ export const StudentAppLayout: FC<StudentAppLayoutProps> = ({ children }) => {
               <User size={18} aria-hidden="true" />
             </Link>
 
-            <a
-              href="/?next=%2Fapp%2F"
+            <SignOutForm
               className="stu-icon-btn core-display-none core-display-md-flex"
-              title="Sign Out / Switch Session"
-              aria-label="Sign Out"
+              title="Sign Out"
+              ariaLabel="Sign Out"
             >
               <LogOut size={18} aria-hidden="true" />
-            </a>
+            </SignOutForm>
           </div>
         </div>
       </header>

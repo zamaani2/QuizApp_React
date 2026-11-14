@@ -94,14 +94,13 @@ export const StudentQuizList: React.FC = () => {
 
       {/* Search Input */}
       <div className="core-space--margin-bottom-3">
-        <div className="input-group" style={{ maxWidth: '600px' }}>
-          <span className="input-group-text core-surface--white core-border--end-none" style={{ borderColor: 'var(--stu-border)' }}>
-            <AppIcon name="search" className="core-text--muted" aria-hidden="true" />
+        <div className="stu-search">
+          <span className="stu-search__icon" aria-hidden="true">
+            <AppIcon name="search" />
           </span>
           <input
             type="search"
-            className="core-field__input core-border--start-none core-space--padding-start-0"
-            style={{ borderColor: 'var(--stu-border)', fontSize: '0.875rem' }}
+            className="stu-search__input core-field__input"
             placeholder="Search by quiz title, subject, or teacher..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -111,12 +110,13 @@ export const StudentQuizList: React.FC = () => {
       </div>
 
       {/* Status Filter Horizontal Pills */}
-      <div className="stu-filter-pills" role="tablist" aria-label="Quiz status filters">
+      <div className="stu-filter-pills" role="group" aria-label="Quiz status filters">
         {STATUS_OPTIONS.map((opt) => (
           <button
             key={opt.value}
             type="button"
             className={`stu-filter-pill ${statusFilter === opt.value ? 'stu-filter-pill--active' : ''}`}
+            aria-pressed={statusFilter === opt.value}
             onClick={() => setStatusFilter(opt.value)}
           >
             {opt.label}

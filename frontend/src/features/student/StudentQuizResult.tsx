@@ -63,6 +63,8 @@ export const StudentQuizResult: React.FC = () => {
     );
   }
 
+  const isProvisional = result.has_pending_marking;
+
   return (
     <div data-testid="student-quiz-result">
       {/* Top Back Navigation & Title */}
@@ -94,36 +96,54 @@ export const StudentQuizResult: React.FC = () => {
           <div
             className="stu-cta-card__icon-box"
             style={{
-              backgroundColor: result.is_passed ? 'var(--stu-success-bg)' : 'var(--stu-danger-bg)',
-              color: result.is_passed ? 'var(--stu-success)' : 'var(--stu-danger)',
+              backgroundColor: isProvisional
+                ? 'var(--stu-sky-subtle)'
+                : result.is_passed
+                  ? 'var(--stu-success-bg)'
+                  : 'var(--stu-danger-bg)',
+              color: isProvisional
+                ? 'var(--stu-sky)'
+                : result.is_passed
+                  ? 'var(--stu-success)'
+                  : 'var(--stu-danger)',
             }}
           >
-            <AppIcon name={result.is_passed ? 'circleCheck' : 'circleX'} />
+            <AppIcon name={isProvisional ? 'info' : result.is_passed ? 'circleCheck' : 'circleX'} />
           </div>
           <div className="stu-cta-card__info">
             <div className="stu-cta-card__eyebrow">
-              {result.is_passed ? 'ASSESSMENT PASSED' : 'NEEDS IMPROVEMENT'}
+              {isProvisional ? 'PROVISIONAL' : result.is_passed ? 'ASSESSMENT PASSED' : 'NEEDS IMPROVEMENT'}
             </div>
             <h2 className="stu-cta-card__title">
-              {formatMarks(result.score)} / {formatMarks(result.total_marks)} Marks ({formatMarks(result.percentage)}%)
+              {isProvisional
+                ? 'Provisional'
+                : `${formatMarks(result.score)} / ${formatMarks(result.total_marks)} Marks (${formatMarks(result.percentage)}%)`}
             </h2>
             <p className="stu-cta-card__desc">
-              Passing threshold: {result.passing_marks} marks. Outcome:{' '}
-              <strong>{result.is_passed ? 'Passed' : 'Needs Improvement'}</strong>.
+              {isProvisional
+                ? 'Awaiting teacher marking before your final result is available.'
+                : (
+                  <>
+                    Passing threshold: {result.passing_marks} marks. Outcome:{' '}
+                    <strong>{result.is_passed ? 'Passed' : 'Needs Improvement'}</strong>.
+                  </>
+                )}
             </p>
           </div>
         </div>
 
         <div className="core-display-flex core-layout--align-center core-layout--gap-2 core-layout--wrap">
-          <a
-            href={`/app/student/attempts/${result.attempt_id}/result/print`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="stu-btn-outline"
-            style={{ flex: 1, minWidth: '140px' }}
-          >
-            <AppIcon name="printer" className="core-space--margin-end-1" aria-hidden="true" /> Print Result
-          </a>
+          {!isProvisional && (
+            <a
+              href={`/app/student/attempts/${result.attempt_id}/result/print`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="stu-btn-outline"
+              style={{ flex: 1, minWidth: '140px' }}
+            >
+              <AppIcon name="printer" className="core-space--margin-end-1" aria-hidden="true" /> Print Result
+            </a>
+          )}
           <Link
             to="/student/quizzes"
             className="stu-btn-primary"
@@ -135,7 +155,7 @@ export const StudentQuizResult: React.FC = () => {
       </div>
 
       {/* Metrics Row */}
-      <div className="stu-stats-grid core-space--margin-bottom-4">
+      {!isProvisional && <div className="stu-stats-grid core-space--margin-bottom-4">
         <div className="stu-stat-box">
           <div className="stu-stat-box__val" style={{ color: 'var(--stu-navy)' }}>
             {formatMarks(result.score)}
@@ -159,9 +179,9 @@ export const StudentQuizResult: React.FC = () => {
           </div>
           <div className="stu-stat-box__label">Passing Mark</div>
         </div>
-      </div>
+      </div>}
 
-      {result.section_scores && result.section_scores.length > 0 && (
+      {!isProvisional && result.section_scores && result.section_scores.length > 0 && (
         <section className="stu-card core-space--margin-bottom-4" aria-label="Section scores">
           <h2 className="core-type--heading-5">Section scores</h2>
           <div className="core-display-flex core-layout--column core-layout--gap-2">
@@ -201,15 +221,17 @@ export const StudentQuizResult: React.FC = () => {
           {result.questions.map((q, idx) => (
             <div
               key={q.id}
-              className={`stu-card ${q.is_correct ? 'stu-card--result-correct' : 'stu-card--result-incorrect'}`}
+              className={`stu-card ${q.is_pending_marking ? '' : q.is_correct ? 'stu-card--result-correct' : 'stu-card--result-incorrect'}`}
             >
               <div className="question-review__header">
                 <h3 className="question-review__number">Question {idx + 1}</h3>
-                <span
-                  className={`stu-badge ${q.is_correct ? 'stu-badge--success' : 'stu-badge--danger'}`}
-                >
-                  {q.marks_obtained} / {q.marks} pts
-                </span>
+                {q.is_pending_marking ? (
+                  <span className="stu-badge stu-badge--warning">Awaiting marking</span>
+                ) : (
+                  <span className={`stu-badge ${q.is_correct ? 'stu-badge--success' : 'stu-badge--danger'}`}>
+                    {q.marks_obtained} / {q.marks} pts
+                  </span>
+                )}
               </div>
               <p className="question-review__question-title">{q.question_text}</p>
 

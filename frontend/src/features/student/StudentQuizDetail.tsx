@@ -237,7 +237,9 @@ export const StudentQuizDetail: React.FC = () => {
             </p>
           </div>
         ) : (
-          <p className="core-text--muted core-type--small fst-italic core-space--margin-bottom-3">No specific instructions provided.</p>
+          <p className="stu-quiz-detail__no-instructions core-text--muted core-type--small core-space--margin-bottom-3">
+            No specific instructions provided.
+          </p>
         )}
 
         <div className="core-display-flex core-layout--justify-between core-text--muted core-type--small core-space--padding-top-2 core-border--top">

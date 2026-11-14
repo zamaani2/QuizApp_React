@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { studentApi } from '../../api/student';
 import type {
   StudentQuizTakeData,
+  PendingStudentSave,
   StudentQuestionResponse,
 } from '../../types/student';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
@@ -12,7 +13,26 @@ import { Button } from '../../components/common/Button';
 import { Modal } from '../../components/common/Modal';
 import { getQuestionType, isQuestionAnswered } from '../../question-types';
 import { ApiError } from '../../types';
+import { StudentSaveQueue } from './StudentSaveQueue';
 import './student.css';
+
+interface StoredStudentDraft {
+  responses?: Record<string, StudentQuestionResponse>;
+  response_timestamps?: Record<string, number>;
+  pending_saves?: PendingStudentSave[];
+  last_question_id?: number;
+  last_section_id?: number | null;
+  client_sequence?: number;
+  saved_at?: number;
+  savedAt?: number;
+}
+
+const EMPTY_RESPONSE: StudentQuestionResponse = {
+  selected_choice_id: null,
+  selected_choice_ids: [],
+  text_answer: '',
+  answer_data: {},
+};
 
 export const StudentQuizTake: React.FC = () => {
   const { attemptId } = useParams<{ attemptId: string }>();
@@ -34,8 +54,12 @@ export const StudentQuizTake: React.FC = () => {
   const [responses, setResponses] = useState<Record<string, StudentQuestionResponse>>({});
 
   // Autosave status
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [saveStatus, setSaveStatus] = useState<'saving' | 'saved' | 'offline' | 'error'>('saved');
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
+  const [pendingAnswerCount, setPendingAnswerCount] = useState(0);
+  const [isOnline, setIsOnline] = useState(
+    () => typeof navigator === 'undefined' || navigator.onLine
+  );
 
   // Server-authoritative timer (in seconds)
   const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
@@ -49,91 +73,122 @@ export const StudentQuizTake: React.FC = () => {
   // Auto-submitted due to timer expiration
   const [timeExpiredModal, setTimeExpiredModal] = useState<boolean>(false);
 
-  // Ref to prevent double submission
+  // Refs keep timer and save callbacks independent of render timing.
   const isSubmittingRef = useRef<boolean>(false);
-  const pendingSavesRef = useRef<Set<Promise<void>>>(new Set());
   const sectionSubmittingRef = useRef<boolean>(false);
-  const saveLocalDraft = (draftResponses: Record<string, StudentQuestionResponse>) => {
+  const responseRef = useRef<Record<string, StudentQuestionResponse>>({});
+  const syncedResponsesRef = useRef<Record<string, StudentQuestionResponse>>({});
+  const responseTimestampsRef = useRef<Record<string, number>>({});
+  const syncedResponseTimestampsRef = useRef<Record<string, number>>({});
+  const nextSequenceRef = useRef(0);
+  const saveQueueRef = useRef<StudentSaveQueue | null>(null);
+  const persistDraftRef = useRef<(pending?: PendingStudentSave[]) => void>(() => {});
+  const debouncedAnswersRef = useRef(new Map<number, PendingStudentSave>());
+  const debounceTimersRef = useRef(new Map<number, number>());
+  const serverOffsetRef = useRef(0);
+  const attemptDeadlineRef = useRef<number | null>(null);
+  const sectionDeadlinesRef = useRef(new Map<string, number | null>());
+  const activeSectionDeadlineKeyRef = useRef<string | null>(null);
+  const timeUpHandledRef = useRef(false);
+  const sectionTimeUpHandledRef = useRef<string | null>(null);
+  const queueFailureRef = useRef(false);
+  const localStorageErrorRef = useRef(false);
+  const autoSubmitRetryCountRef = useRef(0);
+  const autoSubmitRetryTimerRef = useRef<number | null>(null);
+  const timeUpSubmitTimerRef = useRef<number | null>(null);
+  const autoSubmitRef = useRef<(automatic: boolean) => void>(() => {});
+  const clockRefreshRef = useRef<() => void>(() => {});
+  const onlineRef = useRef(isOnline);
+  const draftCursorRef = useRef<{ questionId: number | null; sectionId: number | null }>({
+    questionId: null,
+    sectionId: null,
+  });
+
+  const persistLocalDraft = useCallback((pending = saveQueueRef.current?.snapshot() ?? []) => {
+    if (!attemptId) return;
     try {
       localStorage.setItem(
         `quiz_draft_${attemptId}`,
-        JSON.stringify({ responses: draftResponses, savedAt: Date.now() })
+        JSON.stringify({
+          responses: responseRef.current,
+          response_timestamps: responseTimestampsRef.current,
+          pending_saves: pending,
+          last_question_id: draftCursorRef.current.questionId ?? undefined,
+          last_section_id: draftCursorRef.current.sectionId,
+          client_sequence: nextSequenceRef.current,
+          saved_at: Date.now(),
+        })
       );
+      localStorageErrorRef.current = false;
     } catch {
-      // Ignore unavailable or full local storage.
+      localStorageErrorRef.current = true;
+      queueFailureRef.current = true;
+      setSaveStatus('error');
+      setSaveErrorMessage('Your browser could not store this answer locally. Keep this page open while it syncs.');
     }
-  };
+  }, [attemptId]);
+  persistDraftRef.current = persistLocalDraft;
 
-  // Load quiz attempt data
-  const loadAttempt = useCallback(async () => {
-    if (!attemptId) return;
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await studentApi.getStudentQuizTake(Number(attemptId));
+  const refreshTimerDisplay = useCallback(() => {
+    const serverNow = Date.now() + serverOffsetRef.current;
+    const attemptDeadline = attemptDeadlineRef.current;
+    setSecondsRemaining(
+      attemptDeadline === null
+        ? null
+        : Math.max(0, Math.ceil((attemptDeadline - serverNow) / 1000))
+    );
+    const sectionKey = activeSectionDeadlineKeyRef.current;
+    const sectionDeadline = sectionKey
+      ? sectionDeadlinesRef.current.get(sectionKey) ?? null
+      : null;
+    setSectionSecondsRemaining(
+      sectionDeadline === null
+        ? null
+        : Math.max(0, Math.ceil((sectionDeadline - serverNow) / 1000))
+    );
+  }, []);
+  clockRefreshRef.current = refreshTimerDisplay;
 
-      if (res.is_submitted) {
-        navigate(`/student/attempts/${attemptId}/result`, { replace: true });
-        return;
-      }
-
-      setCurrentIndex(0);
-      setData(res);
-      setSecondsRemaining(res.time_remaining_seconds);
-      setSelectedSectionId(
-        res.section_timing_enabled
-          ? res.active_section_id ?? null
-          : res.sections?.[0]?.id ?? null
-      );
-      setSectionSecondsRemaining(
-        res.sections?.find((section) => section.id === res.active_section_id)?.remaining_seconds ?? null
-      );
-
-      // Restore backend answers first; a local answer only wins if its draft is newer.
-      const initialResponses: Record<string, StudentQuestionResponse> = {
-        ...res.existing_responses,
-      };
-
-      // Also check localStorage for unsaved local draft
-      try {
-        const localDraft = localStorage.getItem(`quiz_draft_${attemptId}`);
-        if (localDraft) {
-          const parsedDraft: unknown = JSON.parse(localDraft);
-          if (parsedDraft && typeof parsedDraft === 'object') {
-            const draftRecord = parsedDraft as {
-              responses?: Record<string, StudentQuestionResponse>;
-              savedAt?: number;
-            };
-            const draftResponses = draftRecord.responses || parsedDraft as Record<string, StudentQuestionResponse>;
-            const draftSavedAt = Number(draftRecord.savedAt) || 0;
-            for (const [questionId, answer] of Object.entries(draftResponses)) {
-              const serverAnswer = res.existing_responses[questionId];
-              const serverTimestamp = res.existing_response_timestamps?.[questionId];
-              const parsedServerTime = serverTimestamp ? Date.parse(serverTimestamp) : Number.NaN;
-              const serverSavedAt = serverAnswer
-                ? (Number.isFinite(parsedServerTime) ? parsedServerTime : Number.POSITIVE_INFINITY)
-                : 0;
-              if (!serverAnswer || draftSavedAt > serverSavedAt) {
-                initialResponses[questionId] = answer;
-              }
-            }
-          }
-        }
-      } catch {
-        // Ignore local storage error
-      }
-
-      setResponses(initialResponses);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load quiz attempt.');
-    } finally {
-      setLoading(false);
+  const applyServerTiming = useCallback((
+    payload: {
+      server_time?: string;
+      attempt_deadline_at?: string | null;
+      section_deadline_at?: string | null;
+      sections?: Array<{ id: number | null; deadline_at?: string | null }>;
+    },
+    requestStartedAt: number,
+    responseReceivedAt: number,
+    sectionId?: number | null
+  ) => {
+    const parsedServerTime = payload.server_time ? Date.parse(payload.server_time) : Number.NaN;
+    if (Number.isFinite(parsedServerTime)) {
+      serverOffsetRef.current =
+        parsedServerTime - ((requestStartedAt + responseReceivedAt) / 2);
     }
-  }, [attemptId, navigate]);
-
-  useEffect(() => {
-    loadAttempt();
-  }, [loadAttempt]);
+    if (payload.attempt_deadline_at !== undefined) {
+      const deadline = payload.attempt_deadline_at
+        ? Date.parse(payload.attempt_deadline_at)
+        : Number.NaN;
+      attemptDeadlineRef.current = Number.isFinite(deadline) ? deadline : null;
+    }
+    for (const section of payload.sections ?? []) {
+      const deadline = section.deadline_at ? Date.parse(section.deadline_at) : Number.NaN;
+      sectionDeadlinesRef.current.set(
+        String(section.id),
+        Number.isFinite(deadline) ? deadline : null
+      );
+    }
+    if (sectionId !== undefined && payload.section_deadline_at !== undefined) {
+      const deadline = payload.section_deadline_at
+        ? Date.parse(payload.section_deadline_at)
+        : Number.NaN;
+      sectionDeadlinesRef.current.set(
+        String(sectionId),
+        Number.isFinite(deadline) ? deadline : null
+      );
+    }
+    refreshTimerDisplay();
+  }, [refreshTimerDisplay]);
 
   const sections = data?.sections ?? [];
   const currentSectionId = data?.section_timing_enabled
@@ -141,213 +196,559 @@ export const StudentQuizTake: React.FC = () => {
     : selectedSectionId;
   const currentSection = sections.find((section) => section.id === currentSectionId);
   const visibleQuestions = currentSection?.questions ?? (data?.section_timing_enabled ? [] : data?.questions ?? []);
+  const currentQuestion = visibleQuestions[currentIndex];
   const activeGroup = currentSection?.groups.find(
-    (group) => group.questions.some((question) => question.id === visibleQuestions[currentIndex]?.id)
+    (group) => group.questions.some((question) => question.id === currentQuestion?.id)
   );
+
+  const loadAttempt = useCallback(async (showInitialLoading = true) => {
+    if (!attemptId) return;
+    if (showInitialLoading) setLoading(true);
+    try {
+      setError(null);
+      const requestStartedAt = Date.now();
+      const res = await studentApi.getStudentQuizTake(Number(attemptId));
+      const responseReceivedAt = Date.now();
+      if (res.is_submitted) {
+        navigate(`/student/attempts/${attemptId}/result`, { replace: true });
+        return;
+      }
+
+      let draft: StoredStudentDraft = {};
+      try {
+        const draftText = localStorage.getItem(`quiz_draft_${attemptId}`);
+        if (draftText) {
+          const parsed: unknown = JSON.parse(draftText);
+          if (parsed && typeof parsed === 'object') {
+            draft = parsed as StoredStudentDraft;
+          }
+        }
+      } catch {
+        localStorageErrorRef.current = true;
+        queueFailureRef.current = true;
+        setSaveStatus('error');
+        setSaveErrorMessage('The saved answers on this device could not be read.');
+      }
+
+      const initialResponses = { ...res.existing_responses };
+      const timestamps: Record<string, number> = {};
+      const serverSequences = Object.values(res.existing_response_sequences ?? {});
+      let sequence = Math.max(
+        Number(draft.client_sequence) || 0,
+        ...serverSequences,
+        0
+      );
+      const serverResponseTimestamp = (questionId: string) => {
+        const value = res.existing_response_timestamps?.[questionId];
+        const parsed = value ? Date.parse(value) : Number.NaN;
+        return Number.isFinite(parsed) ? parsed : 0;
+      };
+      for (const questionId of Object.keys(res.existing_responses)) {
+        timestamps[questionId] = serverResponseTimestamp(questionId);
+      }
+
+      const persistedPending = Array.isArray(draft.pending_saves)
+        ? draft.pending_saves.filter((entry) => (
+          entry
+          && Number.isInteger(entry.question_id)
+          && Number.isFinite(entry.timestamp)
+          && Number.isInteger(entry.client_sequence)
+          && entry.response
+        ))
+        : [];
+      const pendingByQuestion = new Map<number, PendingStudentSave>();
+      const localResponses = draft.responses ?? {};
+      const draftSavedAt = Number(draft.saved_at ?? draft.savedAt) || 0;
+      const localAnswerTimestamp = (questionId: string) => (
+        Number(draft.response_timestamps?.[questionId])
+        || (draft.response_timestamps ? 0 : draftSavedAt)
+      );
+      for (const [questionId, answer] of Object.entries(localResponses)) {
+        const localTime = localAnswerTimestamp(questionId);
+        const serverTime = res.existing_responses[questionId]
+          ? serverResponseTimestamp(questionId) || Number.POSITIVE_INFINITY
+          : 0;
+        if (localTime > serverTime) {
+          initialResponses[questionId] = answer;
+          timestamps[questionId] = localTime;
+        }
+      }
+
+      const restorePending = (entry: PendingStudentSave) => {
+        const questionKey = String(entry.question_id);
+        const serverTime = res.existing_responses[questionKey]
+          ? serverResponseTimestamp(questionKey) || Number.POSITIVE_INFINITY
+          : 0;
+        if (entry.timestamp <= serverTime) return;
+        sequence = Math.max(sequence + 1, entry.client_sequence);
+        const restored = { ...entry, client_sequence: sequence };
+        pendingByQuestion.set(entry.question_id, restored);
+        initialResponses[questionKey] = restored.response;
+        timestamps[questionKey] = restored.timestamp;
+      };
+      persistedPending.forEach(restorePending);
+
+      const pendingQuestionIds = new Set(pendingByQuestion.keys());
+      for (const [questionId, answer] of Object.entries(localResponses)) {
+        const id = Number(questionId);
+        if (pendingQuestionIds.has(id) || initialResponses[questionId] !== answer) continue;
+        const serverTime = res.existing_responses[questionId]
+          ? serverResponseTimestamp(questionId) || Number.POSITIVE_INFINITY
+          : 0;
+        const localTime = localAnswerTimestamp(questionId);
+        if (localTime <= serverTime) continue;
+        const question = res.questions.find((item) => item.id === id);
+        sequence += 1;
+        const queued: PendingStudentSave = {
+          question_id: id,
+          response: answer,
+          timestamp: localTime,
+          client_sequence: sequence,
+          section_id: question?.section_id ?? null,
+        };
+        pendingByQuestion.set(id, queued);
+      }
+
+      const restoredSectionId = res.section_timing_enabled
+        ? res.active_section_id ?? null
+        : draft.last_section_id !== undefined
+          ? draft.last_section_id
+          : res.sections?.[0]?.id ?? null;
+      const restoredSection = res.sections?.find((section) => section.id === restoredSectionId);
+      const restoredQuestions = restoredSection?.questions
+        ?? (res.section_timing_enabled ? [] : res.questions);
+      const restoredIndex = restoredQuestions.findIndex(
+        (question) => question.id === draft.last_question_id
+      );
+      const nextIndex = restoredIndex >= 0 ? restoredIndex : 0;
+      responseRef.current = initialResponses;
+      syncedResponsesRef.current = { ...res.existing_responses };
+      responseTimestampsRef.current = timestamps;
+      syncedResponseTimestampsRef.current = { ...timestamps };
+      nextSequenceRef.current = sequence;
+      draftCursorRef.current = {
+        questionId: restoredQuestions[nextIndex]?.id ?? null,
+        sectionId: restoredSectionId,
+      };
+      activeSectionDeadlineKeyRef.current = String(restoredSectionId);
+      applyServerTiming(res, requestStartedAt, responseReceivedAt);
+      saveQueueRef.current?.restore([...pendingByQuestion.values()]);
+      setData(res);
+      setResponses(initialResponses);
+      setCurrentIndex(nextIndex);
+      setSelectedSectionId(restoredSectionId);
+      setSectionError(null);
+      persistDraftRef.current(saveQueueRef.current?.snapshot() ?? []);
+    } catch (err) {
+      if (showInitialLoading) {
+        setError(err instanceof Error ? err.message : 'Failed to load quiz attempt.');
+      } else {
+        setSectionError(err instanceof Error ? err.message : 'Unable to refresh the section.');
+      }
+    } finally {
+      if (showInitialLoading) setLoading(false);
+    }
+  }, [attemptId, applyServerTiming, navigate]);
+
+  useEffect(() => {
+    if (!attemptId) return undefined;
+    queueFailureRef.current = false;
+    const queue = new StudentSaveQueue(
+      async (entry) => {
+        const requestStartedAt = Date.now();
+        try {
+          const result = await studentApi.saveStudentResponse(Number(attemptId), {
+            question_id: entry.question_id,
+            client_sequence: entry.client_sequence,
+            choice_id: entry.response.selected_choice_id,
+            choice_ids: entry.response.selected_choice_ids,
+            text_answer: entry.response.text_answer,
+            answer_data: entry.response.answer_data,
+          });
+          applyServerTiming(result, requestStartedAt, Date.now(), entry.section_id);
+          if (result.submitted) {
+            setTimeExpiredModal(true);
+            navigate(`/student/attempts/${attemptId}/result`, { replace: true });
+          }
+          return result;
+        } catch (err) {
+          clockRefreshRef.current();
+          if (err instanceof ApiError && err.code === 'TIME_EXPIRED') {
+            setTimeExpiredModal(true);
+            navigate(`/student/attempts/${attemptId}/result`, { replace: true });
+            return { success: true, submitted: true };
+          }
+          throw err;
+        }
+      },
+      (pending, savingCount) => {
+        const unanswered = new Set([
+          ...pending.map((entry) => entry.question_id),
+          ...debouncedAnswersRef.current.keys(),
+        ]);
+        setPendingAnswerCount(unanswered.size);
+        if (!onlineRef.current) setSaveStatus('offline');
+        else if (savingCount > 0 || unanswered.size > 0) setSaveStatus('saving');
+        else setSaveStatus(
+          queueFailureRef.current || localStorageErrorRef.current ? 'error' : 'saved'
+        );
+        persistDraftRef.current(pending);
+      },
+      (entry, result) => {
+        if (result.stale && result.stored_response) {
+          const newer = saveQueueRef.current?.snapshot().some(
+            (pending) => pending.question_id === entry.question_id
+              && pending.client_sequence > entry.client_sequence
+          );
+          if (!newer) {
+            responseRef.current = {
+              ...responseRef.current,
+              [String(entry.question_id)]: result.stored_response,
+            };
+            setResponses(responseRef.current);
+          }
+          syncedResponsesRef.current[String(entry.question_id)] = result.stored_response;
+        } else {
+          syncedResponsesRef.current[String(entry.question_id)] = entry.response;
+        }
+        const updatedAt = result.response_updated_at ? Date.parse(result.response_updated_at) : Date.now();
+        responseTimestampsRef.current[String(entry.question_id)] =
+          Number.isFinite(updatedAt) ? updatedAt : Date.now();
+        syncedResponseTimestampsRef.current[String(entry.question_id)] =
+          responseTimestampsRef.current[String(entry.question_id)];
+        queueFailureRef.current = false;
+      },
+      (entry, err) => {
+        const key = String(entry.question_id);
+        const restored = syncedResponsesRef.current[key];
+        responseRef.current = { ...responseRef.current };
+        if (restored) responseRef.current[key] = restored;
+        else delete responseRef.current[key];
+        responseTimestampsRef.current[key] = syncedResponseTimestampsRef.current[key] ?? 0;
+        setResponses(responseRef.current);
+        queueFailureRef.current = true;
+        setSaveStatus('error');
+        const rejectionMessage = err.code === 'CHOOSE_N_LIMIT'
+          ? 'You have reached the answer limit for this section. Your change was reverted.'
+          : err.code === 'SECTION_TIME_EXPIRED'
+            ? 'This section time has expired. Your change was reverted.'
+            : 'This section is locked. Your change was reverted.';
+        setSaveErrorMessage(rejectionMessage);
+        persistDraftRef.current();
+      },
+      () => onlineRef.current
+    );
+    saveQueueRef.current = queue;
+    return () => {
+      queue.destroy();
+      if (saveQueueRef.current === queue) saveQueueRef.current = null;
+    };
+  }, [attemptId, applyServerTiming, navigate]);
+
+  useEffect(() => {
+    void loadAttempt();
+  }, [loadAttempt]);
+
+  useEffect(() => {
+    const refresh = () => clockRefreshRef.current();
+    const handleOnline = () => {
+      onlineRef.current = true;
+      setIsOnline(true);
+      sectionTimeUpHandledRef.current = null;
+      saveQueueRef.current?.retryPending();
+      const waiting = (saveQueueRef.current?.snapshot().length ?? 0)
+        + debouncedAnswersRef.current.size;
+      setSaveStatus(
+        waiting > 0
+          ? 'saving'
+          : queueFailureRef.current || localStorageErrorRef.current
+            ? 'error'
+            : 'saved'
+      );
+      refresh();
+      if (timeUpHandledRef.current) {
+        if (!timeUpSubmitTimerRef.current) autoSubmitRef.current(true);
+      }
+    };
+    const handleOffline = () => {
+      onlineRef.current = false;
+      setIsOnline(false);
+      refresh();
+    };
+    window.addEventListener('focus', refresh);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    document.addEventListener('visibilitychange', refresh);
+    const interval = window.setInterval(refresh, 1000);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      document.removeEventListener('visibilitychange', refresh);
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  useEffect(() => {
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      const pending = (saveQueueRef.current?.snapshot().length ?? 0)
+        + debouncedAnswersRef.current.size;
+      if (pending === 0) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnBeforeUnload);
+    return () => window.removeEventListener('beforeunload', warnBeforeUnload);
+  }, []);
 
   useEffect(() => {
     if (!data) return;
-    const activeId = data.section_timing_enabled
-      ? data.active_section_id ?? (sections.some((section) => section.id === null) ? null : undefined)
-      : selectedSectionId;
-    const section = sections.find((item) => item.id === activeId);
-    setSectionSecondsRemaining(section?.remaining_seconds ?? null);
-    if (data.section_timing_enabled && data.active_section_id !== undefined) {
-      setSelectedSectionId(data.active_section_id);
+    const sectionId = currentSection?.id ?? null;
+    activeSectionDeadlineKeyRef.current = String(sectionId);
+    draftCursorRef.current = {
+      questionId: currentQuestion?.id ?? null,
+      sectionId,
+    };
+    persistDraftRef.current();
+    clockRefreshRef.current();
+  }, [data, currentQuestion?.id, currentSection?.id]);
+
+  const enqueueAnswer = useCallback((entry: PendingStudentSave) => {
+    queueFailureRef.current = false;
+    setSaveErrorMessage(null);
+    saveQueueRef.current?.enqueue(entry);
+    persistDraftRef.current();
+  }, []);
+
+  const flushDebouncedAnswers = useCallback(() => {
+    for (const [questionId, entry] of debouncedAnswersRef.current) {
+      const timer = debounceTimersRef.current.get(questionId);
+      if (timer !== undefined) window.clearTimeout(timer);
+      debounceTimersRef.current.delete(questionId);
+      debouncedAnswersRef.current.delete(questionId);
+      enqueueAnswer(entry);
     }
-  }, [data, sections, selectedSectionId]);
+  }, [enqueueAnswer]);
 
-  // Execute Idempotent Submission
-  const handleSubmit = async () => {
+  const flushPendingAnswers = useCallback(async () => {
+    flushDebouncedAnswers();
+    return saveQueueRef.current?.flush() ?? true;
+  }, [flushDebouncedAnswers]);
+
+  const retryPendingAnswers = useCallback(async () => {
+    if (!onlineRef.current) {
+      const answerNoun = pendingAnswerCount === 1 ? 'answer is' : 'answers are';
+      setSaveErrorMessage(
+        localStorageErrorRef.current
+          ? `You are offline. Your ${pendingAnswerCount} ${answerNoun} only in this page because browser storage failed. Keep this page open and reconnect to submit.`
+          : `You are offline. Your ${pendingAnswerCount} ${answerNoun} safe on this device. Reconnect to submit.`
+      );
+      return;
+    }
+    saveQueueRef.current?.retryPending();
+    const flushed = await flushPendingAnswers();
+    if (!flushed) {
+      setSaveErrorMessage('Some answers are still waiting to sync. Please retry when your connection is stable.');
+    }
+    if (timeUpHandledRef.current) autoSubmitRef.current(true);
+  }, [flushPendingAnswers, pendingAnswerCount]);
+
+  useEffect(() => () => {
+    if (autoSubmitRetryTimerRef.current) window.clearTimeout(autoSubmitRetryTimerRef.current);
+    if (timeUpSubmitTimerRef.current) window.clearTimeout(timeUpSubmitTimerRef.current);
+    for (const timer of debounceTimersRef.current.values()) window.clearTimeout(timer);
+  }, []);
+
+  const handleSubmit = useCallback(async (automatic = false) => {
     if (!attemptId || isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    setSubmitting(true);
+    setSubmitError(null);
     try {
-      isSubmittingRef.current = true;
-      setSubmitting(true);
-      setSubmitError(null);
-
-      await Promise.all([...pendingSavesRef.current]);
-      const res = await studentApi.submitStudentQuiz(Number(attemptId));
-      if (res.success) {
-        // Clean up local draft
-        try {
-          localStorage.removeItem(`quiz_draft_${attemptId}`);
-        } catch {
-          // ignore
-        }
-        navigate(`/student/attempts/${attemptId}/result`, { replace: true });
-      } else {
-        setSubmitError(res.message || 'Submission failed. Please try again.');
-        isSubmittingRef.current = false;
+      if (!onlineRef.current) {
+        const answerNoun = pendingAnswerCount === 1 ? 'answer is' : 'answers are';
+        throw new Error(
+          localStorageErrorRef.current
+            ? `You are offline. Your ${pendingAnswerCount} ${answerNoun} only in this page because browser storage failed. Keep this page open and reconnect to submit.`
+            : `You are offline. Your ${pendingAnswerCount} ${answerNoun} safe on this device. Reconnect to submit.`
+        );
       }
+      const flushed = await flushPendingAnswers();
+      if (!flushed) {
+        throw new Error('Some answers are still waiting to sync. Reconnect and retry submission.');
+      }
+      const result = await studentApi.submitStudentQuiz(Number(attemptId));
+      if (!result.success) throw new Error(result.message || 'Submission failed. Please try again.');
+      if (autoSubmitRetryTimerRef.current) window.clearTimeout(autoSubmitRetryTimerRef.current);
+      if (timeUpSubmitTimerRef.current) window.clearTimeout(timeUpSubmitTimerRef.current);
+      try {
+        localStorage.removeItem(`quiz_draft_${attemptId}`);
+      } catch {
+        queueFailureRef.current = true;
+        setSaveErrorMessage('The quiz was submitted, but the local answer copy could not be cleared.');
+      }
+      navigate(`/student/attempts/${attemptId}/result`, { replace: true });
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Submission failed.');
-      isSubmittingRef.current = false;
+      const message = err instanceof Error ? err.message : 'Submission failed.';
+      setSubmitError(
+        automatic
+          ? `${message} The server will finalise the attempt using the answers it received.`
+          : message
+      );
+      if (automatic) {
+        const delays = [1000, 2000, 4000, 8000, 15000];
+        const delay = delays[Math.min(autoSubmitRetryCountRef.current, delays.length - 1)];
+        autoSubmitRetryCountRef.current += 1;
+        if (autoSubmitRetryTimerRef.current) window.clearTimeout(autoSubmitRetryTimerRef.current);
+        autoSubmitRetryTimerRef.current = window.setTimeout(
+          () => void autoSubmitRef.current(true),
+          delay
+        );
+      }
     } finally {
+      isSubmittingRef.current = false;
       setSubmitting(false);
     }
-  };
+  }, [attemptId, flushPendingAnswers, navigate, pendingAnswerCount]);
+  autoSubmitRef.current = (automatic) => { void handleSubmit(automatic); };
 
-  // Server-authoritative timer countdown
   useEffect(() => {
-    if (secondsRemaining === null || secondsRemaining <= 0) return;
-
-    const timer = setInterval(() => {
-      setSecondsRemaining((prev) => {
-        if (prev === null) return null;
-        if (prev <= 1) {
-          clearInterval(timer);
-          setTimeExpiredModal(true);
-          handleSubmit();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
+    if (secondsRemaining !== 0 || !attemptDeadlineRef.current || timeUpHandledRef.current) return;
+    timeUpHandledRef.current = true;
+    setTimeExpiredModal(true);
+    const delay = Math.floor(Math.random() * 15001);
+    timeUpSubmitTimerRef.current = window.setTimeout(() => {
+      timeUpSubmitTimerRef.current = null;
+      autoSubmitRef.current(true);
+    }, delay);
   }, [secondsRemaining]);
+
+  const submitCurrentSection = useCallback(async () => {
+    if (
+      !attemptId
+      || !currentSection
+      || currentSection.id === null
+      || sectionSubmittingRef.current
+    ) return;
+    sectionSubmittingRef.current = true;
+    setSectionSubmitting(true);
+    setSectionError(null);
+    try {
+      if (!onlineRef.current) {
+        throw new Error('You are offline. Your answers are safe on this device. Reconnect to continue.');
+      }
+      const flushed = await flushPendingAnswers();
+      if (!flushed) throw new Error('Some answers are still waiting to sync. Reconnect and retry.');
+      const requestStartedAt = Date.now();
+      const result = await studentApi.submitStudentSection(Number(attemptId), currentSection.id);
+      applyServerTiming(result, requestStartedAt, Date.now(), currentSection.id);
+      setShowSectionConfirm(false);
+      await loadAttempt(false);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        setShowSectionConfirm(false);
+        await loadAttempt(false);
+      } else {
+        setSectionError(err instanceof Error ? err.message : 'Unable to move to the next section.');
+      }
+    } finally {
+      sectionSubmittingRef.current = false;
+      setSectionSubmitting(false);
+    }
+  }, [attemptId, applyServerTiming, currentSection, flushPendingAnswers, loadAttempt]);
 
   useEffect(() => {
     if (
       !data?.section_timing_enabled
-      || !attemptId
       || !currentSection
       || currentSection.id === null
       || currentSection.time_limit_minutes === null
-      || sectionSecondsRemaining === null
+      || secondsRemaining === 0
+      || sectionSecondsRemaining !== 0
     ) return;
-    const activeSectionId = currentSection.id;
-    if (sectionSecondsRemaining <= 0) {
-      if (sectionSubmittingRef.current) return;
-      sectionSubmittingRef.current = true;
-      void (async () => {
-        try {
-          await studentApi.submitStudentSection(Number(attemptId), activeSectionId);
-        } catch (err) {
-          if (!(err instanceof ApiError) || err.status !== 409) {
-            setSectionError(err instanceof Error ? err.message : 'Unable to submit the timed section.');
-          }
-        } finally {
-          await loadAttempt();
-          sectionSubmittingRef.current = false;
-        }
-      })();
-      return;
-    }
+    const sectionKey = String(currentSection.id);
+    if (sectionTimeUpHandledRef.current === sectionKey) return;
+    sectionTimeUpHandledRef.current = sectionKey;
+    void submitCurrentSection();
+  }, [currentSection, data?.section_timing_enabled, isOnline, sectionSecondsRemaining, secondsRemaining, submitCurrentSection]);
 
-    const timer = setInterval(() => {
-      setSectionSecondsRemaining((remaining) => remaining === null ? null : Math.max(0, remaining - 1));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [attemptId, currentSection, data?.section_timing_enabled, loadAttempt, sectionSecondsRemaining]);
-
-  // Save response to backend and sync with localStorage
-  const saveAnswer = async (
+  const saveAnswer = (
     questionId: number,
     newResponse: Partial<StudentQuestionResponse>,
     persist = true
   ) => {
     if (!attemptId) return;
-
-    const base: StudentQuestionResponse = responses[String(questionId)] || {
-      selected_choice_id: null,
-      selected_choice_ids: [],
-      text_answer: '',
-      answer_data: {},
-    };
-    const updated: StudentQuestionResponse = {
-      ...base,
-      ...newResponse,
-    };
-    const alreadyAnswered = isQuestionAnswered(
-      currentQuestion?.question_type ?? '',
-      base
-    );
-    const willBeAnswered = isQuestionAnswered(
-      currentQuestion?.question_type ?? '',
-      updated
-    );
-    const sectionAnswered = (currentSection?.questions ?? []).filter((question) => {
-      const answer = responses[String(question.id)];
-      return answer ? isQuestionAnswered(question.question_type, answer) : false;
+    const key = String(questionId);
+    const base = responseRef.current[key] ?? EMPTY_RESPONSE;
+    const updated = { ...base, ...newResponse };
+    const question = data?.questions.find((item) => item.id === questionId);
+    const questionType = question?.question_type ?? currentQuestion?.question_type ?? '';
+    const alreadyAnswered = isQuestionAnswered(questionType, base);
+    const willBeAnswered = isQuestionAnswered(questionType, updated);
+    const section = data?.sections?.find((item) => item.id === (question?.section_id ?? currentSection?.id));
+    const sectionQuestions = section?.questions ?? currentSection?.questions ?? [];
+    const sectionAnswered = sectionQuestions.filter((item) => {
+      const answer = responseRef.current[String(item.id)];
+      return answer ? isQuestionAnswered(item.question_type, answer) : false;
     }).length;
     if (
-      currentQuestion
-      && currentSection?.choose_n !== null
-      && currentSection?.choose_n !== undefined
+      section?.choose_n !== null
+      && section?.choose_n !== undefined
       && !alreadyAnswered
       && willBeAnswered
-      && sectionAnswered >= currentSection.choose_n
+      && sectionAnswered >= section.choose_n
     ) {
+      queueFailureRef.current = true;
       setSaveStatus('error');
-      setSaveErrorMessage(`You may answer only ${currentSection.choose_n} question(s) in this section.`);
+      setSaveErrorMessage(`You may answer only ${section.choose_n} question(s) in this section.`);
       return;
     }
 
-    const nextResponses = {
-      ...responses,
-      [String(questionId)]: updated,
+    responseRef.current = { ...responseRef.current, [key]: updated };
+    responseTimestampsRef.current[key] = Date.now() + serverOffsetRef.current;
+    setResponses(responseRef.current);
+    const entry: PendingStudentSave = {
+      question_id: questionId,
+      response: updated,
+      timestamp: responseTimestampsRef.current[key],
+      client_sequence: ++nextSequenceRef.current,
+      section_id: question?.section_id ?? currentSection?.id ?? null,
     };
-    setResponses(nextResponses);
 
-    // Save local draft
-    saveLocalDraft(nextResponses);
-
-    if (!persist) return;
-
-    const pendingSave = (async () => {
-      try {
-        setSaveStatus('saving');
-        setSaveErrorMessage(null);
-
-        const savePayload = {
-          question_id: questionId,
-          choice_id: updated.selected_choice_id,
-          choice_ids: updated.selected_choice_ids,
-          text_answer: updated.text_answer,
-          answer_data: updated.answer_data,
-        };
-
-        const result = await studentApi.saveStudentResponse(Number(attemptId), savePayload);
-        if (result.submitted) {
-          setTimeExpiredModal(true);
-          navigate(`/student/attempts/${attemptId}/result`, { replace: true });
-          return;
-        }
-        setSaveStatus('saved');
-      } catch (err) {
-        setSaveStatus('error');
-        setSaveErrorMessage(
-          err instanceof Error ? err.message : 'Response saved locally. Reconnecting...'
-        );
-        if (err instanceof ApiError && err.code === 'CHOOSE_N_LIMIT') {
-          const restored = { ...responses };
-          if (alreadyAnswered) restored[String(questionId)] = base;
-          else delete restored[String(questionId)];
-          setResponses(restored);
-          saveLocalDraft(restored);
-        } else if (
-          err instanceof ApiError
-          && (err.code === 'SECTION_TIME_EXPIRED' || err.code === 'SECTION_LOCKED')
-        ) {
-          const restored = { ...responses };
-          if (alreadyAnswered) restored[String(questionId)] = base;
-          else delete restored[String(questionId)];
-          setResponses(restored);
-          saveLocalDraft(restored);
-        }
-      }
-    })();
-    pendingSavesRef.current.add(pendingSave);
-    try {
-      await pendingSave;
-    } finally {
-      pendingSavesRef.current.delete(pendingSave);
+    if (persist) {
+      const timer = debounceTimersRef.current.get(questionId);
+      if (timer !== undefined) window.clearTimeout(timer);
+      debounceTimersRef.current.delete(questionId);
+      debouncedAnswersRef.current.delete(questionId);
+      enqueueAnswer(entry);
+    } else {
+      debouncedAnswersRef.current.set(questionId, entry);
+      const oldTimer = debounceTimersRef.current.get(questionId);
+      if (oldTimer !== undefined) window.clearTimeout(oldTimer);
+      debounceTimersRef.current.set(questionId, window.setTimeout(() => {
+        debounceTimersRef.current.delete(questionId);
+        debouncedAnswersRef.current.delete(questionId);
+        enqueueAnswer(entry);
+      }, 1500));
+      setPendingAnswerCount(new Set([
+        ...(saveQueueRef.current?.snapshot().map((pending) => pending.question_id) ?? []),
+        ...debouncedAnswersRef.current.keys(),
+      ]).size);
+      setSaveStatus(onlineRef.current ? 'saving' : 'offline');
+      persistDraftRef.current();
     }
+  };
+
+  const navigateQuestion = (index: number) => {
+    flushDebouncedAnswers();
+    void saveQueueRef.current?.flush();
+    setCurrentIndex(index);
   };
 
   const requestSectionNavigation = (sectionId: number | null) => {
     if (!data || !currentSection || sectionId === currentSection.id) return;
+    flushDebouncedAnswers();
+    void saveQueueRef.current?.flush();
     if (!data.section_timing_enabled) {
       setSelectedSectionId(sectionId);
       setCurrentIndex(0);
@@ -359,35 +760,14 @@ export const StudentQuizTake: React.FC = () => {
     const targetPosition = sections.findIndex((section) => section.id === sectionId);
     if (targetPosition === currentPosition + 1) {
       if (currentSection.time_limit_minutes === null) {
-        void confirmSectionNavigation();
+        void submitCurrentSection();
       } else {
         setShowSectionConfirm(true);
       }
     }
   };
 
-  const confirmSectionNavigation = async () => {
-    if (!attemptId || !currentSection || currentSection.id === null || sectionSubmittingRef.current) return;
-    sectionSubmittingRef.current = true;
-    setSectionSubmitting(true);
-    setSectionError(null);
-    try {
-      await Promise.all([...pendingSavesRef.current]);
-      await studentApi.submitStudentSection(Number(attemptId), currentSection.id);
-      setShowSectionConfirm(false);
-      await loadAttempt();
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 409) {
-        setShowSectionConfirm(false);
-        await loadAttempt();
-      } else {
-        setSectionError(err instanceof Error ? err.message : 'Unable to move to the next section.');
-      }
-    } finally {
-      sectionSubmittingRef.current = false;
-      setSectionSubmitting(false);
-    }
-  };
+  const confirmSectionNavigation = () => submitCurrentSection();
 
   // Format time remaining
   const formatTime = (seconds: number | null): string => {
@@ -411,7 +791,7 @@ export const StudentQuizTake: React.FC = () => {
         <Alert variant="danger" dismissible={false}>
           <h5>Unable to load quiz session</h5>
           <p className="core-space--margin-bottom-2">{error || 'Session could not be initialized.'}</p>
-          <button className="stu-btn-outline" onClick={loadAttempt}>
+          <button className="stu-btn-outline" onClick={() => void loadAttempt()}>
             Retry
           </button>
         </Alert>
@@ -419,7 +799,6 @@ export const StudentQuizTake: React.FC = () => {
     );
   }
 
-  const currentQuestion = visibleQuestions[currentIndex];
   const currentAnswer = currentQuestion
     ? responses[String(currentQuestion.id)] || {
         selected_choice_id: null,
@@ -462,23 +841,34 @@ export const StudentQuizTake: React.FC = () => {
 
           <div className="core-display-flex core-layout--align-center core-layout--gap-2">
             {/* Autosave status indicator */}
-            <div className="core-display-none core-display-sm-block" style={{ fontSize: '0.75rem' }}>
-              {saveStatus === 'saving' && (
-                <span className="core-text--muted">
-                  <span className="core-spinner core-spinner--sm core-space--margin-end-1" style={{ width: '10px', height: '10px' }} />
-                  Saving...
+            <div
+              className="core-type--small core-type--weight-semibold"
+              style={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}
+              aria-live="polite"
+              data-testid="student-sync-status"
+            >
+              {!isOnline && (
+                <span className="core-text--warning">
+                  <AppIcon name="cloudOff" className="core-space--margin-end-1" />
+                  Offline · {pendingAnswerCount} answers waiting
                 </span>
               )}
-              {saveStatus === 'saved' && (
+              {isOnline && saveStatus === 'saving' && (
+                <span className="core-text--muted">
+                  <span className="core-spinner core-spinner--sm core-space--margin-end-1" style={{ width: '10px', height: '10px' }} />
+                  Saving{pendingAnswerCount > 0 ? ` · ${pendingAnswerCount} waiting` : ''}
+                </span>
+              )}
+              {isOnline && saveStatus === 'saved' && (
                 <span className="core-text--success core-type--weight-semibold">
                   <AppIcon name="cloudCheck" className="core-space--margin-end-1" />
                   Saved
                 </span>
               )}
-              {saveStatus === 'error' && (
+              {isOnline && saveStatus === 'error' && (
                 <span className="core-text--warning core-type--weight-semibold" title={saveErrorMessage || ''}>
                   <AppIcon name="cloudOff" className="core-space--margin-end-1" />
-                  Save issue
+                  Save issue{pendingAnswerCount > 0 ? ` · ${pendingAnswerCount} waiting` : ''}
                 </span>
               )}
             </div>
@@ -572,8 +962,36 @@ export const StudentQuizTake: React.FC = () => {
 
       {/* Main Examination Area */}
       <main className="stu-exam-body" id="quiz-question-container">
-        {sectionError && <Alert variant="danger" dismissible onDismiss={() => setSectionError(null)}>{sectionError}</Alert>}
-        {saveStatus === 'error' && saveErrorMessage && (
+        {!isOnline && (
+          <Alert variant="warning" dismissible={false}>
+            <div className="core-display-flex core-layout--align-center core-layout--justify-between core-layout--gap-2">
+              <span>
+                {localStorageErrorRef.current
+                  ? `You are offline. Your ${pendingAnswerCount} ${pendingAnswerCount === 1 ? 'answer is' : 'answers are'} only in this page because browser storage failed. Keep this page open and reconnect to submit.`
+                  : `You are offline. Your ${pendingAnswerCount} ${pendingAnswerCount === 1 ? 'answer is' : 'answers are'} safe on this device. Reconnect to submit.`}
+              </span>
+              <Button variant="outline-secondary" size="sm" onClick={() => void retryPendingAnswers()}>
+                Retry
+              </Button>
+            </div>
+          </Alert>
+        )}
+        {sectionSubmitting && (
+          <div className="core-alert core-alert--info" role="status" data-testid="section-submit-progress">
+            Saving answers and submitting this section…
+          </div>
+        )}
+        {sectionError && (
+          <Alert variant="danger" dismissible onDismiss={() => setSectionError(null)}>
+            <div className="core-display-flex core-layout--align-center core-layout--justify-between core-layout--gap-2">
+              <span>{sectionError}</span>
+              <Button variant="outline-secondary" size="sm" onClick={() => void submitCurrentSection()}>
+                Retry
+              </Button>
+            </div>
+          </Alert>
+        )}
+        {saveErrorMessage && (saveStatus === 'error' || localStorageErrorRef.current) && (
           <Alert variant="warning" dismissible onDismiss={() => setSaveErrorMessage(null)}>
             {saveErrorMessage}
           </Alert>
@@ -639,7 +1057,7 @@ export const StudentQuizTake: React.FC = () => {
             type="button"
             className="stu-btn-outline"
             disabled={currentIndex === 0}
-            onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
+            onClick={() => navigateQuestion(Math.max(0, currentIndex - 1))}
             style={{ minWidth: '95px' }}
           >
             ← Previous
@@ -664,9 +1082,7 @@ export const StudentQuizTake: React.FC = () => {
             <button
               type="button"
               className="stu-btn-primary"
-              onClick={() =>
-                setCurrentIndex((prev) => Math.min(visibleQuestions.length - 1, prev + 1))
-              }
+              onClick={() => navigateQuestion(Math.min(visibleQuestions.length - 1, currentIndex + 1))}
               style={{ minWidth: '95px' }}
             >
               Next →
@@ -737,7 +1153,7 @@ export const StudentQuizTake: React.FC = () => {
                   type="button"
                   className={`stu-palette-btn ${btnModifier}`}
                   onClick={() => {
-                    setCurrentIndex(idx);
+                    navigateQuestion(idx);
                     setShowPaletteDrawer(false);
                   }}
                   title={`Question ${idx + 1}: ${isAnswered ? 'Answered' : 'Unanswered'}`}
@@ -816,7 +1232,7 @@ export const StudentQuizTake: React.FC = () => {
               variant="success"
               size="sm"
               className="core-type--weight-bold"
-              onClick={handleSubmit}
+              onClick={() => void handleSubmit(false)}
               loading={submitting}
             >
               Confirm and Submit
@@ -875,20 +1291,25 @@ export const StudentQuizTake: React.FC = () => {
           <Button
             variant="primary"
             size="sm"
-            onClick={() =>
-              navigate(`/student/attempts/${attemptId}/result`, { replace: true })
-            }
+            onClick={() => autoSubmitRef.current(true)}
+            loading={submitting}
           >
-            View Results Now
+            Retry submission
           </Button>
         }
       >
         <div className="core-text--center core-space--padding-y-2">
           <AppIcon name="alarmClock" className="core-type--size-1 core-text--danger core-display-block core-space--margin-bottom-2" />
           <h5 className="core-type--weight-bold">Time has expired!</h5>
-          <p className="core-text--muted core-type--small core-space--margin-bottom-0">
-            Your assessment has been automatically finalized and submitted with your saved answers.
+          {submitError ? (
+            <Alert variant="warning" dismissible={false}>
+              {submitError}
+            </Alert>
+          ) : (
+            <p className="core-text--muted core-type--small core-space--margin-bottom-0">
+              We are submitting your saved answers. Your attempt is not marked submitted until the server confirms.
           </p>
+          )}
         </div>
       </Modal>
     </div>

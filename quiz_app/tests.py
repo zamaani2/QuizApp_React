@@ -3451,6 +3451,7 @@ class SchoolScopedManagementEndpointTests(TestCase):
             data=json.dumps({
                 "question_id": self.question_a.pk,
                 "text_answer": "Saved draft response",
+                "client_sequence": 1,
             }),
             content_type="application/json",
         )
@@ -3492,6 +3493,7 @@ class SchoolScopedManagementEndpointTests(TestCase):
             data=json.dumps({
                 "question_id": self.question_a.pk,
                 "text_answer": "First tab answer",
+                "client_sequence": 1,
             }),
             content_type="application/json",
         )
@@ -3500,6 +3502,7 @@ class SchoolScopedManagementEndpointTests(TestCase):
             data=json.dumps({
                 "question_id": self.question_a.pk,
                 "text_answer": "Second tab answer",
+                "client_sequence": 2,
             }),
             content_type="application/json",
         )
@@ -3589,6 +3592,7 @@ class SchoolScopedManagementEndpointTests(TestCase):
             data=json.dumps({
                 "question_id": later_question.pk,
                 "text_answer": "Late question answer",
+                "client_sequence": 1,
             }),
             content_type="application/json",
         )
@@ -3647,6 +3651,7 @@ class SchoolScopedManagementEndpointTests(TestCase):
             data=json.dumps({
                 "question_id": question.pk,
                 "choice_ids": [late_choice.pk],
+                "client_sequence": 1,
             }),
             content_type="application/json",
         )
@@ -3678,6 +3683,7 @@ class SchoolScopedManagementEndpointTests(TestCase):
             data=json.dumps({
                 "question_id": question.pk,
                 "choice_ids": [original_choices[0].pk],
+                "client_sequence": 2,
             }),
             content_type="application/json",
         )
@@ -4369,6 +4375,7 @@ class SchoolScopedManagementEndpointTests(TestCase):
             reverse("quiz_app:api_student_quiz_save", args=[attempt.pk]),
             data=json.dumps({
                 "question_id": matching.pk,
+                "client_sequence": 1,
                 "answer_data": {
                     "matches": {
                         f"left:{matching_pairs[0]['left_id']}":
@@ -4382,6 +4389,7 @@ class SchoolScopedManagementEndpointTests(TestCase):
             reverse("quiz_app:api_student_quiz_save", args=[attempt.pk]),
             data=json.dumps({
                 "question_id": matching.pk,
+                "client_sequence": 2,
                 "answer_data": {
                     "matches": {
                         f"left:{pair['left_id']}": f"right:{pair['right_id']}"
@@ -4395,6 +4403,7 @@ class SchoolScopedManagementEndpointTests(TestCase):
             reverse("quiz_app:api_student_quiz_save", args=[attempt.pk]),
             data=json.dumps({
                 "question_id": ordering.pk,
+                "client_sequence": 3,
                 "answer_data": {
                     "items": [
                         f"item:{item_id}"

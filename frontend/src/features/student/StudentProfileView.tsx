@@ -161,10 +161,11 @@ export const StudentProfileView: React.FC = () => {
       </div>
 
       {/* Horizontal Filter Pills for Navigation Tabs */}
-      <div className="stu-filter-pills" role="tablist">
+      <div className="stu-filter-pills" role="group" aria-label="Profile sections">
         <button
           type="button"
           className={`stu-filter-pill ${activeTab === 'academic' ? 'stu-filter-pill--active' : ''}`}
+          aria-pressed={activeTab === 'academic'}
           onClick={() => setActiveTab('academic')}
         >
           <AppIcon name="graduationCap" className="core-space--margin-end-1" aria-hidden="true" />
@@ -173,6 +174,7 @@ export const StudentProfileView: React.FC = () => {
         <button
           type="button"
           className={`stu-filter-pill ${activeTab === 'performance' ? 'stu-filter-pill--active' : ''}`}
+          aria-pressed={activeTab === 'performance'}
           onClick={() => setActiveTab('performance')}
         >
           <AppIcon name="chartUp" className="core-space--margin-end-1" aria-hidden="true" />
@@ -292,7 +294,7 @@ export const StudentProfileView: React.FC = () => {
                         {item.percentage}% ({item.is_passed ? 'Passed' : 'Failed'})
                       </span>
                       <Link
-                        to="/student/attempts"
+                        to={`/student/attempts/${item.id}/result`}
                         className="stu-section-head__link"
                         style={{ fontSize: '0.75rem' }}
                       >

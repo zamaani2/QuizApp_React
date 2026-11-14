@@ -329,6 +329,7 @@ class Phase5StudentApiTests(TestCase):
         payload_mcq = {
             "question_id": self.question_mcq.id,
             "choice_id": self.choice_correct.id,
+            "client_sequence": 1,
         }
         res_mcq = self.client.post(save_url, data=json.dumps(payload_mcq), content_type="application/json")
         self.assertEqual(res_mcq.status_code, 200)
@@ -338,6 +339,7 @@ class Phase5StudentApiTests(TestCase):
         payload_essay = {
             "question_id": self.question_essay.id,
             "text_answer": "A Patronus acts as a shield of positive energy that repels Dementors.",
+            "client_sequence": 2,
         }
         res_essay = self.client.post(save_url, data=json.dumps(payload_essay), content_type="application/json")
         self.assertEqual(res_essay.status_code, 200)
@@ -373,6 +375,7 @@ class Phase5StudentApiTests(TestCase):
             data=json.dumps({
                 "question_id": self.question_mcq.id,
                 "choice_id": self.choice_correct.id,
+                "client_sequence": 1,
             }),
             content_type="application/json",
         )
@@ -396,6 +399,44 @@ class Phase5StudentApiTests(TestCase):
         # Attempt in DB is locked as submitted
         attempt = QuizAttempt.objects.get(id=attempt_id)
         self.assertTrue(attempt.is_submitted)
+
+    def test_quiz_save_ignores_older_client_sequences(self):
+        self.client.login(username=self.user_student_a.username, password=self.password)
+        start_res = self.client.post(
+            reverse("quiz_app:api_student_quiz_start", kwargs={"quiz_id": self.quiz.id}),
+            content_type="application/json",
+        )
+        attempt_id = start_res.json()["attempt_id"]
+        save_url = reverse("quiz_app:api_student_quiz_save", kwargs={"attempt_id": attempt_id})
+
+        newer = self.client.post(
+            save_url,
+            data=json.dumps({
+                "question_id": self.question_essay.id,
+                "text_answer": "Newer answer",
+                "client_sequence": 2,
+            }),
+            content_type="application/json",
+        )
+        older = self.client.post(
+            save_url,
+            data=json.dumps({
+                "question_id": self.question_essay.id,
+                "text_answer": "Older answer",
+                "client_sequence": 1,
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(newer.status_code, 200)
+        self.assertEqual(older.status_code, 200)
+        self.assertTrue(older.json()["stale"])
+        self.assertEqual(older.json()["stored_response"]["text_answer"], "Newer answer")
+        response = QuizResponse.objects.get(
+            attempt_id=attempt_id, question=self.question_essay
+        )
+        self.assertEqual(response.text_answer, "Newer answer")
+        self.assertEqual(response.client_sequence, 2)
 
     def test_quiz_result_review_and_tenant_isolation(self):
         """
