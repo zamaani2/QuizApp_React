@@ -22,6 +22,11 @@ export interface QuizFilters {
 
 export interface ResultFilters {
   quiz_id?: number;
+  class_id?: number;
+  academic_year_id?: number;
+  term_id?: number;
+  attempt?: 'best' | 'latest' | 'all';
+  include_pending?: boolean;
   search?: string;
   page?: number;
 }
@@ -347,6 +352,15 @@ export async function fetchTeacherResults(
 ): Promise<PaginatedResponse<QuizResultItem>> {
   const params = new URLSearchParams();
   if (filters.quiz_id) params.set('quiz_id', String(filters.quiz_id));
+  if (filters.class_id) params.set('class_id', String(filters.class_id));
+  if (filters.academic_year_id) {
+    params.set('academic_year_id', String(filters.academic_year_id));
+  }
+  if (filters.term_id) params.set('term_id', String(filters.term_id));
+  if (filters.attempt) params.set('attempt', filters.attempt);
+  if (filters.include_pending !== undefined) {
+    params.set('include_pending', filters.include_pending ? '1' : '0');
+  }
   if (filters.search) params.set('search', filters.search);
   if (filters.page) params.set('page', String(filters.page));
 
@@ -355,8 +369,13 @@ export async function fetchTeacherResults(
   return apiClient<PaginatedResponse<QuizResultItem>>(url);
 }
 
-export async function fetchTeacherGradingQueue(): Promise<PaginatedResponse<GradingQueueItem>> {
-  return apiClient<PaginatedResponse<GradingQueueItem>>('/api/v1/teacher/grading/');
+export async function fetchTeacherGradingQueue(
+  includeGraded = false
+): Promise<PaginatedResponse<GradingQueueItem>> {
+  const url = includeGraded
+    ? '/api/v1/teacher/grading/?include_graded=1'
+    : '/api/v1/teacher/grading/';
+  return apiClient<PaginatedResponse<GradingQueueItem>>(url);
 }
 
 export async function fetchGradingAttempt(attemptId: number): Promise<GradingAttemptData> {
@@ -365,4 +384,63 @@ export async function fetchGradingAttempt(attemptId: number): Promise<GradingAtt
 
 export async function fetchTeacherResult(attemptId: number): Promise<TeacherResultDetail> {
   return apiClient<TeacherResultDetail>(`/api/v1/teacher/results/${attemptId}/`);
+}
+
+export interface TeacherResultsExportFilters {
+  quiz_id: number;
+  format: 'csv' | 'xlsx';
+  class_id?: number;
+  academic_year_id?: number;
+  term_id?: number;
+  attempt: 'best' | 'latest' | 'all';
+  include_pending: boolean;
+  include_percentage: boolean;
+}
+
+export interface TeacherResultsExportFile {
+  blob: Blob;
+  filename: string;
+  skippedPendingCount: number;
+}
+
+export async function exportTeacherResults(
+  filters: TeacherResultsExportFilters
+): Promise<TeacherResultsExportFile> {
+  const params = new URLSearchParams({
+    quiz_id: String(filters.quiz_id),
+    format: filters.format,
+    attempt: filters.attempt,
+    include_pending: filters.include_pending ? '1' : '0',
+    include_percentage: filters.include_percentage ? '1' : '0',
+  });
+  if (filters.class_id) params.set('class_id', String(filters.class_id));
+  if (filters.academic_year_id) {
+    params.set('academic_year_id', String(filters.academic_year_id));
+  }
+  if (filters.term_id) params.set('term_id', String(filters.term_id));
+
+  const response = await fetch(`/api/v1/teacher/results/export/?${params}`, {
+    method: 'GET',
+    credentials: 'same-origin',
+    headers: { Accept: 'text/csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
+  });
+  if (!response.ok) {
+    let message = response.statusText || `Export failed with status ${response.status}.`;
+    try {
+      const payload = await response.json() as { message?: string };
+      if (payload.message) message = payload.message;
+    } catch {
+      // Keep the HTTP error message when the server does not return JSON.
+    }
+    throw new Error(message);
+  }
+
+  const disposition = response.headers.get('Content-Disposition') || '';
+  const filename = disposition.match(/filename="([^"]+)"/i)?.[1] || `quiz_results.${filters.format}`;
+  const skippedPendingCount = Number(response.headers.get('X-Skipped-Pending-Count') || 0);
+  return {
+    blob: await response.blob(),
+    filename,
+    skippedPendingCount: Number.isFinite(skippedPendingCount) ? skippedPendingCount : 0,
+  };
 }

@@ -50,6 +50,19 @@ export const QuizResultDetail: React.FC = () => {
               <div><div className="core-type--small core-text--muted">Grading</div><strong>{result.is_graded ? 'Complete' : 'Pending'}</strong></div>
             </div>
           </div>
+          {result.section_scores && result.section_scores.length > 0 && (
+            <section className="core-card core-shadow--sm core-border--none core-space--margin-bottom-4" aria-label="Section scores">
+              <div className="core-card__body">
+                <h2 className="core-type--heading-5">Section scores</h2>
+                {result.section_scores.map((section) => (
+                  <div key={section.section_id} className="core-display-flex core-layout--justify-between core-border-bottom core-space--padding-y-2">
+                    <span>{section.title}</span>
+                    <strong>{section.score} / {section.total_marks}</strong>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
           {result.responses.map((response, index) => (
             <section className="core-card core-shadow--sm core-border--none core-space--margin-bottom-3" key={response.id}>
               <div className="core-card__header core-surface--white core-display-flex core-layout--justify-between">

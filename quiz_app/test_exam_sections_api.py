@@ -348,6 +348,16 @@ class ExamSectionsApiTests(TestCase):
             [{"section_id": section.pk, "title": "Pick one", "score": 1.0, "total_marks": 2}],
         )
 
+        self.client.force_login(self.teacher_user)
+        teacher_result = self.client.get(
+            reverse("quiz_app:api_teacher_result_detail", args=[attempt.pk])
+        )
+        self.assertEqual(teacher_result.status_code, 200, teacher_result.content)
+        self.assertEqual(
+            teacher_result.json()["section_scores"],
+            [{"section_id": section.pk, "title": "Pick one", "score": 1.0, "total_marks": 2}],
+        )
+
     def test_snapshot_is_immutable_and_take_payload_has_no_correct_answers(self):
         section = QuizSection.objects.create(
             quiz=self.quiz,

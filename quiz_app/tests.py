@@ -4331,6 +4331,22 @@ class SchoolScopedManagementEndpointTests(TestCase):
             for item in ordering_data["config"]["items"]
         ))
 
+        matching_pairs = attempt.configuration_snapshot["questions"][
+            str(matching.pk)
+        ]["config"]["pairs"]
+        partial_matching_save = self.client.post(
+            reverse("quiz_app:api_student_quiz_save", args=[attempt.pk]),
+            data=json.dumps({
+                "question_id": matching.pk,
+                "answer_data": {
+                    "matches": {
+                        f"left:{matching_pairs[0]['left_id']}":
+                            f"right:{matching_pairs[0]['right_id']}",
+                    },
+                },
+            }),
+            content_type="application/json",
+        )
         matching_save = self.client.post(
             reverse("quiz_app:api_student_quiz_save", args=[attempt.pk]),
             data=json.dumps({
@@ -4338,9 +4354,7 @@ class SchoolScopedManagementEndpointTests(TestCase):
                 "answer_data": {
                     "matches": {
                         f"left:{pair['left_id']}": f"right:{pair['right_id']}"
-                        for pair in attempt.configuration_snapshot["questions"][
-                            str(matching.pk)
-                        ]["config"]["pairs"]
+                        for pair in matching_pairs
                     }
                 },
             }),
@@ -4362,6 +4376,7 @@ class SchoolScopedManagementEndpointTests(TestCase):
             content_type="application/json",
         )
 
+        self.assertEqual(partial_matching_save.status_code, 200, partial_matching_save.content)
         self.assertEqual(matching_save.status_code, 200, matching_save.content)
         self.assertEqual(ordering_save.status_code, 200, ordering_save.content)
         attempt.submit()

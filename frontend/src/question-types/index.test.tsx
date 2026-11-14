@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import {
   getQuestionType,
@@ -65,6 +65,51 @@ describe('question type registry', () => {
       ...emptyResponse,
       answer_data: { matches: { 'left:a': 'right:x' } },
     })).toBe(true);
+  });
+
+  it('prevents using the same matching option for multiple prompts', () => {
+    const onChange = vi.fn();
+    const Player = getQuestionType('matching').Player;
+    const question: StudentTakeQuestion = {
+      id: 5,
+      order: 1,
+      question_type: 'matching',
+      question_text: 'Match each item',
+      marks: 2,
+      choices: [],
+      config: {
+        pairs: [
+          { id: 'left:a', text: 'A' },
+          { id: 'left:b', text: 'B' },
+        ],
+        right_options: [
+          { id: 'right:x', text: 'X' },
+          { id: 'right:y', text: 'Y' },
+        ],
+      },
+    };
+
+    const { rerender } = render(
+      <Player question={question} response={emptyResponse} onChange={onChange} />
+    );
+    fireEvent.change(screen.getByRole('combobox', { name: 'Match for A' }), {
+      target: { value: 'right:x' },
+    });
+
+    rerender(
+      <Player
+        question={question}
+        response={{
+          ...emptyResponse,
+          answer_data: { matches: { 'left:a': 'right:x' } },
+        }}
+        onChange={onChange}
+      />
+    );
+
+    const secondMatch = screen.getByRole('combobox', { name: 'Match for B' });
+    expect(within(secondMatch).getByRole('option', { name: 'X' })).toBeDisabled();
+    expect(within(secondMatch).getByRole('option', { name: 'Y' })).toBeEnabled();
   });
 
   it('renders fill-in-the-blank answers as separate labelled fields', () => {

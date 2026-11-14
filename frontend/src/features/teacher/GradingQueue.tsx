@@ -10,19 +10,20 @@ export const GradingQueue: React.FC = () => {
   const [items, setItems] = useState<GradingQueueItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [showCompleted, setShowCompleted] = useState(false);
 
   const loadQueue = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetchTeacherGradingQueue();
+      const response = await fetchTeacherGradingQueue(showCompleted);
       setItems(response.results);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load grading queue.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showCompleted]);
 
   useEffect(() => {
     loadQueue();
@@ -50,12 +51,16 @@ export const GradingQueue: React.FC = () => {
     },
     {
       id: 'ungraded',
-      header: 'Pending Responses',
+      header: showCompleted ? 'Grading status' : 'Pending Responses',
       sortable: true,
       align: 'center',
       accessor: (row) => (
-        <span className="core-badge core-surface--warning-subtle core-text--warning-emphasis core-border">
-          {row.ungraded_responses_count} response{row.ungraded_responses_count === 1 ? '' : 's'}
+        <span className={`core-badge core-border ${row.is_graded
+          ? 'core-surface--success-subtle core-text--success-emphasis'
+          : 'core-surface--warning-subtle core-text--warning-emphasis'}`}>
+          {row.is_graded
+            ? 'All graded'
+            : `${row.ungraded_responses_count} response${row.ungraded_responses_count === 1 ? '' : 's'}`}
         </span>
       ),
     },
@@ -74,7 +79,7 @@ export const GradingQueue: React.FC = () => {
       align: 'center',
       accessor: (row) => (
         <Link to={`/teacher/grading/${row.id}`} className="core-button core-button--sm core-button--primary core-space--padding-y-0 core-space--padding-x-2">
-          Grade &rarr;
+          {row.is_graded ? 'Edit grade' : 'Grade'} &rarr;
         </Link>
       ),
     },
@@ -84,12 +89,24 @@ export const GradingQueue: React.FC = () => {
     <div className="assessment-page core-container core-space--padding-y-4" data-testid="teacher-grading-queue">
       <div className="core-display-flex core-layout--wrap core-layout--justify-between core-layout--align-center core-space--margin-bottom-4 core-layout--gap-3">
         <div>
-          <h2 className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-bottom-1">Manual Grading Queue</h2>
+          <h2 className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-bottom-1">
+            {showCompleted ? 'Completed Manual Grades' : 'Manual Grading Queue'}
+          </h2>
           <p className="core-text--muted core-space--margin-bottom-0">
-            Submitted answers that need instructor evaluation
+            {showCompleted
+              ? 'Reopen a completed submission to adjust marks or feedback.'
+              : 'Submitted answers that need instructor evaluation'}
           </p>
         </div>
         <div className="core-display-flex core-layout--gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setShowCompleted((current) => !current)}
+            disabled={loading}
+          >
+            {showCompleted ? 'Show pending' : 'Show completed'}
+          </Button>
           <Button variant="secondary" size="sm" onClick={loadQueue} disabled={loading}>
             Refresh
           </Button>
@@ -107,7 +124,9 @@ export const GradingQueue: React.FC = () => {
         <div className="core-grid__span-12 core-grid__span-sm-6">
           <div className="core-card core-shadow--sm core-border--none core-border--start core-border--warning core-border--width-4">
             <div className="core-card__body">
-              <div className="core-text--muted core-type--small core-text--uppercase core-type--weight-bold">Attempts to Grade</div>
+              <div className="core-text--muted core-type--small core-text--uppercase core-type--weight-bold">
+                {showCompleted ? 'Completed Attempts' : 'Attempts to Grade'}
+              </div>
               <div className="core-type--heading-3 core-type--weight-bold core-text--dark core-space--margin-top-2 core-space--margin-bottom-0">{items.length}</div>
             </div>
           </div>
@@ -131,8 +150,10 @@ export const GradingQueue: React.FC = () => {
             loading={loading}
             searchable={true}
             searchPlaceholder="Search by student name or quiz title..."
-            emptyTitle="All Caught Up!"
-            emptyDescription="There are currently no student responses awaiting manual evaluation."
+            emptyTitle={showCompleted ? 'No completed grades yet' : 'All Caught Up!'}
+            emptyDescription={showCompleted
+              ? 'Completed submissions with manual grades will appear here.'
+              : 'There are currently no student responses awaiting manual evaluation.'}
           />
         </div>
       </div>

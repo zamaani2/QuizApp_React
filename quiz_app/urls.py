@@ -63,6 +63,7 @@ from .api_views import (
     teacher_assignments_lookups_api_view,
     teacher_assignment_class_subjects_api_view,
 )
+from .results_export_api import teacher_results_export_api_view
 from .directory_api_views import (
     students_collection_api_view,
     teachers_collection_api_view,
@@ -553,6 +554,7 @@ urlpatterns = [
     path("api/v1/teacher/quizzes/<int:quiz_id>/assignments/bulk-delete/", teacher_quiz_assignment_bulk_delete_api_view, name="api_teacher_quiz_assignment_bulk_delete"),
     path("api/v1/teacher/quizzes/<int:quiz_id>/assignments/<int:class_id>/", teacher_quiz_assignment_delete_api_view, name="api_teacher_quiz_assignment_delete"),
     path("api/v1/teacher/results/", teacher_results_api_view, name="api_teacher_results"),
+    path("api/v1/teacher/results/export/", teacher_results_export_api_view, name="api_teacher_results_export"),
     path("api/v1/teacher/results/<int:attempt_id>/", teacher_result_detail_api_view, name="api_teacher_result_detail"),
     path("api/v1/teacher/grading/", teacher_grading_api_view, name="api_teacher_grading"),
     path("api/v1/teacher/grading/<int:attempt_id>/", teacher_grading_detail_write_api_view, name="api_teacher_grading_detail"),

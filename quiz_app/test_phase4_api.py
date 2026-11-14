@@ -357,12 +357,16 @@ class Phase4ApiTests(TestCase):
         self.client.force_login(self.teacher_a1_user)
 
         # Results endpoint
-        res_response = self.client.get(reverse("quiz_app:api_teacher_results"))
+        res_response = self.client.get(
+            reverse("quiz_app:api_teacher_results"),
+            {"attempt": "all", "include_pending": "1"},
+        )
         self.assertEqual(res_response.status_code, 200)
         res_data = res_response.json()
-        self.assertEqual(res_data["count"], 2)
+        self.assertEqual(res_data["count"], 1)
         students = [r["student_name"] for r in res_data["results"]]
         self.assertIn("Student Alpha 1", students)
+        self.assertEqual(res_data["results"][0]["id"], self.attempt_graded.pk)
 
         # Grading queue endpoint
         grade_response = self.client.get(reverse("quiz_app:api_teacher_grading"))
@@ -498,6 +502,26 @@ class Phase4ApiTests(TestCase):
         self.assertTrue(attempt.is_graded)
         queue = self.client.get(reverse("quiz_app:api_teacher_grading")).json()
         self.assertNotIn(attempt.pk, {row["id"] for row in queue["results"]})
+        completed_queue = self.client.get(
+            reverse("quiz_app:api_teacher_grading"),
+            {"include_graded": "1"},
+        )
+        self.assertEqual(completed_queue.status_code, 200)
+        completed_attempt = next(
+            row for row in completed_queue.json()["results"] if row["id"] == attempt.pk
+        )
+        self.assertTrue(completed_attempt["is_graded"])
+        self.assertEqual(completed_attempt["ungraded_responses_count"], 0)
+
+        regrade_response = self.client.post(
+            reverse("quiz_app:api_teacher_response_grade", args=[matching_response.pk]),
+            data=json.dumps({"marks_awarded": 4, "grading_notes": "Adjusted after review"}),
+            content_type="application/json",
+        )
+        self.assertEqual(regrade_response.status_code, 200, regrade_response.content)
+        matching_response.refresh_from_db()
+        self.assertEqual(matching_response.marks_awarded, 4)
+        self.assertEqual(matching_response.grading_notes, "Adjusted after review")
 
     def test_teacher_grading_forbidden_for_student(self):
         self.client.force_login(self.student_a1_user)

@@ -242,7 +242,18 @@ const MatchingPlayer: React.FC<QuestionTypePlayerProps> = ({ question, response,
               <option value="">Select a match</option>
               {options.map((option) => {
                 const right = option as { id: string; text: string };
-                return <option key={right.id} value={right.id}>{right.text}</option>;
+                const usedByAnotherPair = Object.entries(matches).some(
+                  ([leftId, rightId]) => leftId !== item.id && rightId === right.id
+                );
+                return (
+                  <option
+                    key={right.id}
+                    value={right.id}
+                    disabled={usedByAnotherPair}
+                  >
+                    {right.text}
+                  </option>
+                );
               })}
             </select>
           </div>

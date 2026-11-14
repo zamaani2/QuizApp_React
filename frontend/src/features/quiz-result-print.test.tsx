@@ -76,6 +76,19 @@ describe('Quiz result print reports', () => {
         is_passed: true,
         started_at: null,
         submitted_at: null,
+        school_info: {
+          name: 'North School',
+          address: '',
+          phone_number: '',
+          email: '',
+          logo_url: '/school-logo.png',
+        },
+        section_scores: [{
+          section_id: 3,
+          title: 'Cell biology',
+          score: 6,
+          total_marks: 8,
+        }],
         allow_review: true,
         show_correct_answers: false,
         questions: [{
@@ -93,7 +106,7 @@ describe('Quiz result print reports', () => {
       }),
     });
 
-    render(
+    const { container } = render(
       <MemoryRouter initialEntries={['/student/attempts/24/result/print']}>
         <Routes>
           <Route path="/student/attempts/:id/result/print" element={<StudentQuizResultPrint />} />
@@ -102,6 +115,11 @@ describe('Quiz result print reports', () => {
     );
 
     await waitFor(() => expect(screen.getByText('History assessment')).toBeInTheDocument());
+    expect(container.querySelector('.quiz-print__report--student')).toBeInTheDocument();
+    expect(container.querySelectorAll('.quiz-print__school-logo')).toHaveLength(2);
+    expect(screen.getByRole('heading', { name: 'Result summary' })).toBeInTheDocument();
+    expect(screen.getByText('Cell biology')).toBeInTheDocument();
+    expect(screen.getByText('6 / 8')).toBeInTheDocument();
     expect(screen.getByText('A student answer')).toBeInTheDocument();
     expect(screen.queryByText('Private answer key')).not.toBeInTheDocument();
     expect(screen.queryByText('Private explanation')).not.toBeInTheDocument();

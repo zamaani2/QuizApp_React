@@ -103,7 +103,9 @@ export const GradingAttempt: React.FC = () => {
             </div>
           </div>
           <div className="core-card__footer core-surface--white core-text--end">
-            <Button onClick={() => void submitGrade(response.id)} loading={savingId === response.id}>Save grade</Button>
+            <Button onClick={() => void submitGrade(response.id)} loading={savingId === response.id}>
+              {response.is_graded ? 'Update grade' : 'Save grade'}
+            </Button>
           </div>
         </section>
       )) : <Alert variant="info">There are no responses requiring manual grading in this submission.</Alert>)}

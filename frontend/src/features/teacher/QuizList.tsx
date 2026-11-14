@@ -6,6 +6,7 @@ import { Alert } from '../../components/common/Alert';
 import { Button } from '../../components/common/Button';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
+import '../../components/table/DataTable.css';
 
 function formatClasses(classes?: { id: number; name: string }[]): string {
   if (!classes || classes.length === 0) return 'No classes';
@@ -36,9 +37,6 @@ export const QuizList: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // Row menu state
-  const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
-
   // Delete modal state
   const [deleteQuizItem, setDeleteQuizItem] = useState<QuizListItem | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -63,7 +61,6 @@ export const QuizList: React.FC = () => {
   }, [loadQuizzes]);
 
   const handleStatusChange = async (quizId: number, nextStatus: string) => {
-    setActiveMenuId(null);
     setError(null);
     try {
       await updateQuizStatus(quizId, nextStatus);
@@ -149,7 +146,6 @@ export const QuizList: React.FC = () => {
               } core-text--capitalize`}
               onClick={() => {
                 setStatusFilter(status);
-                setActiveMenuId(null);
               }}
             >
               {status === 'all' ? 'All' : status.charAt(0).toUpperCase() + status.slice(1)}
@@ -191,24 +187,61 @@ export const QuizList: React.FC = () => {
       ) : (
         <>
           {/* Desktop Table View */}
-          <div className="core-card core-shadow--sm core-border--none core-display-none core-display-md-block core-space--margin-bottom-4">
+          <div className="core-card core-shadow--sm core-border--none core-space--margin-bottom-4">
             <div className="core-card__body core-space--padding-0">
               <div className="data-table-container">
                 <div className="data-table__viewport">
-                  <table className="data-table__table">
+                  <table className="data-table__table" style={{ minWidth: '1000px' }} aria-label="Quiz catalog">
                     <thead>
                       <tr>
+                        <th scope="col" style={{ textAlign: 'center', width: '300px' }}>Actions</th>
                         <th scope="col" style={{ textAlign: 'left' }}>Quiz Title & Subject</th>
                         <th scope="col" style={{ textAlign: 'center' }}>Status</th>
                         <th scope="col" style={{ textAlign: 'center' }}>Questions</th>
                         <th scope="col" style={{ textAlign: 'left' }}>Assigned Classes</th>
                         <th scope="col" style={{ textAlign: 'left' }}>Schedule Summary</th>
-                        <th scope="col" style={{ textAlign: 'center' }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredQuizzes.map((quiz) => (
                         <tr key={quiz.id}>
+                          <td style={{ textAlign: 'center', minWidth: '300px' }}>
+                            <div className="core-display-flex core-layout--justify-center core-layout--wrap core-layout--gap-1">
+                              <Link
+                                to={`/teacher/quizzes/${quiz.id}`}
+                                className="core-button core-button--sm core-button--primary"
+                              >
+                                Open
+                              </Link>
+                              <Link
+                                to={`/teacher/quizzes/${quiz.id}/settings`}
+                                className="core-button core-button--sm core-button--outline-secondary"
+                              >
+                                Settings
+                              </Link>
+                              <Button
+                                size="sm"
+                                variant="outline-secondary"
+                                aria-label={`${quiz.status === 'archived' ? 'Unarchive' : 'Archive'} ${quiz.title}`}
+                                onClick={() =>
+                                  handleStatusChange(
+                                    quiz.id,
+                                    quiz.status === 'archived' ? 'draft' : 'archived'
+                                  )
+                                }
+                              >
+                                {quiz.status === 'archived' ? 'Unarchive' : 'Archive'}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline-danger"
+                                aria-label={`Delete ${quiz.title}`}
+                                onClick={() => setDeleteQuizItem(quiz)}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </td>
                           <td>
                             <div>
                               <Link
@@ -252,191 +285,12 @@ export const QuizList: React.FC = () => {
                               {formatSchedule(quiz.available_from, quiz.available_until)}
                             </span>
                           </td>
-                          <td style={{ textAlign: 'center' }}>
-                            <div className="core-dropdown" style={{ position: 'relative', display: 'inline-block' }}>
-                              <Button
-                                size="sm"
-                                variant="outline-secondary"
-                                aria-label={`Actions for ${quiz.title}`}
-                                onClick={() =>
-                                  setActiveMenuId(activeMenuId === quiz.id ? null : quiz.id)
-                                }
-                              >
-                                Actions ▾
-                              </Button>
-                              {activeMenuId === quiz.id && (
-                                <div
-                                  className="core-card core-shadow--md core-border core-surface--white"
-                                  style={{
-                                    position: 'absolute',
-                                    right: 0,
-                                    top: '100%',
-                                    minWidth: '150px',
-                                    zIndex: 50,
-                                    padding: '0.25rem 0',
-                                  }}
-                                >
-                                  <Link
-                                    to={`/teacher/quizzes/${quiz.id}`}
-                                    className="core-dropdown__item core-display-block core-space--padding-x-3 core-space--padding-y-2 core-text--dark core-text--decoration-none core-type--small"
-                                    onClick={() => setActiveMenuId(null)}
-                                  >
-                                    Open
-                                  </Link>
-                                  <Link
-                                    to={`/teacher/quizzes/${quiz.id}/settings`}
-                                    className="core-dropdown__item core-display-block core-space--padding-x-3 core-space--padding-y-2 core-text--dark core-text--decoration-none core-type--small"
-                                    onClick={() => setActiveMenuId(null)}
-                                  >
-                                    Settings
-                                  </Link>
-                                  <button
-                                    type="button"
-                                    className="core-dropdown__item core-display-block core-width--100 core-space--padding-x-3 core-space--padding-y-2 core-text--start core-border--none core-surface--transparent core-text--dark core-type--small core-cursor--pointer"
-                                    onClick={() =>
-                                      handleStatusChange(
-                                        quiz.id,
-                                        quiz.status === 'archived' ? 'draft' : 'archived'
-                                      )
-                                    }
-                                  >
-                                    {quiz.status === 'archived' ? 'Unarchive' : 'Archive'}
-                                  </button>
-                                  <div className="core-border--top core-space--margin-y-1" />
-                                  <button
-                                    type="button"
-                                    className="core-dropdown__item core-display-block core-width--100 core-space--padding-x-3 core-space--padding-y-2 core-text--start core-border--none core-surface--transparent core-text--danger core-type--small core-cursor--pointer"
-                                    onClick={() => {
-                                      setActiveMenuId(null);
-                                      setDeleteQuizItem(quiz);
-                                    }}
-                                  >
-                                    Delete
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* Mobile Cards View */}
-          <div className="core-display-block core-display-md-none core-space--margin-bottom-4">
-            <div className="core-display-flex core-layout--column core-layout--gap-3">
-              {filteredQuizzes.map((quiz) => (
-                <div key={quiz.id} className="core-card core-shadow--sm core-border--none">
-                  <div className="core-card__body">
-                    <div className="core-display-flex core-layout--justify-between core-layout--align-start core-space--margin-bottom-2">
-                      <div>
-                        <Link
-                          to={`/teacher/quizzes/${quiz.id}`}
-                          className="core-type--weight-bold core-type--heading-5 core-text--dark core-text--decoration-none"
-                        >
-                          {quiz.title}
-                        </Link>
-                        <div className="core-type--small core-text--muted">{quiz.subject_name}</div>
-                      </div>
-                      <span
-                        className={`core-badge ${
-                          quiz.status === 'published'
-                            ? 'core-surface--success'
-                            : quiz.status === 'draft'
-                            ? 'core-surface--warning core-text--dark'
-                            : 'core-surface--secondary'
-                        }`}
-                      >
-                        {quiz.status.toUpperCase()}
-                      </span>
-                    </div>
-
-                    <div className="core-grid core-grid--gap-2 core-type--small core-space--margin-bottom-3 core-surface--light core-space--padding-2 core-radius">
-                      <div className="core-grid__span-6">
-                        <span className="core-text--muted">Questions: </span>
-                        <span className="core-type--weight-semibold">{quiz.total_questions} ({quiz.total_marks} marks)</span>
-                      </div>
-                      <div className="core-grid__span-6">
-                        <span className="core-text--muted">Classes: </span>
-                        <span>{formatClasses(quiz.classes)}</span>
-                      </div>
-                      <div className="core-grid__span-12">
-                        <span className="core-text--muted">Schedule: </span>
-                        <span>{formatSchedule(quiz.available_from, quiz.available_until)}</span>
-                      </div>
-                    </div>
-
-                    <div className="core-display-flex core-layout--justify-end">
-                      <div className="core-dropdown" style={{ position: 'relative' }}>
-                        <Button
-                          size="sm"
-                          variant="outline-secondary"
-                          aria-label={`Actions for ${quiz.title}`}
-                          aria-expanded={activeMenuId === quiz.id}
-                          onClick={() => setActiveMenuId(activeMenuId === quiz.id ? null : quiz.id)}
-                        >
-                          ⋮ Actions
-                        </Button>
-                        {activeMenuId === quiz.id && (
-                          <div
-                            className="core-card core-shadow--md core-border core-surface--white"
-                            style={{
-                              position: 'absolute',
-                              right: 0,
-                              top: '100%',
-                              minWidth: '150px',
-                              zIndex: 50,
-                              padding: '0.25rem 0',
-                            }}
-                          >
-                            <Link
-                              to={`/teacher/quizzes/${quiz.id}`}
-                              className="core-dropdown__item core-display-block core-space--padding-x-3 core-space--padding-y-2 core-text--dark core-text--decoration-none core-type--small"
-                              onClick={() => setActiveMenuId(null)}
-                            >
-                              Open
-                            </Link>
-                            <Link
-                              to={`/teacher/quizzes/${quiz.id}/settings`}
-                              className="core-dropdown__item core-display-block core-space--padding-x-3 core-space--padding-y-2 core-text--dark core-text--decoration-none core-type--small"
-                              onClick={() => setActiveMenuId(null)}
-                            >
-                              Settings
-                            </Link>
-                            <button
-                              type="button"
-                              className="core-dropdown__item core-display-block core-width--100 core-space--padding-x-3 core-space--padding-y-2 core-text--start core-border--none core-surface--transparent core-text--dark core-type--small core-cursor--pointer"
-                              onClick={() =>
-                                handleStatusChange(
-                                  quiz.id,
-                                  quiz.status === 'archived' ? 'draft' : 'archived'
-                                )
-                              }
-                            >
-                              {quiz.status === 'archived' ? 'Unarchive' : 'Archive'}
-                            </button>
-                            <div className="core-border--top core-space--margin-y-1" />
-                            <button
-                              type="button"
-                              className="core-dropdown__item core-display-block core-width--100 core-space--padding-x-3 core-space--padding-y-2 core-text--start core-border--none core-surface--transparent core-text--danger core-type--small core-cursor--pointer"
-                              onClick={() => {
-                                setActiveMenuId(null);
-                                setDeleteQuizItem(quiz);
-                              }}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
         </>

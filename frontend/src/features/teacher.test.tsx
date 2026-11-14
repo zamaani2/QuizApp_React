@@ -115,11 +115,23 @@ describe('Phase 4 Teacher Feature Components', () => {
       });
 
       expect(screen.getByText(/Quiz Catalog/)).toBeInTheDocument();
-      expect(screen.getAllByText('Chemistry').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText(/Chemistry\s*·\s*2026\/2027/)).toBeInTheDocument();
       expect(screen.getAllByRole('button', { name: /^(All|Draft|Published|Archived)$/ })).toHaveLength(4);
       expect(screen.getByText('100 marks')).toBeInTheDocument();
       expect(screen.getAllByText('20').length).toBeGreaterThanOrEqual(1);
       expect(screen.getAllByText('PUBLISHED').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByRole('table', { name: 'Quiz catalog' })).toBeInTheDocument();
+      const quizRow = screen.getAllByRole('row')[1];
+      expect(within(quizRow).getByRole('link', { name: 'Open' })).toHaveAttribute(
+        'href',
+        '/teacher/quizzes/1'
+      );
+      expect(within(quizRow).getByRole('link', { name: 'Settings' })).toHaveAttribute(
+        'href',
+        '/teacher/quizzes/1/settings'
+      );
+      expect(within(quizRow).getByRole('button', { name: 'Archive Potions Midterm' })).toBeInTheDocument();
+      expect(within(quizRow).getByRole('button', { name: 'Delete Potions Midterm' })).toBeInTheDocument();
     });
 
     it('filters by search and status and shows an empty state', async () => {
@@ -703,6 +715,7 @@ describe('Phase 4 Teacher Feature Components', () => {
 
   describe('QuizResultsList Component', () => {
     it('renders attempts list with student scores and pass rate metrics', async () => {
+      const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
@@ -719,9 +732,11 @@ describe('Phase 4 Teacher Feature Components', () => {
               score: 80,
               total_marks: 100,
               percentage: 80,
+              attempt_number: 1,
               is_passed: true,
               needs_grading: false,
               is_graded: true,
+              has_pending_essay: false,
               started_at: '2026-11-05T09:00:00Z',
               submitted_at: '2026-11-05T09:40:00Z',
             },
@@ -735,9 +750,11 @@ describe('Phase 4 Teacher Feature Components', () => {
               score: 45,
               total_marks: 100,
               percentage: 45,
+              attempt_number: 1,
               is_passed: false,
               needs_grading: false,
               is_graded: true,
+              has_pending_essay: false,
               started_at: '2026-11-05T09:00:00Z',
               submitted_at: '2026-11-05T09:50:00Z',
             },
@@ -759,6 +776,118 @@ describe('Phase 4 Teacher Feature Components', () => {
       expect(screen.getByText('Passed')).toBeInTheDocument();
       expect(screen.getByText('Failed')).toBeInTheDocument();
       expect(screen.getByText('50%')).toBeInTheDocument(); // 1 of 2 passed = 50%
+      expect(screen.queryByRole('button', { name: /Print Selected|Print All Filtered/ })).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Print result for Ron Weasley' }));
+      expect(openSpy).toHaveBeenCalledWith(
+        '/app/teacher/results/print/?attempt_ids=1',
+        '_blank',
+        'noopener,noreferrer'
+      );
+      const formatSelect = await screen.findByRole('combobox', { name: 'Export format' });
+      expect(within(formatSelect).getByRole('option', { name: 'Print filtered results' })).toBeInTheDocument();
+      fireEvent.change(formatSelect, { target: { value: 'print' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Print filtered results' }));
+      expect(openSpy).toHaveBeenCalledWith(
+        '/app/teacher/results/print/?attempt_ids=1&attempt_ids=2',
+        '_blank',
+        'noopener,noreferrer'
+      );
+      expect(global.fetch).not.toHaveBeenCalledWith(
+        expect.stringContaining('/api/v1/teacher/results/export/'),
+        expect.anything()
+      );
+    });
+
+    it('requires a quiz selection and displays export API errors', async () => {
+      const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const path = String(input);
+        const body = path.includes('/api/v1/teacher/results/export/')
+          ? { message: 'Select one quiz to export.' }
+          : path.includes('/api/v1/teacher/quizzes/')
+            ? {
+                count: 1,
+                results: [{
+                  id: 5,
+                  title: 'Arithmancy Quiz',
+                  subject_name: 'Math',
+                  academic_year: '2026/2027',
+                  term: 'Term 1',
+                  status: 'published',
+                  duration_minutes: 30,
+                  total_questions: 1,
+                  total_marks: 10,
+                  total_attempts: 1,
+                  avg_score: 8,
+                  created_at: null,
+                }],
+              }
+            : path.includes('/api/v1/teacher/quiz-options/')
+              ? {
+                  classes: [{ id: 3, name: 'Class 3A' }],
+                  academic_years: [{ id: 7, name: '2026/2027' }],
+                  terms: [{ id: 8, academic_year_id: 7, name: 'Term 1' }],
+                  is_admin: false,
+                }
+              : { count: 0, results: [] };
+        const ok = !path.includes('/api/v1/teacher/results/export/');
+        return Promise.resolve({
+          ok,
+          status: ok ? 200 : 400,
+          statusText: ok ? 'OK' : 'Bad Request',
+          json: async () => body,
+        });
+      });
+      global.fetch = fetchMock as typeof fetch;
+
+      render(
+        <MemoryRouter>
+          <QuizResultsList />
+        </MemoryRouter>
+      );
+
+      const quizSelect = await screen.findByRole('combobox', { name: 'Export quiz' });
+      expect(screen.getByRole('button', { name: 'Download XLSX' })).toBeDisabled();
+      expect(screen.queryByText('Export preview')).not.toBeInTheDocument();
+      const filterDetails = screen.getByText('Filters and export').closest('details');
+      const filterSummary = screen.getByText('Filters and export').closest('summary');
+      expect(filterDetails).toHaveAttribute('open');
+      fireEvent.click(filterSummary as HTMLElement);
+      expect(filterDetails).not.toHaveAttribute('open');
+      fireEvent.click(filterSummary as HTMLElement);
+      expect(filterDetails).toHaveAttribute('open');
+      fireEvent.change(quizSelect, { target: { value: '5' } });
+      expect(quizSelect).toHaveValue('5');
+
+      fireEvent.change(screen.getByRole('combobox', { name: 'Export class' }), {
+        target: { value: '3' },
+      });
+      fireEvent.change(screen.getByRole('combobox', { name: 'Export academic year' }), {
+        target: { value: '7' },
+      });
+      fireEvent.change(screen.getByRole('combobox', { name: 'Export term' }), {
+        target: { value: '8' },
+      });
+      fireEvent.change(screen.getByRole('combobox', { name: 'Export attempt rule' }), {
+        target: { value: 'latest' },
+      });
+      fireEvent.click(screen.getByLabelText('Include pending grading'));
+      await waitFor(() => {
+        const tableRequest = fetchMock.mock.calls
+          .map(([input]) => String(input))
+          .filter((url) => url.startsWith('/api/v1/teacher/results/?'))
+          .pop();
+        const params = new URLSearchParams(tableRequest?.split('?')[1]);
+        expect(params.get('quiz_id')).toBe('5');
+        expect(params.get('class_id')).toBe('3');
+        expect(params.get('academic_year_id')).toBe('7');
+        expect(params.get('term_id')).toBe('8');
+        expect(params.get('attempt')).toBe('latest');
+        expect(params.get('include_pending')).toBe('1');
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Download XLSX' }));
+
+      expect(await screen.findByText('Select one quiz to export.')).toBeInTheDocument();
     });
   });
 
@@ -779,6 +908,7 @@ describe('Phase 4 Teacher Feature Components', () => {
               class_name: 'Class 4B',
               submitted_at: '2026-11-06T16:00:00Z',
               ungraded_responses_count: 2,
+              is_graded: false,
             },
           ],
         }),
@@ -802,18 +932,63 @@ describe('Phase 4 Teacher Feature Components', () => {
       );
     });
 
+    it('can reopen completed attempts to edit their grades', async () => {
+      const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const includeGraded = String(input).includes('include_graded=1');
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            count: 1,
+            results: [{
+              id: 89,
+              quiz_id: 12,
+              quiz_title: 'History of Magic Essay',
+              student_name: 'Harry Potter',
+              admission_number: 'STD-001',
+              class_name: 'Class 4B',
+              submitted_at: '2026-11-06T16:00:00Z',
+              ungraded_responses_count: 0,
+              is_graded: includeGraded,
+            }],
+          }),
+        });
+      });
+      global.fetch = fetchMock as typeof fetch;
+
+      render(
+        <BrowserRouter>
+          <GradingQueue />
+        </BrowserRouter>
+      );
+
+      await screen.findByText('Harry Potter');
+      fireEvent.click(screen.getByRole('button', { name: 'Show completed' }));
+
+      expect(await screen.findByRole('heading', { name: 'Completed Manual Grades' })).toBeInTheDocument();
+      expect(await screen.findByRole('link', { name: 'Edit grade →' })).toHaveAttribute(
+        'href',
+        '/teacher/grading/89'
+      );
+      expect(screen.getByText('All graded')).toBeInTheDocument();
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/v1/teacher/grading/?include_graded=1',
+        expect.any(Object)
+      );
+    });
+
     describe('GradingAttempt Component', () => {
-      it('saves an essay grade and its feedback through the response endpoint', async () => {
+      it('updates a completed manual grade and its feedback through the response endpoint', async () => {
         let response = {
           id: 501,
           question_text: 'Order the preparation steps.',
           question_type: 'ordering',
           question_marks: 5,
-          marks_awarded: 0,
+          marks_awarded: 2,
           text_answer: '',
           student_answer: ['Measure the ingredients', 'Mix them'],
-          grading_notes: '',
-          is_graded: false,
+          grading_notes: 'Initial feedback',
+          is_graded: true,
         };
         const fetchMock = vi.fn().mockImplementation((_url: string, options?: RequestInit) => {
           if (options?.method === 'POST') {
@@ -861,7 +1036,7 @@ describe('Phase 4 Teacher Feature Components', () => {
         fireEvent.change(screen.getByLabelText('Grading notes'), {
           target: { value: 'Good explanation.' },
         });
-        fireEvent.click(screen.getByRole('button', { name: 'Save grade' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Update grade' }));
 
         expect(screen.getByText('Ordering response 1')).toBeInTheDocument();
         expect(screen.getByText(/Measure the ingredients/)).toBeInTheDocument();

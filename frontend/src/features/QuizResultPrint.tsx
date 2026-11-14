@@ -18,6 +18,12 @@ interface QuizResultPrintReportProps {
   academicYear?: string;
   score: number;
   totalMarks: number;
+  sectionScores?: Array<{
+    section_id: number;
+    title: string;
+    score: number;
+    total_marks: number;
+  }>;
   percentage: number;
   submittedAt: string | null;
   durationMinutes?: number | null;
@@ -25,6 +31,7 @@ interface QuizResultPrintReportProps {
   wrongAnswers?: number;
   unanswered?: number;
   schoolInfo?: QuizResultSchoolInfo;
+  reportVariant: 'student' | 'teacher';
   statusLabel: string;
   statusVariant: 'success' | 'warning' | 'danger';
   returnTo: string;
@@ -44,6 +51,7 @@ const QuizResultPrintReport: React.FC<QuizResultPrintReportProps> = ({
   academicYear,
   score,
   totalMarks,
+  sectionScores,
   percentage,
   submittedAt,
   durationMinutes,
@@ -51,12 +59,17 @@ const QuizResultPrintReport: React.FC<QuizResultPrintReportProps> = ({
   wrongAnswers,
   unanswered,
   schoolInfo,
+  reportVariant,
   statusLabel,
   statusVariant,
   returnTo,
   showActions = true,
   children,
 }) => {
+  const schoolLogo = schoolInfo?.logo_url
+    ? <img className="quiz-print__school-logo" src={schoolInfo.logo_url} alt="" />
+    : <span className="quiz-print__brand-mark" aria-hidden="true">Q</span>;
+
   useEffect(() => {
     document.body.classList.add('quiz-result-printing');
     return () => document.body.classList.remove('quiz-result-printing');
@@ -73,12 +86,10 @@ const QuizResultPrintReport: React.FC<QuizResultPrintReportProps> = ({
         </div>
       )}
 
-      <article className="quiz-print__report">
+      <article className={`quiz-print__report quiz-print__report--${reportVariant}`}>
         <header className="quiz-print__header">
           <div className="quiz-print__school">
-            {schoolInfo?.logo_url
-              ? <img className="quiz-print__school-logo" src={schoolInfo.logo_url} alt="" />
-              : <span className="quiz-print__brand-mark" aria-hidden="true">Q</span>}
+            {schoolLogo}
             <div>
               <strong>{schoolInfo?.name || 'QuizApp'}</strong>
               {schoolInfo?.address && <span>{schoolInfo.address}</span>}
@@ -86,6 +97,7 @@ const QuizResultPrintReport: React.FC<QuizResultPrintReportProps> = ({
                 <span>{[schoolInfo.phone_number, schoolInfo.email].filter(Boolean).join(' · ')}</span>
               )}
             </div>
+            {schoolLogo}
           </div>
           <p className="quiz-print__eyebrow">QUIZ RESULT</p>
           <h1>{quizTitle}</h1>
@@ -101,6 +113,7 @@ const QuizResultPrintReport: React.FC<QuizResultPrintReportProps> = ({
         </section>
 
         <section className="quiz-print__summary" aria-label="Result summary">
+          <h2 className="quiz-print__summary-title">Result summary</h2>
           <div className="quiz-print__score">
             <span>Final score</span>
             <strong>{score} <small>/ {totalMarks}</small></strong>
@@ -117,6 +130,20 @@ const QuizResultPrintReport: React.FC<QuizResultPrintReportProps> = ({
           )}
           <span className={`quiz-print__status quiz-print__status--${statusVariant}`}>{statusLabel}</span>
         </section>
+
+        {sectionScores && sectionScores.length > 0 && (
+          <section className="quiz-print__section-scores" aria-label="Section scores">
+            <h2>Section scores</h2>
+            <div>
+              {sectionScores.map((section) => (
+                <div key={section.section_id}>
+                  <span>{section.title}</span>
+                  <strong>{section.score} / {section.total_marks}</strong>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {(correctAnswers !== undefined || wrongAnswers !== undefined || unanswered !== undefined) && (
           <section className="quiz-print__question-counts" aria-label="Answer summary">
@@ -151,6 +178,7 @@ const TeacherResultReport: React.FC<{
     academicYear={result.academic_year}
     score={result.score}
     totalMarks={result.total_marks}
+    sectionScores={result.section_scores}
     percentage={result.percentage}
     submittedAt={result.submitted_at}
     durationMinutes={result.duration_minutes}
@@ -158,6 +186,7 @@ const TeacherResultReport: React.FC<{
     wrongAnswers={result.wrong_answers}
     unanswered={result.unanswered}
     schoolInfo={result.school_info}
+    reportVariant="teacher"
     statusLabel={result.is_graded ? 'Grading complete' : 'Grading pending'}
     statusVariant={result.is_graded ? 'success' : 'warning'}
     returnTo={showActions ? `/teacher/results/${result.id}` : '/teacher/results'}
@@ -337,6 +366,7 @@ export const StudentQuizResultPrint: React.FC = () => {
       academicYear={result.academic_year}
       score={result.score}
       totalMarks={result.total_marks}
+      sectionScores={result.section_scores}
       percentage={result.percentage}
       submittedAt={result.submitted_at}
       durationMinutes={result.duration_minutes}
@@ -344,6 +374,7 @@ export const StudentQuizResultPrint: React.FC = () => {
       wrongAnswers={result.wrong_answers}
       unanswered={result.unanswered}
       schoolInfo={result.school_info}
+      reportVariant="student"
       statusLabel={result.is_passed ? 'Passed' : 'Needs improvement'}
       statusVariant={result.is_passed ? 'success' : 'danger'}
       returnTo={`/student/attempts/${result.attempt_id}/result`}

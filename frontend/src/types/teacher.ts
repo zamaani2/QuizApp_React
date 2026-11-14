@@ -140,9 +140,11 @@ export interface QuizResultItem {
   score: number;
   total_marks: number;
   percentage: number;
+  attempt_number: number;
   is_passed: boolean;
   needs_grading: boolean;
   is_graded: boolean;
+  has_pending_essay: boolean;
   started_at: string | null;
   submitted_at: string | null;
 }
@@ -156,6 +158,7 @@ export interface GradingQueueItem {
   class_name: string;
   submitted_at: string | null;
   ungraded_responses_count: number;
+  is_graded: boolean;
 }
 
 export interface QuizFormOptions {
@@ -237,6 +240,12 @@ export interface TeacherResultDetail {
   academic_year?: string;
   score: number;
   total_marks: number;
+  section_scores?: Array<{
+    section_id: number;
+    title: string;
+    score: number;
+    total_marks: number;
+  }>;
   percentage: number;
   submitted_at: string | null;
   duration_minutes?: number | null;

@@ -101,11 +101,11 @@ Assumptions to confirm:
 2. In an answer-N section all questions carry equal marks, so the section maximum is N times the marks per question.
 3. Shuffling happens only inside a section; sections keep their order.
 4. Quizzes without sections behave exactly as they do now.
-5. The export defaults to each student's best attempt, with latest and all attempts as options.
+5. The teacher selects one quiz for export. The export defaults to each student's best attempt for that quiz, with latest and all attempts as options.
 6. Attempts with ungraded essays are left out by default, with a warning of how many were skipped; a toggle includes them marked as pending.
 7. Percentage is left out unless switched on.
 
-Export columns: admission number, student name, class, subject, quiz title, one column per section, total score, total marks, attempt number, status, submitted time. Cells that start with `=`, `+`, `-` or `@` are neutralised in both formats so a student name cannot run as a formula, and the CSV is UTF-8 with a BOM so Excel shows names correctly.
+Export columns: admission number, student name, class, subject, quiz title, total score, total marks, attempt number, status, submitted time, and optional percentage. Exports are for one selected quiz and contain no section columns; section breakdowns appear on individual result slips. Cells that start with `=`, `+`, `-`, `@`, tab or CR are neutralised in both formats, and the CSV is UTF-8 with a BOM so Excel shows names correctly.
 
 ### 5.2 Phase 9a scope (revised recommendation)
 
@@ -458,20 +458,21 @@ Tests: tenant isolation, expired section rejects answers, locked section, choose
 ### Prompt 2: Results and export
 
 ```text
-Goal: per-section scores in results, and Excel or CSV export for teachers.
+Goal: show section breakdowns on individual result slips and let teachers export filtered, quiz-specific results to Excel or CSV. Spreadsheet exports contain overall quiz results only, with no section columns or section-based export.
 
 Read: views/quiz_results_management.py (quiz_results_export_view, _best_attempts_per_quiz_student), teacher_results_api_view in api_views.py, frontend QuizResultsList.tsx, QuizResultDetail.tsx, StudentQuizResult.tsx.
 
 Do:
-1. Show per-section scores in the teacher and student result views. No letter grade or band in section quizzes.
-2. New endpoint GET /api/v1/teacher/results/export/ with format=csv|xlsx, quiz_id, class_id, academic_year_id, term_id, attempt=best|latest|all, include_pending=0|1, include_percentage=0|1. Teachers see only their own quizzes; admins see their whole school; always school-scoped.
-3. Columns: admission number, student name, class, subject, quiz title, one column per section, total score, total marks, attempt number, status, submitted at.
-4. By default exclude attempts with ungraded essays and report how many were skipped (response header and UI warning). include_pending=1 includes them with status 'Pending grading'.
-5. Neutralise formula injection in both formats (prefix cells that start with = + - @ tab or CR). CSV is UTF-8 with BOM. Stream large exports.
-6. UI: an export control on QuizResultsList with format, attempt rule and pending toggle, loading and error states, and a pending count. Download through an authenticated fetch and blob so errors show.
-7. Retire the legacy /quizzes/results/export/ (redirect to the React results page).
+1. Show per-section scores on individual teacher and student result slips/views. Do not add letter grades or grade bands for section quizzes. Section breakdowns belong on result slips only; do not include section scores or section columns in CSV or XLSX exports.
+2. Add GET /api/v1/teacher/results/export/ with format=csv|xlsx, required quiz_id, optional class_id, academic_year_id and term_id filters, attempt=best|latest|all, include_pending=0|1, and include_percentage=0|1. Require a specific quiz selection; never export across all quizzes in one request. Teachers may export only their own quizzes and filter only by classes assigned to them; admins may export quizzes and filter by classes in their school. Build the class filter choices from these same role-scoped sets, and reject a submitted class_id outside the caller's scope. Enforce school scope for every filter and result.
+3. The default attempt rule is best: for the selected quiz, export one highest-scoring eligible attempt per student. Break score ties by choosing the most recently submitted attempt. Keep latest and all as explicit alternatives. Show the selected quiz and active filters before download.
+4. Spreadsheet columns: admission number, student name, class, subject, quiz title, total score, total marks, attempt number, status, submitted at, and percentage only when requested. Do not add section columns.
+5. By default exclude attempts with ungraded essays and report how many were skipped (response header and UI warning). include_pending=1 includes them with status 'Pending grading'. The best-attempt rule selects among fully graded attempts; when pending is included, include pending attempts only for students without a fully graded attempt for that quiz.
+6. Neutralise formula injection in both formats (prefix cells that start with =, +, -, @, tab or CR). CSV is UTF-8 with BOM. Stream large exports.
+7. UI: add export controls to QuizResultsList: require the teacher to select one quiz, then allow filters for class, academic year, term, attempt rule (default Best), format, pending attempts and percentage. The class filter lists only classes assigned to the teacher; admins see classes in their school. Show the selected quiz, active filters and pending/skipped count. Include loading and error states; download through an authenticated fetch and blob so API errors display in the UI.
+8. Retire the legacy /quizzes/results/export/ (redirect to the React results page).
 
-Tests: tenant and teacher scope, section columns, best/latest/all, pending exclusion, formula injection, CSV BOM, xlsx opens with openpyxl.
+Tests: tenant and teacher scope; quiz_id is required and cross-quiz export is refused; class filter choices and submitted class_id are limited to the teacher's assigned classes (admins are school-scoped); class/year/term filters; best selects one highest-scoring attempt per student and uses the latest submission for ties; latest/all behavior; pending exclusion and inclusion; no section columns in either format; formula injection; CSV BOM; XLSX opens with openpyxl.
 ```
 
 ## Phase 10: Project work

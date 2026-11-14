@@ -55,6 +55,11 @@ from .views.student_quiz_management import (
     _attempt_review_snapshot,
     get_client_ip,
 )
+from .results_export_api import (
+    annotate_pending_essays,
+    parse_boolean_filter,
+    select_result_attempts,
+)
 
 
 @ensure_csrf_cookie
@@ -1727,6 +1732,7 @@ def teacher_result_detail_api_view(request, attempt_id):
         "score": attempt.score,
         "total_marks": attempt.quiz.total_marks,
         "percentage": round(attempt.percentage, 1),
+        "section_scores": _attempt_section_scores(attempt),
         "submitted_at": attempt.submitted_at.isoformat() if attempt.submitted_at else None,
         "duration_minutes": attempt.get_duration_minutes(),
         "correct_answers": attempt.correct_answers,
@@ -1760,18 +1766,86 @@ def teacher_results_api_view(request):
         if not teacher:
             return JsonResponse({"code": "FORBIDDEN", "message": "Teacher profile not found."}, status=403)
         quizzes = Quiz.objects.filter(teacher=teacher, school=school)
+        class_ids = TeacherSubjectAssignment.objects.filter(
+            teacher=teacher,
+            school=school,
+            is_active=True,
+            class_assigned__school=school,
+            class_assigned__is_active=True,
+        ).values_list("class_assigned_id", flat=True)
+        classes = Class.objects.filter(school=school, is_active=True, pk__in=class_ids)
     else:
         quizzes = Quiz.objects.filter(school=school)
+        classes = Class.objects.filter(school=school, is_active=True)
+
+    try:
+        attempt_rule = request.GET.get("attempt", "best").lower()
+        include_pending = parse_boolean_filter(request, "include_pending", False)
+    except ValueError as exc:
+        return JsonResponse({"code": "VALIDATION_ERROR", "message": str(exc)}, status=400)
+    if attempt_rule not in ("best", "latest", "all"):
+        return JsonResponse(
+            {"code": "VALIDATION_ERROR", "message": "attempt must be best, latest, or all."},
+            status=400,
+        )
 
     attempts = QuizAttempt.objects.filter(
         quiz__in=quizzes,
         school=school,
+        quiz__school=school,
+        quiz__teacher__school=school,
+        student__school=school,
         is_submitted=True,
-    )
+    ).filter(Q(quiz__subject__isnull=True) | Q(quiz__subject__school=school))
 
-    quiz_id = request.GET.get("quiz_id")
+    quiz_id = request.GET.get("quiz_id", "").strip()
     if quiz_id:
+        if not quiz_id.isdecimal():
+            return JsonResponse(
+                {"code": "VALIDATION_ERROR", "message": "quiz_id must be a positive integer."},
+                status=400,
+            )
         attempts = attempts.filter(quiz_id=quiz_id)
+
+    class_id = request.GET.get("class_id", "").strip()
+    if class_id:
+        if not class_id.isdecimal() or not classes.filter(pk=int(class_id)).exists():
+            return JsonResponse(
+                {"code": "FORBIDDEN", "message": "The selected class is outside your access scope."},
+                status=403,
+            )
+        attempts = attempts.filter(
+            student__studentclass__assigned_class_id=int(class_id),
+            student__studentclass__is_active=True,
+            student__studentclass__school=school,
+            student__studentclass__assigned_class__school=school,
+        )
+
+    academic_year_id = request.GET.get("academic_year_id", "").strip()
+    if academic_year_id:
+        if not academic_year_id.isdecimal() or not AcademicYear.objects.filter(
+            pk=int(academic_year_id), school=school
+        ).exists():
+            return JsonResponse(
+                {"code": "NOT_FOUND", "message": "Academic year not found in this school."},
+                status=404,
+            )
+        attempts = attempts.filter(
+            academic_year_id=int(academic_year_id),
+            academic_year__school=school,
+        )
+
+    term_id = request.GET.get("term_id", "").strip()
+    if term_id:
+        terms = Term.objects.filter(school=school, academic_year__school=school)
+        if academic_year_id:
+            terms = terms.filter(academic_year_id=int(academic_year_id))
+        if not term_id.isdecimal() or not terms.filter(pk=int(term_id)).exists():
+            return JsonResponse(
+                {"code": "NOT_FOUND", "message": "Term not found in the selected school and year."},
+                status=404,
+            )
+        attempts = attempts.filter(term_id=int(term_id), term__school=school)
 
     search_query = request.GET.get("search", "").strip()
     if search_query:
@@ -1781,7 +1855,17 @@ def teacher_results_api_view(request):
             | Q(quiz__title__icontains=search_query)
         )
 
-    attempts = attempts.select_related("quiz", "student").order_by("-submitted_at")
+    attempts = attempts.filter(
+        Q(academic_year__isnull=True) | Q(academic_year__school=school),
+        Q(term__isnull=True)
+        | Q(term__school=school, term__academic_year__school=school),
+    ).distinct()
+    attempts = select_result_attempts(
+        annotate_pending_essays(attempts, school),
+        attempt_rule,
+        include_pending,
+    )
+    attempts = attempts.select_related("quiz", "student").order_by("-submitted_at", "-pk")
 
     results = []
     for a in attempts[:250]:
@@ -1797,9 +1881,11 @@ def teacher_results_api_view(request):
             "score": a.score,
             "total_marks": a.quiz.total_marks,
             "percentage": round(a.percentage, 1),
+            "attempt_number": a.attempt_number,
             "is_passed": is_passed,
             "needs_grading": a.needs_grading,
             "is_graded": a.is_graded,
+            "has_pending_essay": a.has_pending_essay,
             "started_at": a.started_at.isoformat() if a.started_at else None,
             "submitted_at": a.submitted_at.isoformat() if a.submitted_at else None,
         })
@@ -1813,7 +1899,7 @@ def teacher_results_api_view(request):
 @require_http_methods(["GET"])
 def teacher_grading_api_view(request):
     """
-    List submitted quiz attempts with responses requiring manual grading.
+    List submitted attempts with pending or completed manual grades.
     """
     user = request.user
     if not getattr(user, "is_authenticated", False):
@@ -1835,11 +1921,12 @@ def teacher_grading_api_view(request):
     else:
         quizzes = Quiz.objects.filter(school=school)
 
+    include_graded = request.GET.get("include_graded") == "1"
     attempts = QuizAttempt.objects.filter(
         quiz__in=quizzes,
         school=school,
         is_submitted=True,
-        is_graded=False,
+        is_graded=include_graded,
     ).select_related("quiz", "student").order_by("-submitted_at")
     from .services.assessment_management import get_manual_grading_responses
 
@@ -1859,8 +1946,12 @@ def teacher_grading_api_view(request):
     results = []
     for a in attempts.iterator(chunk_size=100):
         manual_responses = get_manual_grading_responses(a, school)
+        if not manual_responses:
+            continue
         ungraded_count = sum(not response.is_graded for response in manual_responses)
-        if not ungraded_count:
+        if include_graded and ungraded_count:
+            continue
+        if not include_graded and not ungraded_count:
             continue
         curr_cls = a.student.get_current_class() if hasattr(a.student, "get_current_class") else None
         results.append({
@@ -1872,6 +1963,7 @@ def teacher_grading_api_view(request):
             "class_name": curr_cls.name if curr_cls else "Unassigned",
             "submitted_at": a.submitted_at.isoformat() if a.submitted_at else None,
             "ungraded_responses_count": ungraded_count,
+            "is_graded": a.is_graded,
         })
         if len(results) >= 100:
             break
